@@ -1,0 +1,869 @@
+STOP. THIS IS A REAL PRODUCTION WEBSITE.
+
+You need to correct the current implementation because the application contains hardcoded/demo/synthetic resource data and simulated intelligence activity.
+
+THIS MUST BE REMOVED COMPLETELY.
+
+There is NO demo mode.
+There is NO seeded resource dataset.
+There is NO synthetic data.
+There are NO fake discovery events.
+There are NO placeholder tools.
+There are NO hardcoded offers.
+There are NO fabricated savings figures.
+
+The website must operate using REAL DATA discovered from REAL SOURCES.
+
+============================================================
+CORE REQUIREMENT
+============================================================
+
+FREE INTEL is a real continuously operating Free Resource Intelligence platform.
+
+Its primary job is to discover real free resources, free tiers, free credits, open-source projects, temporary promotions, GitHub repositories, MCP servers, agent skills, workflows, APIs, cloud offers, SaaS alternatives, developer resources, HR/recruiting resources, design resources, productivity resources and other legitimate cost-saving opportunities.
+
+You have the capability to access the web and scrape/analyze sources.
+
+USE THAT CAPABILITY.
+
+Do not build a simulated version of the product.
+
+Build the actual discovery system.
+
+============================================================
+ABSOLUTE DATA RULE
+============================================================
+
+There must NEVER be a fake resource in the production database.
+
+There must NEVER be:
+
+"Example Tool"
+"Demo Resource"
+"Sample Resource"
+"Mock Offer"
+"Test Resource"
+
+There must also be NO hardcoded real resources used merely to make the interface look populated.
+
+If the database contains zero resources:
+
+SHOW ZERO RESOURCES.
+
+If the system has discovered 17:
+
+SHOW 17.
+
+If it has discovered 1,247:
+
+SHOW 1,247.
+
+The UI must reflect reality.
+
+Do not optimize for making the website appear populated.
+
+Optimize for making the website truthful and useful.
+
+============================================================
+INITIAL DATA INGESTION
+============================================================
+
+The first time the application is initialized, it should perform REAL discovery.
+
+Do not wait for hypothetical future users.
+
+Immediately populate the database by discovering real resources from the internet.
+
+Prioritize:
+
+1. Official company websites
+2. Official pricing pages
+3. Official free-tier pages
+4. Official product announcements
+5. Official blogs
+6. Official changelogs
+7. GitHub
+8. GitHub releases
+9. GitHub repositories
+10. Official documentation
+11. Public RSS/Atom feeds
+12. Relevant public technology communities
+13. Other legitimate public sources
+
+Use multiple discovery strategies.
+
+Do not rely on a single website or search query.
+
+============================================================
+DISCOVERY MUST BE AGGRESSIVE
+============================================================
+
+The objective is extremely broad coverage.
+
+The system should continuously search for:
+
+FREE
+FREE TIER
+FREE CREDITS
+FREE API
+FREE USAGE
+FREE PLAN
+OPEN SOURCE
+SELF HOSTED
+NO COST
+COMMUNITY EDITION
+DEVELOPER PLAN
+STARTUP CREDITS
+CLOUD CREDITS
+PROMOTION
+LIMITED TIME
+FREE FOR DEVELOPERS
+FREE FOR STUDENTS
+FREE FOR PERSONAL USE
+FREE FOR COMMERCIAL USE
+OPEN SOURCE ALTERNATIVE
+FREE ALTERNATIVE
+FREE MCP
+MCP SERVER
+AGENT SKILL
+AGENT FRAMEWORK
+OPEN SOURCE AGENT
+FREE MODEL
+FREE LLM
+FREE INFERENCE
+FREE GPU
+FREE DATABASE
+FREE VECTOR DATABASE
+FREE HOSTING
+FREE OCR
+FREE SPEECH
+FREE IMAGE GENERATION
+FREE VIDEO GENERATION
+FREE SCRAPING
+FREE AUTOMATION
+FREE OBSERVABILITY
+FREE DEV TOOL
+FREE HR TOOL
+FREE RECRUITING TOOL
+FREE DESIGN TOOL
+FREE PRODUCTIVITY TOOL
+
+Do not limit discovery to AI.
+
+============================================================
+SOURCE DISCOVERY
+============================================================
+
+Do not create a tiny fixed source list and call it comprehensive.
+
+Build a SOURCE REGISTRY that can continuously expand.
+
+Every newly discovered legitimate source should be eligible to become a monitored source.
+
+Store:
+
+source_id
+name
+url
+domain
+source_type
+category
+discovery_method
+reliability
+crawl_frequency
+last_checked
+last_changed
+status
+
+The system should discover new sources from existing sources.
+
+Example:
+
+Official announcement
+→ discovers company
+→ discovers product
+→ discovers pricing page
+→ discovers documentation
+→ discovers GitHub repository
+→ discovers related products
+
+This creates a continuously expanding discovery graph.
+
+============================================================
+DAILY / CONTINUOUS DISCOVERY
+============================================================
+
+The website must not depend on manually entering resources.
+
+Build an automated discovery pipeline.
+
+Conceptually:
+
+DISCOVER
+→ FETCH
+→ EXTRACT
+→ NORMALIZE
+→ CLASSIFY
+→ DEDUPLICATE
+→ VERIFY
+→ SCORE
+→ STORE
+→ PUBLISH
+→ MONITOR
+
+Every stage must be real.
+
+============================================================
+REAL SOURCE EVIDENCE
+============================================================
+
+Every important claim must have source evidence.
+
+For each resource store:
+
+official_url
+pricing_url
+documentation_url
+announcement_url
+github_url
+source_urls
+
+And evidence:
+
+claim
+source
+retrieved_at
+evidence_text
+confidence
+
+Examples of claims:
+
+"Free tier includes 100,000 requests/month."
+
+"Commercial use allowed."
+
+"No credit card required."
+
+"Promotion expires September 30."
+
+"MIT licensed."
+
+These must be traceable to real sources.
+
+If the system cannot verify the claim:
+
+MARK IT UNVERIFIED.
+
+Do NOT guess.
+
+============================================================
+VERIFICATION
+============================================================
+
+A discovered resource should pass through:
+
+DISCOVERED
+ANALYZING
+VERIFYING
+VERIFIED
+PUBLISHED
+MONITORED
+
+If verification fails:
+
+UNVERIFIED
+
+If a previously verified resource changes:
+
+RECHECK REQUIRED
+
+If the offer disappears:
+
+EXPIRED
+
+Do not delete historical records.
+
+============================================================
+REAL-TIME / LIVE RADAR
+============================================================
+
+The current interface has a futuristic live radar.
+
+KEEP IT.
+
+But make it real.
+
+Every event displayed in the radar must come from an actual event generated by the discovery system.
+
+Examples:
+
+NEW RESOURCE DISCOVERED
+FREE TIER CHANGED
+PRICE CHANGE DETECTED
+GITHUB REPOSITORY DISCOVERED
+RESOURCE VERIFIED
+RESOURCE EXPIRED
+PROMOTION DETECTED
+LICENSE CHANGE DETECTED
+RESOURCE UPDATED
+
+Never fabricate timestamps or activity.
+
+If there has been no activity:
+
+SYSTEM IDLE
+
+Do not pretend something happened.
+
+============================================================
+COUNTERS
+============================================================
+
+All dashboard counters must be calculated from the real database.
+
+Examples:
+
+Resources discovered today
+Resources verified
+Active free offers
+Offers expiring soon
+GitHub repositories discovered
+Open-source resources
+Potential savings
+
+No hardcoded numbers.
+
+No fake numbers.
+
+No manually configured impressive statistics.
+
+============================================================
+NO FAKE CONTENT FOR VISUAL PURPOSES
+============================================================
+
+This is extremely important.
+
+Do NOT populate cards simply because the page looks empty.
+
+Do NOT add fake:
+
+"Today's hottest finds"
+
+Do NOT add fake:
+
+"Live discoveries"
+
+Do NOT add fake:
+
+"Potential savings"
+
+Do NOT add fake:
+
+"Trending resources"
+
+Do NOT add fake:
+
+"New this hour"
+
+The visual experience must reflect actual system state.
+
+If there are only 3 real verified resources, show 3.
+
+If there are 300, show 300.
+
+============================================================
+RESOURCE DATABASE
+============================================================
+
+Use the database as the source of truth.
+
+Resources must be dynamically loaded.
+
+Fields should include:
+
+name
+slug
+description
+resource_type
+category
+subcategory
+capabilities
+provider
+website
+pricing_url
+documentation_url
+github_url
+free_type
+free_allowance
+free_limits
+credit_card_required
+commercial_use
+personal_use
+license
+self_hostable
+infrastructure_cost
+expiration_date
+first_discovered
+last_verified
+verification_status
+free_score
+confidence_score
+estimated_value
+estimated_savings
+evidence
+status
+
+============================================================
+FREE SCORE
+============================================================
+
+Calculate Free Score from real attributes.
+
+Consider:
+
+free allowance
+permanence
+commercial eligibility
+credit-card requirement
+open-source status
+self-hosting availability
+infrastructure requirement
+quality
+documentation
+reliability
+limitations
+expiration risk
+
+Do not assign arbitrary scores.
+
+============================================================
+COST REALITY
+============================================================
+
+A resource being open source does NOT automatically mean the user's actual cost is $0.
+
+Calculate:
+
+SOFTWARE COST
++
+HOSTING
++
+INFRASTRUCTURE
++
+REQUIRED PAID SERVICES
+=
+REALISTIC COST
+
+Display this clearly.
+
+============================================================
+SAVE MONEY PAGE — FIX THIS NOW
+============================================================
+
+The current Save Money page has a serious UX/data problem.
+
+When the user enters:
+
+Claude
+
+the monthly spend field currently defaults to:
+
+$0
+
+This is WRONG.
+
+An unknown amount must never be represented as $0.
+
+The initial value must be EMPTY.
+
+For example:
+
+Current software:
+[ Claude ]
+
+Actual monthly spend:
+[ $________ ]
+
+The user must be able to enter their actual spend.
+
+============================================================
+PRODUCT RESOLUTION
+============================================================
+
+When the user types:
+
+Claude
+
+do not simply treat it as arbitrary text.
+
+Search the REAL resource/product database and, when necessary, use real web data to identify the product.
+
+Resolve:
+
+product
+provider
+product category
+pricing page
+current pricing
+pricing model
+plans
+last verified pricing
+
+Display:
+
+CLAUDE
+Current verified public pricing: [REAL DATA]
+Pricing source: [REAL SOURCE]
+Last verified: [REAL DATE]
+
+Then ask:
+
+WHAT DO YOU ACTUALLY SPEND?
+
+[ $________ ]
+
+This is the authoritative number for savings calculations.
+
+============================================================
+VERIFIED ESTIMATE OPTION
+============================================================
+
+If the user doesn't know their actual spending, provide:
+
+USE VERIFIED PUBLIC ESTIMATE
+
+If selected, use the actual verified pricing retrieved from the real source.
+
+Clearly label it:
+
+ESTIMATED FROM PUBLIC PRICING
+
+Never silently convert missing information to $0.
+
+============================================================
+SAVE MONEY CALCULATION
+============================================================
+
+Current spend:
+
+$500/month
+
+Replacement:
+
+$40/month
+
+Potential saving:
+
+$460/month
+
+Annual:
+
+$5,520/year
+
+These calculations must be dynamic.
+
+Never use:
+
+$0
+
+as a fallback for unknown cost.
+
+============================================================
+REPLACEMENT LOGIC
+============================================================
+
+Do not recommend unrelated resources as replacements.
+
+For example:
+
+A random MCP server must NOT be presented as a replacement for Claude.
+
+Distinguish:
+
+DIRECT ALTERNATIVE
+PARTIAL ALTERNATIVE
+COMPONENT
+INTEGRATION
+COMPLEMENT
+OPEN-SOURCE ALTERNATIVE
+SELF-HOSTED ALTERNATIVE
+
+Only legitimate alternatives should appear in:
+
+"Replace this"
+
+recommendations.
+
+============================================================
+FREE STACK BUILDER
+============================================================
+
+The Free Stack Builder must use REAL resources from the database.
+
+If the user asks:
+
+"Build an AI recruitment agent"
+
+the system should dynamically identify real:
+
+LLM
+Agent framework
+MCP
+Resume/document parser
+Database
+Vector database
+Workflow
+Hosting
+Monitoring
+
+Then construct a stack using verified resources.
+
+Do NOT maintain a hardcoded stack for this query.
+
+The same applies to every other capability.
+
+============================================================
+CAPABILITY SEARCH
+============================================================
+
+The platform must understand what the user wants to accomplish.
+
+Examples:
+
+"I need OCR."
+
+"I need a free CRM."
+
+"Build an AI recruiter."
+
+"Replace Zapier."
+
+"Host my website."
+
+"Build an MCP server."
+
+"Analyze PDFs."
+
+"Generate videos."
+
+"Run an LLM locally."
+
+Convert the request into capabilities.
+
+Then search the real database.
+
+============================================================
+GITHUB INTELLIGENCE
+============================================================
+
+Use GitHub aggressively as a real discovery source.
+
+Discover:
+
+repositories
+releases
+MCP servers
+agent frameworks
+agent skills
+automation
+workflow tools
+developer tools
+AI models
+AI infrastructure
+open-source SaaS alternatives
+OCR
+speech
+image
+video
+databases
+vector databases
+scraping
+HR
+recruiting
+productivity
+design
+
+Analyze real repository information:
+
+stars
+forks
+license
+last commit
+releases
+contributors
+README
+installation
+Docker
+documentation
+topics
+
+Do not rank solely on stars.
+
+============================================================
+EXPIRATION
+============================================================
+
+Temporary offers must be monitored.
+
+Track:
+
+FREE UNTIL
+LAST VERIFIED
+STATUS
+
+Automatically detect:
+
+ACTIVE
+EXPIRING SOON
+EXPIRED
+CHANGED
+UNVERIFIED
+
+Expired offers should no longer appear as active opportunities.
+
+============================================================
+USER SUBMISSIONS
+============================================================
+
+Users can submit:
+
+"Found this free tool."
+
+They provide the URL.
+
+The system then independently verifies it.
+
+Never trust the submission automatically.
+
+============================================================
+VISUAL EXPERIENCE
+============================================================
+
+KEEP THE EXISTING FUTURISTIC DESIGN DIRECTION.
+
+Do not simplify the design.
+
+The site should remain:
+
+dark
+neon
+futuristic
+high-motion
+interactive
+Gen-Z oriented
+immersive
+premium
+visually addictive
+
+Keep:
+
+animated grids
+particles
+holographic cards
+glass panels
+neon borders
+cursor interaction
+parallax
+animated counters
+typing effects
+system logs
+data streams
+smooth transitions
+glowing status indicators
+
+But the animation must represent REAL DATA.
+
+For example:
+
+A real discovery can animate into the radar.
+
+A real verification can trigger the verification animation.
+
+A real expired resource can trigger an expiration event.
+
+Do not animate fake activity.
+
+============================================================
+THE MOST IMPORTANT PRODUCT PRINCIPLE
+============================================================
+
+The website should NEVER choose:
+
+"Make it look populated."
+
+over:
+
+"Show the truth."
+
+If the database is empty, show the empty state.
+
+If the database has 10 real resources, show 10.
+
+If the discovery engine finds 10,000 legitimate resources, show 10,000.
+
+The system should become more populated naturally through real discovery.
+
+============================================================
+IMMEDIATE TASK
+============================================================
+
+Before making additional UI changes:
+
+1. Audit the entire codebase.
+2. Identify every hardcoded resource.
+3. Identify every synthetic/demo record.
+4. Identify every fake activity event.
+5. Identify every hardcoded statistic.
+6. Identify every hardcoded savings number.
+7. Identify every hardcoded Free Stack.
+8. Identify every hardcoded replacement.
+9. Remove all of them from production.
+10. Replace them with database/API-driven logic.
+11. Implement real source ingestion.
+12. Run the first real discovery process.
+13. Populate the database ONLY with resources discovered from real sources.
+14. Verify them.
+15. Make the UI consume that real data.
+
+Do not stop at identifying the problem.
+
+Actually implement the correction.
+
+============================================================
+FINAL ACCEPTANCE CRITERIA
+============================================================
+
+I should be able to:
+
+1. Open the website.
+2. See actual resources discovered from the internet.
+3. Open a resource.
+4. See its real source.
+5. See when it was last verified.
+6. See its actual free classification.
+7. See real limitations.
+8. See real expiration information when applicable.
+9. Search for a real capability.
+10. Get real resources.
+11. Build a Free Stack using real resources.
+12. Enter "Claude" into Save Money.
+13. Enter my actual monthly spend.
+14. Receive a calculation based on that actual spend.
+15. See real alternatives rather than unrelated components.
+16. See real discovery events.
+17. See real counters.
+18. See resources disappear from active listings when they expire.
+
+NO DEMO DATA.
+
+NO SYNTHETIC DATA.
+
+NO FAKE RESOURCES.
+
+NO FAKE ACTIVITY.
+
+NO FAKE SAVINGS.
+
+NO HARDCODED PRODUCTION INTELLIGENCE.
+
+REAL WEB DATA ONLY.

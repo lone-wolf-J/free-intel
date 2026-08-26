@@ -58,7 +58,7 @@ export default function Deals() {
       const params = new URLSearchParams();
       if (filter !== "all") params.set("type", filter);
       if (search.trim()) params.set("q", search.trim());
-      const res = await fetch(`http://127.0.0.1:8787/api/deals?${params}`);
+      const res = await fetch(`/api/deals?${params}`);
       const json = (await res.json()) as DealsResponse;
       setData(json);
       setLastRefresh(new Date());

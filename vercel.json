@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "installCommand": "npm install",
+  "functions": {
+    "api/index.ts": {
+      "includeFiles": [
+        "server/db/deals-seed.ts"
+      ]
+    }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.ts" }
+  ],
+  "env": {
+    "POSTGRES_URL": "@postgres-url",
+    "GITHUB_TOKEN": "@github-token",
+    "GEMINI_API_KEY": "@gemini-api-key"
+  }
+}
