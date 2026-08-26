@@ -4,9 +4,6 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "installCommand": "npm install",
-  "functions": {
-    "api/index.ts": {}
-  },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.ts" }
   ]
