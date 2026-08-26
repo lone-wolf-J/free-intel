@@ -1,0 +1,162 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --cyan: #00f0ff;
+  --violet: #a855f7;
+  --lime: #a3ff12;
+  --mx: 0.5;
+  --my: 0.5;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-void text-slate-200 font-display antialiased;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: rgba(0, 240, 255, 0.25);
+  color: #fff;
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-track {
+  background: #04060d;
+}
+::-webkit-scrollbar-thumb {
+  background: #1a2440;
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #26345c;
+}
+
+@layer components {
+  .glass {
+    background: linear-gradient(160deg, rgba(16, 24, 48, 0.72), rgba(8, 12, 26, 0.82));
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(90, 120, 200, 0.14);
+  }
+  .glass-bright {
+    background: linear-gradient(160deg, rgba(20, 30, 60, 0.78), rgba(10, 14, 30, 0.88));
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(0, 240, 255, 0.18);
+    box-shadow: 0 0 40px rgba(0, 240, 255, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+  .neon-text {
+    text-shadow: 0 0 18px rgba(0, 240, 255, 0.45), 0 0 60px rgba(0, 240, 255, 0.15);
+  }
+  .violet-text {
+    text-shadow: 0 0 18px rgba(168, 85, 247, 0.5);
+  }
+  .grad-text {
+    background: linear-gradient(92deg, #7df9ff 0%, #00f0ff 28%, #a855f7 68%, #d8b4fe 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .btn-neon {
+    @apply relative inline-flex items-center gap-2 px-5 py-3 font-mono text-[13px] font-bold uppercase tracking-[0.14em] transition-all duration-200;
+    color: var(--cyan);
+    border: 1px solid rgba(0, 240, 255, 0.4);
+    background: rgba(0, 240, 255, 0.05);
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  }
+  .btn-neon:hover {
+    background: rgba(0, 240, 255, 0.13);
+    box-shadow: 0 0 26px rgba(0, 240, 255, 0.3);
+    transform: translateY(-1px);
+  }
+  .btn-violet {
+    color: #e2ccff;
+    border-color: rgba(168, 85, 247, 0.45);
+    background: rgba(168, 85, 247, 0.07);
+  }
+  .btn-violet:hover {
+    background: rgba(168, 85, 247, 0.15);
+    box-shadow: 0 0 26px rgba(168, 85, 247, 0.3);
+  }
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-4 py-2 font-mono text-xs uppercase tracking-widest transition-all duration-200 text-slate-400 hover:text-cyan;
+    border: 1px solid rgba(120, 140, 200, 0.18);
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.12em];
+  }
+  .mono-label {
+    @apply font-mono text-[10px] uppercase tracking-[0.22em] text-slate-500;
+  }
+  .holo-card {
+    position: relative;
+    transform-style: preserve-3d;
+    transition: box-shadow 0.25s ease;
+  }
+  .holo-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    background:
+      radial-gradient(420px circle at calc(var(--mx) * 100%) calc(var(--my) * 100%),
+        rgba(0, 240, 255, 0.09), rgba(168, 85, 247, 0.05) 42%, transparent 65%);
+    z-index: 1;
+  }
+  .holo-card:hover::before {
+    opacity: 1;
+  }
+}
+
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(60, 90, 180, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(60, 90, 180, 0.07) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 20%, black 35%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 20%, black 35%, transparent 78%);
+}
+
+.dot-bg {
+  background-image: radial-gradient(rgba(90, 130, 230, 0.13) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
+}
+
+.scanline-el {
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 110px;
+  top: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient(to bottom, transparent, rgba(0, 240, 255, 0.035), transparent);
+  animation: scanlineY 11s linear infinite;
+}
+@keyframes scanlineY {
+  0% { transform: translateY(-120px); }
+  100% { transform: translateY(105vh); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html { scroll-behavior: auto; }
+}

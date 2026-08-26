@@ -1,0 +1,41 @@
+{
+  "name": "free-intel",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,magenta \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "tsx server/node-main.ts",
+    "dev:api:cf": "wrangler dev --port 8787",
+    "dev:web": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "db:reset": "node scripts/db-reset.mjs",
+    "preview": "npm run build && wrangler dev --port 8787",
+    "bootstrap": "tsx scripts/bootstrap.mts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.17",
+    "framer-motion": "^11.11.9",
+    "hono": "^4.6.10",
+    "lucide-react": "^0.453.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.27.0",
+    "tsx": "^4.23.12"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260825.1",
+    "@types/node": "^22.20.1",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.0",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "wrangler": "^4.126.0"
+  }
+}

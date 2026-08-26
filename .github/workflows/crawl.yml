@@ -1,0 +1,29 @@
+name: Discovery Crawl
+
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: "Scan kind"
+        default: "all"
+        type: choice
+        options: [all, rss, pricing, verify]
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger scan endpoint
+        env:
+          TARGET: ${{ secrets.INTEL_API_URL }}
+          SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          CODE=$(curl -s -o /tmp/resp.json -w "%{http_code}" -X POST \
+            -H "Content-Type: application/json" \
+            ${SECRET:+-H "Authorization: Bearer $SECRET"} \
+            -d '{"action":"batch"}' \
+            "$TARGET/api/scans/run")
+          echo "HTTP $CODE"; cat /tmp/resp.json; echo
+          if [ "$CODE" = "401" ] || [ "$CODE" = "500" ]; then exit 1; fi
