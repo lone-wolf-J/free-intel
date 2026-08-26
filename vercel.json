@@ -9,10 +9,5 @@
   },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.ts" }
-  ],
-  "env": {
-    "POSTGRES_URL": "@postgres-url",
-    "GITHUB_TOKEN": "@github-token",
-    "GEMINI_API_KEY": "@gemini-api-key"
-  }
+  ]
 }
