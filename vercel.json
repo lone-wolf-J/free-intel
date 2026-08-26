@@ -5,11 +5,7 @@
   "framework": "vite",
   "installCommand": "npm install",
   "functions": {
-    "api/index.ts": {
-      "includeFiles": [
-        "server/db/deals-seed.ts"
-      ]
-    }
+    "api/index.ts": {}
   },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.ts" }
