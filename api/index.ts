@@ -4,6 +4,22 @@ import { neon } from "@neondatabase/serverless";
 
 const sql = neon(process.env.POSTGRES_URL!);
 
+const BAD_CATEGORIES = new Set(["pricing", "directory", "ai-directory", "research", "newsletter", "news", "vendor-blog", "vendor blog", "comparison", "tutorial", "guide", "list", "roundup", "announcement"]);
+const BAD_URL_PATTERNS = [/reddit\.com/i, /arxiv\.org/i, /theguardian\.com/i, /medium\.com/i, /substack\.com/i, /twitter\.com/i, /x\.com/i, /linkedin\.com\/pulse/i, /hackernews\.com/i, /news\.ycombinator\.com/i, /\.pdf$/i];
+const BAD_NAME_PATTERNS = [/highlights/i, /self-promotion/i, /thread/i, /backs down/i, /expands access/i, /commitment to/i, /boom/i, /what will we/i, /comment/i, /show hn/i];
+function isTool(r: any): boolean {
+  if (r.resource_type === "article") return false;
+  const cat = (r.category || "").toLowerCase();
+  if (BAD_CATEGORIES.has(cat)) return false;
+  const url = (r.url || "").toLowerCase();
+  if (BAD_URL_PATTERNS.some(p => p.test(url))) return false;
+  const name = (r.name || "").toLowerCase();
+  if (BAD_NAME_PATTERNS.some(p => p.test(name))) return false;
+  return true;
+}
+async function unsafeRows(query: string): Promise<any[]> { return (await sql.unsafe(query)) as unknown as any[]; }
+const esc = (s: string) => s.replace(/'/g, "''");
+
 const app = new Hono();
 app.use("*", cors());
 
@@ -29,12 +45,11 @@ app.get("/api/resources", async (c) => {
 
   if (q) {
     const p = `%${q}%`;
-    rows = await sql.unsafe(`SELECT * FROM resources WHERE (name ILIKE '${p.replace(/'/g, "''")}' OR description ILIKE '${p.replace(/'/g, "''")}' OR tags::text ILIKE '${p.replace(/'/g, "''")}') ${articleFilter} ORDER BY free_score DESC LIMIT ${lim} OFFSET ${off}`);
-    countRows = await sql.unsafe(`SELECT COUNT(*) as n FROM resources WHERE (name ILIKE '${p.replace(/'/g, "''")}' OR description ILIKE '${p.replace(/'/g, "''")}' OR tags::text ILIKE '${p.replace(/'/g, "''")}') ${articleFilter}`);
+    rows = await unsafeRows(`SELECT * FROM resources WHERE (name ILIKE '${esc(p)}' OR description ILIKE '${esc(p)}' OR tags::text ILIKE '${esc(p)}') ${articleFilter} ORDER BY free_score DESC LIMIT ${lim} OFFSET ${off}`);
+    countRows = await unsafeRows(`SELECT COUNT(*) as n FROM resources WHERE (name ILIKE '${esc(p)}' OR description ILIKE '${esc(p)}' OR tags::text ILIKE '${esc(p)}') ${articleFilter}`);
   } else if (category && category !== "all") {
-    const c2 = category.replace(/'/g, "''");
-    rows = await sql.unsafe(`SELECT * FROM resources WHERE category = '${c2}' ${articleFilter} ORDER BY free_score DESC LIMIT ${lim} OFFSET ${off}`);
-    countRows = await sql.unsafe(`SELECT COUNT(*) as n FROM resources WHERE category = '${c2}' ${articleFilter}`);
+    rows = await unsafeRows(`SELECT * FROM resources WHERE category = '${esc(category)}' ${articleFilter} ORDER BY free_score DESC LIMIT ${lim} OFFSET ${off}`);
+    countRows = await unsafeRows(`SELECT COUNT(*) as n FROM resources WHERE category = '${esc(category)}' ${articleFilter}`);
   } else if (origin) {
     const o = origin.replace(/'/g, "''");
     rows = await sql`SELECT * FROM resources WHERE origin = ${origin} ${order} LIMIT ${lim} OFFSET ${off}`;
@@ -44,8 +59,8 @@ app.get("/api/resources", async (c) => {
     rows = await sql`SELECT * FROM resources WHERE free_types::text ILIKE ${ftp} ${order} LIMIT ${lim} OFFSET ${off}`;
     countRows = await sql`SELECT COUNT(*) as n FROM resources WHERE free_types::text ILIKE ${ftp}`;
   } else {
-    rows = await sql.unsafe(`SELECT * FROM resources WHERE 1=1 ${articleFilter} ORDER BY free_score DESC LIMIT ${lim} OFFSET ${off}`);
-    countRows = await sql.unsafe(`SELECT COUNT(*) as n FROM resources WHERE 1=1 ${articleFilter}`);
+    rows = await unsafeRows(`SELECT * FROM resources WHERE 1=1 ${articleFilter} ORDER BY free_score DESC LIMIT ${lim} OFFSET ${off}`);
+    countRows = await unsafeRows(`SELECT COUNT(*) as n FROM resources WHERE 1=1 ${articleFilter}`);
   }
 
   return c.json({
@@ -66,8 +81,7 @@ app.post("/api/resources/ai-search", async (c) => {
   if (!q) return c.json({ count: 0, items: [] });
   const terms = q.toLowerCase().split(/\s+/);
   const pats = terms.slice(0, 5).map((t: string) => `%${t}%`);
-  const esc = (s: string) => s.replace(/'/g, "''");
-  const result = await sql.unsafe(`
+  const result = await unsafeRows(`
     SELECT *, free_score + CASE WHEN 'open_source' = ANY(SELECT jsonb_array_elements_text(free_types)) THEN 10 ELSE 0 END as relevance
     FROM resources
     WHERE resource_type != 'article'
@@ -530,22 +544,6 @@ app.post("/api/stacks/generate", async (c) => {
     integrity_note: "All tools verified from the free-intel database. No fabricated data.",
   });
 });
-
-// ─── Helpers ───
-const BAD_CATEGORIES = new Set(["pricing", "directory", "ai-directory", "research", "newsletter", "news", "vendor-blog", "vendor blog", "comparison", "tutorial", "guide", "list", "roundup", "announcement"]);
-const BAD_URL_PATTERNS = [/reddit\.com/i, /arxiv\.org/i, /theguardian\.com/i, /medium\.com/i, /substack\.com/i, /twitter\.com/i, /x\.com/i, /linkedin\.com\/pulse/i, /hackernews\.com/i, /news\.ycombinator\.com/i, /\.pdf$/i];
-const BAD_NAME_PATTERNS = [/highlights/i, /self-promotion/i, /thread/i, /backs down/i, /expands access/i, /commitment to/i, /boom/i, /what will we/i, /comment/i, /show hn/i];
-
-function isTool(r: any): boolean {
-  if (r.resource_type === "article") return false;
-  const cat = (r.category || "").toLowerCase();
-  if (BAD_CATEGORIES.has(cat)) return false;
-  const url = (r.url || "").toLowerCase();
-  if (BAD_URL_PATTERNS.some(p => p.test(url))) return false;
-  const name = (r.name || "").toLowerCase();
-  if (BAD_NAME_PATTERNS.some(p => p.test(name))) return false;
-  return true;
-}
 
 function parseJson(v: any, def: any): any {
   if (v == null) return def;
