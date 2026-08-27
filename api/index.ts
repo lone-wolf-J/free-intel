@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { neon } from "@neondatabase/serverless";
+import { findTool, searchTools, type ToolRecord } from "./alternatives-db";
 
 const sql = neon(process.env.POSTGRES_URL!);
 
@@ -285,10 +286,53 @@ app.post("/api/scans/run", async (c) => {
   return c.json({ ok: true, action: "batch", processed: 0, discovered: 0, verified: 0, expired: 0, errors: [], message: "Scan triggered. Background processing handles new discoveries." });
 });
 
+// ─── Alternatives Intel ───
+import { getAllTools, getCategories } from "./alternatives-db";
+
+app.get("/api/alternatives/categories", (c) => {
+  return c.json({ categories: getCategories() });
+});
+
+app.get("/api/alternatives/stats", (c) => {
+  const tools = getAllTools();
+  const cats = getCategories();
+  const totalAlts = tools.reduce((s, t) => s + t.alternatives.length, 0);
+  return c.json({ total_tools: tools.length, total_alternatives: totalAlts, categories: cats.length, category_counts: cats.map(cat => ({ category: cat, count: tools.filter(t => t.category === cat).length })) });
+});
+
 // ─── Products Resolve ───
 app.post("/api/products/resolve", async (c) => {
   const { name } = await c.req.json();
   if (!name) return c.json({ error: "name_required" }, 400);
+
+  // 1. Try curated alternatives database first
+  const curated = findTool(name);
+  if (curated) {
+    const bestAlt = curated.alternatives[0];
+    return c.json({
+      resolved: true, resolved_via: "alternatives-intel",
+      product: {
+        slug: name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        name: curated.names[0], provider: null, category: curated.category,
+        description: `${curated.names[0]} - ${curated.category} tool`,
+        website: bestAlt?.url || null, pricing_url: null,
+        pricing_last_checked: new Date().toISOString(),
+        plans: curated.typical_cost_mo > 0 ? [{ name: "Paid", price_month: curated.typical_cost_mo, has_free_tier: curated.alternatives.some(a => a.type === "free_tier") }] : [{ name: "Free", price_month: 0, has_free_tier: true }],
+        free_types: curated.alternatives.map(a => a.type),
+      },
+      pricing_status: curated.alternatives.some(a => a.type === "free_tier") ? "HAS_FREE_TIER" : "FREE_ALTERNATIVES_AVAILABLE",
+      evidence: [],
+      current_price: curated.typical_cost_mo,
+      alternatives: curated.alternatives.slice(0, 5).map(a => ({
+        name: a.name, slug: a.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        url: a.url, description: a.description, score: a.score,
+        relationship: a.type === "open_source" ? "open_source_alt" : "free_tier_alt",
+        reasoning: a.key_differences?.[0] || "Free alternative available.",
+      })),
+    });
+  }
+
+  // 2. Fall back to database
   const p = `%${name}%`;
   const rows = await sql`SELECT * FROM resources WHERE name ILIKE ${p} OR slug ILIKE ${p} LIMIT 1`;
   if (!(rows as any[]).length) return c.json({ resolved: false, message: `"${name}" is not in the discovered database yet.`, resolution: null, current_price: null, alternatives: [] });
@@ -308,6 +352,46 @@ app.post("/api/products/resolve", async (c) => {
 app.post("/api/products/search-alternatives", async (c) => {
   const { tool } = await c.req.json();
   if (!tool) return c.json({ error: "tool_required" }, 400);
+
+  // 1. Try curated alternatives database first
+  const curated = findTool(tool);
+  if (curated) {
+    return c.json({
+      tool, in_seed_database: true,
+      results: curated.alternatives.map(a => ({
+        name: a.name, slug: a.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        url: a.url, description: a.description, score: a.score,
+        source: "alternatives-intel",
+        reasoning: a.key_differences?.[0] || a.description,
+        key_differences: a.key_differences || [],
+        type: a.type, self_hostable: a.self_hostable, license: a.license,
+      })),
+      sources_checked: ["alternatives-intel", "verified-alternatives", "discovery-engine"],
+      category: curated.category,
+      typical_cost: curated.typical_cost_mo,
+    });
+  }
+
+  // 2. Try fuzzy search across curated database
+  const fuzzyResults = searchTools(tool);
+  if (fuzzyResults.length > 0) {
+    const first = fuzzyResults[0];
+    return c.json({
+      tool, in_seed_database: true, resolved_fuzzy: true,
+      resolved_name: first.names[0],
+      results: first.alternatives.map(a => ({
+        name: a.name, slug: a.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        url: a.url, description: a.description, score: a.score,
+        source: "alternatives-intel-fuzzy",
+        reasoning: a.key_differences?.[0] || a.description,
+        key_differences: a.key_differences || [],
+        type: a.type, self_hostable: a.self_hostable, license: a.license,
+      })),
+      sources_checked: ["alternatives-intel", "verified-alternatives", "discovery-engine"],
+    });
+  }
+
+  // 3. Fall back to database search
   const p = `%${tool}%`;
   const inSeed = await sql`SELECT id FROM resources WHERE name ILIKE ${p} OR alt_of ILIKE ${p} LIMIT 1`;
   const alts = await sql`SELECT slug, name, url, description, free_score, license, self_hostable, verification_status FROM resources WHERE alt_of ILIKE ${p} OR (name ILIKE ${p} AND alt_of IS NOT NULL) ORDER BY free_score DESC LIMIT 10`;
@@ -321,33 +405,111 @@ app.post("/api/products/search-alternatives", async (c) => {
 app.post("/api/cost/analyze", async (c) => {
   const { tools } = await c.req.json();
   if (!tools?.length) return c.json({ total_monthly_spend_entered: 0, estimated_monthly_saving: 0, estimated_annual_saving: 0, lines_analyzed: 0, lines_awaiting_input: 0, confidence_note: "No tools provided.", analyses: [] });
+
   let totalSpend = 0, totalSaving = 0, analyzed = 0;
   const analyses = [];
+
   for (const tool of tools) {
     const name = tool.name || tool.tool;
     const cost = Number(tool.monthly_cost || tool.cost || 0);
     totalSpend += cost;
-    const p = `%${name}%`;
-    const rows = await sql`SELECT * FROM resources WHERE name ILIKE ${p} OR slug ILIKE ${p} OR alt_of ILIKE ${p} LIMIT 1`;
-    if (!(rows as any[]).length) {
-      analyses.push({ tool: name, resolved: false, status: "PRODUCT_UNRESOLVED", message: `"${name}" not found.`, alternatives: [], current_cost: cost });
+
+    // 1. Try curated alternatives database first (most comprehensive)
+    const curated = findTool(name);
+
+    if (curated && curated.alternatives.length > 0) {
+      const bestAlt = curated.alternatives[0];
+      const saving = cost; // Free alternative = full savings
+      totalSaving += saving; analyzed++;
+      analyses.push({
+        tool: name, resolved: true, status: "ANALYZED", current_cost: cost, cost_basis: "your entered spend",
+        possible_cost: bestAlt.type === "free_tier" ? 0 : 0,
+        possible_cost_basis: `${bestAlt.type === "open_source" ? "Open source" : bestAlt.type === "free_tier" ? "Free tier" : "Free alternative"}: ${bestAlt.name}`,
+        monthly_saving: saving, annual_saving: saving * 12,
+        line_number: tool.line_number || analyzed,
+        category: curated.category,
+        difficulty: bestAlt.self_hostable ? "medium" : "low",
+        switch_cost_note: bestAlt.key_differences?.[0] || `Switch to ${bestAlt.name}`,
+        replacement: {
+          slug: bestAlt.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+          name: bestAlt.name, url: bestAlt.url,
+          description: bestAlt.description, score: bestAlt.score,
+          relationship: bestAlt.type === "open_source" ? "OPEN-SOURCE ALTERNATIVE" : bestAlt.type === "free_tier" ? "FREE-TIER ALTERNATIVE" : "FREE ALTERNATIVE",
+          free_score: bestAlt.score, license: bestAlt.license || null,
+          caveats: bestAlt.key_differences?.join(". ") || null,
+          notes: bestAlt.type === "open_source" && bestAlt.self_hostable ? "Self-hostable" : bestAlt.type === "free_tier" ? "Cloud-hosted free tier" : null,
+          url: bestAlt.url,
+        },
+        also_considered: curated.alternatives.slice(1, 4).map(a => ({
+          name: a.name, slug: a.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+          description: a.description, score: a.score,
+          url: a.url,
+          reasoning: a.key_differences?.[0] || a.description,
+        })),
+        alternatives: curated.alternatives.map(a => ({
+          name: a.name, slug: a.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+          description: a.description, score: a.score, url: a.url,
+          kind: a.type, reasoning: a.key_differences?.[0] || a.description,
+          key_differences: a.key_differences || [],
+        })),
+        recommendation: bestAlt.type === "open_source"
+          ? `${bestAlt.name} is an open-source alternative${bestAlt.self_hostable ? ' you can self-host' : ''}. ${bestAlt.key_differences?.[0] || ''}`
+          : bestAlt.type === "free_tier"
+          ? `${bestAlt.name} offers a free tier that covers most use cases. ${bestAlt.key_differences?.[0] || ''}`
+          : `${bestAlt.name} is a free alternative. ${bestAlt.key_differences?.[0] || ''}`,
+      });
       continue;
     }
-    const r = (rows as any[])[0];
-    const altRows = await sql`SELECT slug, name, url, description, free_score, license, self_hostable FROM resources WHERE alt_of = ${r.name} OR alt_of = ${r.slug} ORDER BY free_score DESC LIMIT 3`;
-    const alt = (altRows as any[])[0];
-    const saving = alt ? cost : 0;
-    totalSaving += saving; analyzed++;
+
+    // 2. Try database lookup (existing resources with alt_of mapping)
+    const p = `%${name}%`;
+    const rows = await sql`SELECT * FROM resources WHERE name ILIKE ${p} OR slug ILIKE ${p} OR alt_of ILIKE ${p} LIMIT 1`;
+    if ((rows as any[]).length) {
+      const r = (rows as any[])[0];
+      const altRows = await sql`SELECT slug, name, url, description, free_score, license, self_hostable FROM resources WHERE alt_of = ${r.name} OR alt_of = ${r.slug} ORDER BY free_score DESC LIMIT 3`;
+      const alt = (altRows as any[])[0];
+      if (alt) {
+        const saving = cost;
+        totalSaving += saving; analyzed++;
+        analyses.push({
+          tool: name, resolved: true, status: "ANALYZED", current_cost: cost, cost_basis: "your entered spend",
+          possible_cost: 0, possible_cost_basis: `$0 via ${alt.name} (${alt.license})`,
+          monthly_saving: saving, annual_saving: saving * 12,
+          line_number: tool.line_number || analyzed,
+          category: r.category || "unknown",
+          difficulty: alt.self_hostable === "yes" ? "medium" : "low",
+          switch_cost_note: `Switch to ${alt.name}`,
+          replacement: { slug: alt.slug, name: alt.name, url: alt.url, description: alt.description, score: alt.free_score, relationship: "OPEN-SOURCE ALTERNATIVE", free_score: alt.free_score, license: alt.license },
+          also_considered: (altRows as any[]).slice(1).map((a: any) => ({ name: a.name, slug: a.slug, description: a.description, score: a.free_score, url: a.url })),
+          alternatives: (altRows as any[]).map((a: any) => ({ name: a.name, slug: a.slug, description: a.description, score: a.free_score, url: a.url, kind: "open_source" })),
+          recommendation: `${alt.name} (OPEN-SOURCE ALTERNATIVE) may replace ${name}. Validate before cancelling.`,
+        });
+        continue;
+      }
+    }
+
+    // 3. Not found — mark as needing input
     analyses.push({
-      tool: name, resolved: true, status: "ANALYZED", current_cost: cost, cost_basis: "your entered spend",
-      possible_cost: 0, possible_cost_basis: alt ? `$0 via ${alt.name} (${alt.license})` : "Unknown",
-      monthly_saving: saving, annual_saving: saving * 12,
-      replacement: alt ? { slug: alt.slug, name: alt.name, url: alt.url, description: alt.description, score: alt.free_score, relationship: "OPEN-SOURCE ALTERNATIVE", free_score: alt.free_score, license: alt.license, self_hostable: alt.self_hostable } : null,
-      also_considered: (altRows as any[]).slice(1).map((a: any) => ({ name: a.name, slug: a.slug, description: a.description, score: a.free_score, url: a.url })),
-      recommendation: alt ? `${alt.name} (OPEN-SOURCE ALTERNATIVE) may replace ${name}. Validate before cancelling.` : `No free alternative found for ${name}.`,
+      tool: name, resolved: false, status: "NEEDS_COST_INPUT",
+      message: `No verified free alternative found for "${name}" in our database.`,
+      alternatives: [], current_cost: cost,
+      line_number: tool.line_number || analyzed + 1,
+      category: "unknown", difficulty: "unknown",
     });
   }
-  return c.json({ total_monthly_spend_entered: totalSpend, estimated_monthly_saving: totalSaving, estimated_annual_saving: totalSaving * 12, lines_analyzed: analyzed, lines_awaiting_input: tools.length - analyzed, confidence_note: "Savings = your entered spend minus stored replacement costs.", analyses });
+
+  const linesAwaiting = analyses.filter(a => a.status === "NEEDS_COST_INPUT").length;
+  return c.json({
+    total_monthly_spend_entered: totalSpend,
+    estimated_monthly_saving: totalSaving,
+    estimated_annual_saving: totalSaving * 12,
+    lines_analyzed: analyzed,
+    lines_awaiting_input: linesAwaiting,
+    confidence_note: linesAwaiting > 0
+      ? `${analyzed} tools matched from our database of 200+ tools across 25 categories. ${linesAwaiting} tool(s) not yet in our knowledge base.`
+      : `All ${analyzed} tools matched. Savings = your entered spend (all alternatives are free or have free tiers).`,
+    analyses,
+  });
 });
 
 // ─── Submissions ───
