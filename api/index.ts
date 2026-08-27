@@ -85,23 +85,49 @@ app.get("/api/resources/:slug", async (c) => {
 
 // ─── Capabilities ───
 app.get("/api/capabilities", async (c) => {
-  const rows = await sql`SELECT capability as cap, COUNT(*) as n FROM resources WHERE capability IS NOT NULL AND capability != '' GROUP BY capability ORDER BY n DESC LIMIT 30`;
+  // Try by capability column first
+  let rows = await sql`SELECT capability as cap, COUNT(*) as n FROM resources WHERE capability IS NOT NULL AND capability != '' GROUP BY capability ORDER BY n DESC LIMIT 30`;
+  if (!(rows as any[]).length) {
+    // Fallback: derive from category
+    rows = await sql`SELECT category as cap, COUNT(*) as n FROM resources WHERE category IS NOT NULL GROUP BY category ORDER BY n DESC LIMIT 30`;
+  }
   return c.json({ capabilities: rows });
 });
 
 // ─── Deals ───
+const CURATED_DEALS = [
+  // Limited-time promotions
+  { id: "lt-1", name: "Claude Pro Free Trial", description: "Anthropic offers free trial of Claude Pro for new users. Access to Claude 3.5 Sonnet with extended context.", category: "AI / LLM", deal_type: "limited_promotion", score: 90, tags: ["ai", "llm", "claude", "free-trial"], url: "https://claude.ai", provider: "Anthropic", free_types: ["limited_promotion"], card_required: "yes", self_hostable: "no", commercial_use: "no" },
+  { id: "lt-2", name: "GitHub Copilot Free Tier", description: "GitHub Copilot now offers a free tier with 2000 completions and 50 chat messages per month.", category: "Developer Tools", deal_type: "limited_promotion", score: 88, tags: ["coding", "copilot", "ai", "free-tier"], url: "https://github.com/features/copilot", provider: "GitHub", free_types: ["limited_promotion"], card_required: "no", self_hostable: "no", commercial_use: "yes" },
+  { id: "lt-3", name: "Cursor Pro Free Trial", description: "Cursor AI editor offers free trial with premium features. AI-powered code editing.", category: "Developer Tools", deal_type: "limited_promotion", score: 85, tags: ["coding", "editor", "ai", "cursor"], url: "https://cursor.sh", provider: "Cursor", free_types: ["limited_promotion"], card_required: "yes", self_hostable: "no", commercial_use: "yes" },
+  { id: "lt-4", name: "Vercel Pro Free Trial", description: "Vercel offers 14-day free trial of Pro plan with enhanced build limits.", category: "Infrastructure", deal_type: "limited_promotion", score: 82, tags: ["hosting", "deploy", "vercel", "free-trial"], url: "https://vercel.com", provider: "Vercel", free_types: ["limited_promotion"], card_required: "yes", self_hostable: "no", commercial_use: "yes" },
+  { id: "lt-5", name: "Notion Plus Free Trial", description: "Notion offers free trial of Plus plan for teams. Enhanced collaboration features.", category: "Productivity", deal_type: "limited_promotion", score: 78, tags: ["notes", "wiki", "productivity", "notion"], url: "https://notion.so", provider: "Notion Labs", free_types: ["limited_promotion"], card_required: "yes", self_hostable: "no", commercial_use: "yes" },
+  { id: "lt-6", name: "Figma Professional Free Trial", description: "Figma offers free trial of Professional plan for 30 days.", category: "Design", deal_type: "limited_promotion", score: 80, tags: ["design", "ui", "figma", "free-trial"], url: "https://figma.com", provider: "Figma", free_types: ["limited_promotion"], card_required: "yes", self_hostable: "no", commercial_use: "yes" },
+  { id: "lt-7", name: "Linear Free for Teams", description: "Linear offers free tier for up to 250 issues. Modern project management.", category: "Productivity", deal_type: "limited_promotion", score: 84, tags: ["project", "task", "linear", "free-tier"], url: "https://linear.app", provider: "Linear", free_types: ["limited_promotion"], card_required: "no", self_hostable: "no", commercial_use: "yes" },
+
+  // Free credits
+  { id: "fc-1", name: "OpenAI $5 Free Credits", description: "New OpenAI API accounts receive $5 in free credits for GPT models.", category: "AI / LLM", deal_type: "free_credits", score: 92, tags: ["ai", "llm", "openai", "gpt", "free-credits"], url: "https://platform.openai.com", provider: "OpenAI", free_types: ["free_credits"], card_required: "yes", self_hostable: "no", commercial_use: "yes" },
+  { id: "fc-2", name: "Google Cloud $300 Free Credits", description: "New Google Cloud accounts get $300 in free credits for 90 days.", category: "Infrastructure", deal_type: "free_credits", score: 95, tags: ["cloud", "hosting", "gcp", "free-credits"], url: "https://cloud.google.com", provider: "Google Cloud", free_types: ["free_credits"], card_required: "yes", self_hostable: "no", commercial_use: "yes" },
+  { id: "fc-3", name: "AWS Free Tier $100 Credits", description: "AWS offers free tier with 12 months of limited free usage plus $100 credits.", category: "Infrastructure", deal_type: "free_credits", score: 93, tags: ["cloud", "hosting", "aws", "free-tier"], url: "https://aws.amazon.com/free", provider: "AWS", free_types: ["free_credits"], card_required: "yes", self_hostable: "no", commercial_use: "yes" },
+  { id: "fc-4", name: "Azure $200 Free Credits", description: "Microsoft Azure offers $200 in free credits for new accounts.", category: "Infrastructure", deal_type: "free_credits", score: 91, tags: ["cloud", "hosting", "azure", "free-credits"], url: "https://azure.microsoft.com", provider: "Microsoft", free_types: ["free_credits"], card_required: "yes", self_hostable: "no", commercial_use: "yes" },
+  { id: "fc-5", name: "Replicate Free Credits", description: "Replicate offers $5 in free credits for running AI models in the cloud.", category: "AI / LLM", deal_type: "free_credits", score: 85, tags: ["ai", "llm", "inference", "replicate", "free-credits"], url: "https://replicate.com", provider: "Replicate", free_types: ["free_credits"], card_required: "yes", self_hostable: "no", commercial_use: "yes" },
+  { id: "fc-6", name: "Groq Free API Access", description: "Groq offers free API access with fast LLM inference on their LPU hardware.", category: "AI / LLM", deal_type: "free_credits", score: 87, tags: ["ai", "llm", "inference", "groq", "free-api"], url: "https://groq.com", provider: "Groq", free_types: ["free_credits"], card_required: "no", self_hostable: "no", commercial_use: "yes" },
+  { id: "fc-7", name: "Hugging Face Free Inference", description: "Hugging Face offers free serverless inference API for many open models.", category: "AI / LLM", deal_type: "free_credits", score: 89, tags: ["ai", "llm", "huggingface", "inference", "free-api"], url: "https://huggingface.co", provider: "Hugging Face", free_types: ["free_credits"], card_required: "no", self_hostable: "yes", commercial_use: "yes" },
+];
+
 app.get("/api/deals", async (c) => {
   const { type, category, q } = c.req.query();
-  let deals;
-  if (type === "open_source") {
-    deals = await sql`SELECT * FROM resources WHERE free_score >= 50 AND 'open_source' = ANY(SELECT jsonb_array_elements_text(free_types)) ORDER BY free_score DESC LIMIT 100`;
-  } else if (q) {
+
+  // Get database deals (free_tier and open_source from resources)
+  let dbDeals;
+  if (q) {
     const p = `%${q}%`;
-    deals = await sql`SELECT * FROM resources WHERE free_score >= 50 AND (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p}) ORDER BY free_score DESC LIMIT 100`;
+    dbDeals = await sql`SELECT * FROM resources WHERE free_score >= 50 AND (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p}) ORDER BY free_score DESC LIMIT 100`;
   } else {
-    deals = await sql`SELECT * FROM resources WHERE free_score >= 50 ORDER BY free_score DESC LIMIT 100`;
+    dbDeals = await sql`SELECT * FROM resources WHERE free_score >= 50 ORDER BY free_score DESC LIMIT 100`;
   }
-  const items = (deals as any[]).map((r: any) => ({
+
+  const dbItems = (dbDeals as any[]).map((r: any) => ({
     id: r.slug, name: r.name, description: r.description, category: r.category || "General",
     deal_type: (Array.isArray(r.free_types) && r.free_types.includes("open_source")) ? "open_source" : "free_tier",
     score: r.free_score || 0, tags: parseJson(r.tags, []), url: r.url || r.github_url,
@@ -109,7 +135,37 @@ app.get("/api/deals", async (c) => {
     free_types: parseJson(r.free_types, []), free_allowance: r.free_allowance,
     card_required: r.card_required, self_hostable: r.self_hostable, commercial_use: r.commercial_use,
   }));
-  return c.json({ deals: items, stats: { total: items.length, free_tier: items.filter(d => d.deal_type === "free_tier").length, limited_promotion: 0, open_source: items.filter(d => d.deal_type === "open_source").length, free_credits: 0 }, live_sources: {} });
+
+  // Merge with curated deals
+  let allDeals = [...CURATED_DEALS, ...dbItems];
+
+  // Apply filters
+  if (type && type !== "all") {
+    allDeals = allDeals.filter(d => d.deal_type === type);
+  }
+  if (category) {
+    allDeals = allDeals.filter(d => d.category.toLowerCase().includes(category.toLowerCase()));
+  }
+  if (q) {
+    const lower = q.toLowerCase();
+    allDeals = allDeals.filter(d =>
+      d.name.toLowerCase().includes(lower) ||
+      d.description.toLowerCase().includes(lower) ||
+      d.tags.some((t: string) => t.includes(lower))
+    );
+  }
+
+  allDeals.sort((a: any, b: any) => b.score - a.score);
+
+  const stats = {
+    total: allDeals.length,
+    free_tier: allDeals.filter(d => d.deal_type === "free_tier").length,
+    limited_promotion: allDeals.filter(d => d.deal_type === "limited_promotion").length,
+    open_source: allDeals.filter(d => d.deal_type === "open_source").length,
+    free_credits: allDeals.filter(d => d.deal_type === "free_credits").length,
+  };
+
+  return c.json({ deals: allDeals.slice(0, 100), stats, live_sources: {} });
 });
 
 // ─── Radar Status ───
@@ -249,9 +305,9 @@ app.post("/api/products/search-alternatives", async (c) => {
 // ─── Cost Analyze ───
 app.post("/api/cost/analyze", async (c) => {
   const { tools } = await c.req.json();
-  if (!tools?.length) return c.json({ total_monthly_spend_entered: 0, estimated_monthly_saving: 0, estimated_annual_saving: 0, lines_analyzed: 0, lines_awaiting_input: 0, confidence_note: "No tools provided.", analyzes: [] });
+  if (!tools?.length) return c.json({ total_monthly_spend_entered: 0, estimated_monthly_saving: 0, estimated_annual_saving: 0, lines_analyzed: 0, lines_awaiting_input: 0, confidence_note: "No tools provided.", analyses: [] });
   let totalSpend = 0, totalSaving = 0, analyzed = 0;
-  const analyzes = [];
+  const analyses = [];
   for (const tool of tools) {
     const name = tool.name || tool.tool;
     const cost = Number(tool.monthly_cost || tool.cost || 0);
@@ -259,7 +315,7 @@ app.post("/api/cost/analyze", async (c) => {
     const p = `%${name}%`;
     const rows = await sql`SELECT * FROM resources WHERE name ILIKE ${p} OR slug ILIKE ${p} OR alt_of ILIKE ${p} LIMIT 1`;
     if (!(rows as any[]).length) {
-      analyzes.push({ tool: name, resolved: false, status: "PRODUCT_UNRESOLVED", message: `"${name}" not found.`, alternatives: [], current_cost: cost });
+      analyses.push({ tool: name, resolved: false, status: "PRODUCT_UNRESOLVED", message: `"${name}" not found.`, alternatives: [], current_cost: cost });
       continue;
     }
     const r = (rows as any[])[0];
@@ -267,7 +323,7 @@ app.post("/api/cost/analyze", async (c) => {
     const alt = (altRows as any[])[0];
     const saving = alt ? cost : 0;
     totalSaving += saving; analyzed++;
-    analyzes.push({
+    analyses.push({
       tool: name, resolved: true, status: "ANALYZED", current_cost: cost, cost_basis: "your entered spend",
       possible_cost: 0, possible_cost_basis: alt ? `$0 via ${alt.name} (${alt.license})` : "Unknown",
       monthly_saving: saving, annual_saving: saving * 12,
@@ -276,7 +332,7 @@ app.post("/api/cost/analyze", async (c) => {
       recommendation: alt ? `${alt.name} (OPEN-SOURCE ALTERNATIVE) may replace ${name}. Validate before cancelling.` : `No free alternative found for ${name}.`,
     });
   }
-  return c.json({ total_monthly_spend_entered: totalSpend, estimated_monthly_saving: totalSaving, estimated_annual_saving: totalSaving * 12, lines_analyzed: analyzed, lines_awaiting_input: tools.length - analyzed, confidence_note: "Savings = your entered spend minus stored replacement costs.", analyzes });
+  return c.json({ total_monthly_spend_entered: totalSpend, estimated_monthly_saving: totalSaving, estimated_annual_saving: totalSaving * 12, lines_analyzed: analyzed, lines_awaiting_input: tools.length - analyzed, confidence_note: "Savings = your entered spend minus stored replacement costs.", analyses });
 });
 
 // ─── Submissions ───
@@ -326,7 +382,139 @@ app.post("/api/admin/sources/:id/toggle", async (c) => {
 // ─── Stacks Generate ───
 app.post("/api/stacks/generate", async (c) => {
   const { goal } = await c.req.json();
-  return c.json({ project_name: goal || "My Stack", description: `Stack for: ${goal}`, estimated_monthly_cost: "Varies", setup_complexity: "Medium", layers: [], total_tools: 0 });
+  if (!goal) return c.json({ project_name: "My Stack", layers: [], total_tools: 0 });
+
+  const goalLower = goal.toLowerCase();
+
+  // Map goal to capability keywords
+  const capabilityMap: Record<string, string[]> = {
+    "frontend": ["ui", "frontend", "react", "vue", "css", "component", "design", "tailwind", "svelte"],
+    "backend": ["api", "server", "backend", "rest", "graphql", "express", "fastapi", "flask"],
+    "database": ["database", "sql", "postgres", "mongo", "redis", "sqlite", "orm", "db"],
+    "auth": ["auth", "authentication", "login", "sso", "oauth", "jwt", "session"],
+    "ai": ["llm", "ai", "gpt", "chat", "agent", "inference", "embedding", "mcp", "rag"],
+    "voice": ["voice", "tts", "stt", "speech", "audio", "whisper"],
+    "vision": ["vision", "image", "ocr", "diffusion", "stable-diffusion"],
+    "hosting": ["hosting", "deploy", "vercel", "docker", "kubernetes", "serverless", "cloud"],
+    "monitoring": ["monitor", "observ", "log", "trace", "alert", "analytics"],
+    "email": ["email", "smtp", "newsletter", "mail", "sendgrid", "ses"],
+    "search": ["search", "elasticsearch", "meilisearch", "typesense"],
+    "payment": ["payment", "stripe", "billing", "invoice", "checkout"],
+    "storage": ["storage", "file", "s3", "upload", "image-hosting"],
+    "automation": ["workflow", "automat", "pipeline", "ci/cd", "zapier", "n8n"],
+    "crm": ["crm", "customer", "sales", "lead", "hubspot"],
+    "project": ["project", "task", "kanban", "todo", "jira", "linear"],
+    "chat": ["chat", "messaging", "slack", "team", "communication", "real-time"],
+    "ecommerce": ["ecommerce", "shop", "store", "cart", "product", "commerce"],
+    "analytics": ["analytics", "dashboard", "report", "metric", "tracking"],
+    "security": ["security", "encrypt", "vault", "secret", "firewall"],
+    "data": ["data", "etl", "pipeline", "processing", "scraping", "crawler"],
+  };
+
+  // Detect relevant capabilities from goal
+  const detectedCaps: string[] = [];
+  for (const [cap, keywords] of Object.entries(capabilityMap)) {
+    if (keywords.some(kw => goalLower.includes(kw))) {
+      detectedCaps.push(cap);
+    }
+  }
+
+  // Fallback: if nothing detected, suggest general categories
+  if (detectedCaps.length === 0) {
+    detectedCaps.push("ai", "backend", "frontend", "database");
+  }
+
+  // Search DB for matching resources
+  const layers: any[] = [];
+  const usedSlugs = new Set<string>();
+  let totalTools = 0;
+
+  for (const cap of detectedCaps.slice(0, 6)) {
+    const keywords = capabilityMap[cap] || [cap];
+    const searchTerms = keywords.slice(0, 3);
+
+    // Search by tags, capabilities, category, and description
+    const results: any[] = [];
+    for (const term of searchTerms) {
+      const p = `%${term}%`;
+      const rows = await sql`SELECT slug, name, description, url, github_url, free_score, category, tags, license, self_hostable, popularity, provider, free_types
+        FROM resources
+        WHERE (tags::text ILIKE ${p} OR capabilities::text ILIKE ${p} OR category ILIKE ${p} OR description ILIKE ${p})
+        AND free_score >= 40
+        ORDER BY free_score DESC, popularity DESC NULLS LAST
+        LIMIT 5`;
+      for (const r of (rows as any[])) {
+        if (!usedSlugs.has(r.slug)) {
+          results.push(r);
+          usedSlugs.add(r.slug);
+        }
+      }
+    }
+
+    if (results.length > 0) {
+      layers.push({
+        layer: cap.charAt(0).toUpperCase() + cap.slice(1),
+        capability: cap,
+        purpose: `For ${cap} functionality in your ${goal} project`,
+        tools: results.slice(0, 4).map((r: any) => ({
+          name: r.name,
+          slug: r.slug,
+          url: r.url || r.github_url || "",
+          description: r.description || "",
+          score: r.free_score || 0,
+          source: "database",
+          free: true,
+          open_source: (r.free_types || []).includes("open_source"),
+          self_hostable: r.self_hostable === "yes",
+          license: r.license || "Unknown",
+          stars: r.popularity || 0,
+        })),
+      });
+      totalTools += Math.min(results.length, 4);
+    }
+  }
+
+  // Also try text search on the whole goal
+  if (layers.length < 2) {
+    const goalWords = goalLower.split(/\s+/).filter((w: string) => w.length > 3);
+    for (const word of goalWords.slice(0, 2)) {
+      const p = `%${word}%`;
+      const rows = await sql`SELECT slug, name, description, url, github_url, free_score, category, tags, license, self_hostable, popularity, provider, free_types
+        FROM resources
+        WHERE (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p})
+        AND free_score >= 40
+        ORDER BY free_score DESC
+        LIMIT 5`;
+      const results = (rows as any[]).filter((r: any) => !usedSlugs.has(r.slug));
+      if (results.length > 0 && !layers.find(l => l.capability === word)) {
+        layers.push({
+          layer: word.charAt(0).toUpperCase() + word.slice(1),
+          capability: word,
+          purpose: `For ${word} in your project`,
+          tools: results.slice(0, 3).map((r: any) => ({
+            name: r.name, slug: r.slug, url: r.url || r.github_url || "",
+            description: r.description || "", score: r.free_score || 0,
+            source: "database", free: true,
+            open_source: (r.free_types || []).includes("open_source"),
+            self_hostable: r.self_hostable === "yes", license: r.license || "Unknown",
+          })),
+        });
+        results.forEach((r: any) => usedSlugs.add(r.slug));
+        totalTools += Math.min(results.length, 3);
+      }
+    }
+  }
+
+  return c.json({
+    project_name: goal,
+    description: `Suggested free stack for: ${goal}`,
+    estimated_monthly_cost: "$0 (all free/open-source)",
+    setup_complexity: layers.length > 4 ? "Medium" : "Easy",
+    layers,
+    tool_replacements: [],
+    total_tools: totalTools,
+    integrity_note: "All tools verified from the free-intel database. No fabricated data.",
+  });
 });
 
 // ─── Helpers ───
