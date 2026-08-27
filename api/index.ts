@@ -540,8 +540,11 @@ app.post("/api/stacks/generate", async (c) => {
 
 function parseJson(v: any, def: any): any {
   if (v == null) return def;
-  if (typeof v === "object") return v;
-  try { const p = JSON.parse(String(v)); return p ?? def; } catch { return def; }
+  if (typeof v === "string") {
+    try { const p = JSON.parse(v); return p ?? def; } catch { return def; }
+  }
+  if (Array.isArray(def) && !Array.isArray(v)) return def;
+  return v;
 }
 
 function mapResource(r: any) {

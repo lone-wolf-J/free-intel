@@ -1,0 +1,1608 @@
+# BUILD: FREE RESOURCE INTELLIGENCE PLATFORM
+
+You are building a production-quality web application called **Free Intel**.
+
+This is NOT a generic "free AI tools directory."
+
+The product is a **continuously updating Free Resource Intelligence + Cost Reduction Platform** that discovers, verifies, explains, organizes, and continuously monitors free and low-cost resources across AI, software, cloud, developer technology, business tools, and open-source ecosystems.
+
+The primary audience is Gen-Z builders, developers, creators, students, startups, entrepreneurs, technology teams, and organizations looking to reduce technology costs.
+
+The experience must feel futuristic, addictive, intelligent, fast, visually spectacular, and alive.
+
+The website should make users want to explore even when they did not arrive looking for a specific resource.
+
+---
+
+# 1. CORE PRODUCT PROMISE
+
+The platform answers:
+
+> "What can I build, use, replace, or run without paying for it?"
+
+And for organizations:
+
+> "What are we currently paying for that we could replace, downgrade, self-host, or obtain for free?"
+
+The platform must continuously discover:
+
+* Permanently free resources
+* Free tiers
+* Free API allowances
+* Free credits
+* Limited-time promotions
+* Open-source projects
+* Free commercial-use resources
+* Free personal-use resources
+* Self-hostable software
+* Free cloud infrastructure
+* Free developer tools
+* Free AI models
+* Free APIs
+* Free MCP servers
+* Free agent skills
+* Free workflows
+* Free SaaS alternatives
+* Free GitHub repositories
+* Free datasets
+* Free hosting
+* Free databases
+* Free vector databases
+* Free observability tools
+* Free OCR
+* Free speech APIs
+* Free image/video tools
+* Free automation platforms
+* Free HR/recruiting technology
+* Free design tools
+* Free productivity tools
+* Temporary credits and promotional offers
+
+The system must distinguish between these categories instead of simply labeling everything "FREE."
+
+---
+
+# 2. ABSOLUTE COST REQUIREMENT
+
+The application itself must be designed to operate at **$0 cost** during the initial production phase.
+
+DO NOT introduce paid infrastructure.
+
+DO NOT require:
+
+* Paid LLM APIs
+* Paid scraping APIs
+* Paid search APIs
+* Paid databases
+* Paid vector databases
+* Paid email services
+* Paid automation platforms
+* Paid monitoring services
+* Paid analytics
+* Paid proxy services
+* Paid third-party data providers
+
+Prefer:
+
+* Open source
+* Public APIs
+* GitHub
+* RSS/Atom
+* Native HTTP requests
+* Cloudflare free services
+* GitHub Actions
+* SQLite/D1
+* Browser-native capabilities
+* Free model inference where genuinely available
+* Local computation
+
+Every external dependency must be evaluated against the $0 requirement.
+
+If a feature cannot realistically operate for $0, design a graceful fallback instead of silently introducing a paid dependency.
+
+---
+
+# 3. TECHNOLOGY DIRECTION
+
+Use a modern TypeScript-based architecture.
+
+Preferred:
+
+Frontend:
+
+* React
+* TypeScript
+* Tailwind CSS
+* Framer Motion or equivalent open-source animation library
+
+Backend:
+
+* Cloudflare Workers
+
+Database:
+
+* Cloudflare D1 / SQLite
+
+Search:
+
+* SQLite FTS5 initially
+
+Scheduling:
+
+* GitHub Actions and/or Cloudflare-compatible free scheduling
+
+Repository discovery:
+
+* GitHub public API
+
+Data ingestion:
+
+* fetch
+* RSS/Atom
+* HTML parsing
+* Cheerio or equivalent
+* Playwright only where genuinely required
+
+Charts:
+
+* lightweight open-source charting library
+
+Do not add a dependency simply because it is popular.
+
+Keep the architecture modular so providers can be replaced later.
+
+---
+
+# 4. IMPORTANT: DO NOT BUILD A FAKE DEMO
+
+Do not create a beautiful frontend populated with invented data.
+
+Every resource shown as real must come from:
+
+1. A verified source
+2. Seeded clearly labeled demonstration data
+3. Or a real ingestion pipeline
+
+Never invent:
+
+* Free limits
+* Pricing
+* Expiration dates
+* Licenses
+* Commercial rights
+* API allowances
+* GitHub activity
+* Savings figures
+* Verification status
+
+If a piece of information is unknown, explicitly display:
+
+"Not verified"
+
+or
+
+"Unknown"
+
+Do not guess.
+
+---
+
+# 5. PRIMARY PRODUCT AREAS
+
+Build the application around these major areas:
+
+1. DISCOVER
+2. FREE RADAR
+3. FREE STACKS
+4. SAVE MONEY
+5. GITHUB INTELLIGENCE
+6. DEALS / PROMOTIONS
+7. RESOURCE INTELLIGENCE
+8. USER SUBMISSIONS
+
+Navigation should feel like a futuristic intelligence platform rather than a conventional SaaS website.
+
+---
+
+# 6. HOMEPAGE
+
+The homepage must immediately communicate:
+
+> STOP PAYING FOR WHAT YOU CAN GET FOR FREE.
+
+Suggested supporting message:
+
+> AI models. APIs. MCP servers. Agent skills. Open-source software. Cloud credits. SaaS alternatives. Continuously discovered, verified, ranked, and explained.
+
+Primary actions:
+
+* FIND FREE RESOURCES
+* BUILD A FREE STACK
+* ANALYZE MY SOFTWARE COST
+
+Secondary discovery entry:
+
+> What are you trying to build?
+
+Examples:
+
+* "Build an AI recruitment agent"
+* "Replace Zapier"
+* "Host a website for free"
+* "Need a free OCR API"
+* "Build an MCP server"
+* "Replace expensive observability software"
+
+The search experience should understand natural-language intent.
+
+---
+
+# 7. HOMEPAGE LIVE INTELLIGENCE
+
+Create a visually prominent LIVE FREE RADAR.
+
+Display actual system information when available:
+
+* Sources monitored
+* Sources checked today
+* New discoveries
+* Resources verified
+* Resources expired
+* Potential savings discovered
+
+Example visual:
+
+SYSTEM STATUS: ACTIVE
+
+09:42:17 — NEW DISCOVERY
+09:42:12 — GITHUB REPOSITORY VERIFIED
+09:41:58 — FREE TIER CHANGE DETECTED
+09:41:44 — PROMOTIONAL OFFER FOUND
+09:41:31 — RESOURCE EXPIRED
+
+Do not fake real-time activity.
+
+If the system is not actually scanning, clearly indicate the latest completed scan.
+
+---
+
+# 8. FREE RADAR
+
+Free Radar is one of the core retention features.
+
+It continuously surfaces new opportunities.
+
+Categories:
+
+* AI
+* APIs
+* Coding
+* Agents
+* MCP
+* Cloud
+* Hosting
+* Databases
+* Automation
+* SaaS
+* HR
+* Recruiting
+* Design
+* Productivity
+* Developer tools
+* Infrastructure
+* Open source
+
+Each discovery should show:
+
+* What changed
+* Why it matters
+* Free classification
+* Value
+* Expiration if applicable
+* Last verified
+* Source
+* Free Score
+* Confidence Score
+
+Examples:
+
+"New free API allowance"
+
+"Previously paid feature is now free"
+
+"New open-source replacement"
+
+"Temporary cloud credits"
+
+"GitHub project gaining significant activity"
+
+"Free tier expanded"
+
+"Promotion expiring soon"
+
+---
+
+# 9. RESOURCE DATA MODEL
+
+Do NOT model everything simply as a "tool."
+
+Use a broader Resource / Capability model.
+
+Each resource should support:
+
+* Name
+* Slug
+* Description
+* Capability
+* Category
+* Subcategory
+* Tags
+* URL
+* Source URL
+* Announcement URL
+* Documentation URL
+* Pricing URL
+* GitHub URL
+* Resource type
+* Free type
+* Free allowance
+* Free limits
+* Personal use
+* Commercial use
+* License
+* Credit card required
+* Self-hostable
+* Infrastructure requirement
+* Expiration date
+* First discovered
+* Last verified
+* Verification status
+* Verification evidence
+* Setup instructions
+* Usage instructions
+* API examples
+* Limitations
+* Alternatives
+* Estimated commercial equivalent
+* Estimated monthly saving
+* Free Score
+* Confidence Score
+* Popularity
+* GitHub activity
+* Last repository update
+* Security notes
+* Difficulty level
+
+---
+
+# 10. FREE CLASSIFICATION
+
+Every resource must support multiple dimensions.
+
+Possible values:
+
+free_forever
+free_tier
+free_credits
+limited_promotion
+open_source
+free_personal
+free_commercial
+self_hosted
+free_without_card
+free_with_card
+trial
+cheap_alternative
+unknown
+
+A resource can have multiple classifications.
+
+Never assume:
+
+"Open source = $0."
+
+Self-hosting can have infrastructure costs.
+
+Calculate actual cost separately.
+
+---
+
+# 11. ACTUAL COST ENGINE
+
+For every recommendation calculate:
+
+SOFTWARE COST
++
+INFRASTRUCTURE COST
++
+REQUIRED PAID DEPENDENCIES
++
+OPTIONAL COSTS
+==============
+
+REALISTIC COST
+
+Example:
+
+Software: $0
+Hosting: $0
+Database: $0
+API: $0
+Card required: No
+
+ACTUAL COST: $0
+
+Another:
+
+Software: $0
+Hosting: $5
+API: $0
+
+ACTUAL COST: ~$5/month
+
+Never describe a self-hosted product as absolutely free if hosting is required.
+
+---
+
+# 12. FREE SCORE
+
+Create a standardized Free Score from 0–100.
+
+Potential scoring dimensions:
+
+* Free allowance generosity
+* Permanence
+* Commercial eligibility
+* No-card availability
+* Open-source status
+* Ease of implementation
+* Reliability
+* Documentation
+* Vendor credibility
+* Community activity
+* Expiration risk
+* Infrastructure cost
+* Restrictions
+
+Display:
+
+FREE SCORE 94
+
+Do not make the score arbitrary.
+
+Store the underlying score components so the score can be explained.
+
+---
+
+# 13. CONFIDENCE SCORE
+
+Every resource should also have a Confidence Score.
+
+Example:
+
+CONFIDENCE 97%
+
+Confidence should be based on evidence quality:
+
+* Official pricing page
+* Official announcement
+* Official documentation
+* GitHub repository
+* License
+* Multiple corroborating sources
+* Recent verification
+
+A resource based only on a random article should have lower confidence.
+
+---
+
+# 14. VERIFICATION PIPELINE
+
+Every resource moves through:
+
+DISCOVERED
+↓
+ANALYZING
+↓
+CLASSIFIED
+↓
+VERIFIED
+↓
+PUBLISHED
+↓
+MONITORED
+↓
+UPDATED / EXPIRED
+
+Verification should check:
+
+* Does the offer actually exist?
+* Is it still active?
+* Is the free tier accurate?
+* Are limits accurate?
+* Is commercial usage allowed?
+* Is a credit card required?
+* Is the license valid?
+* Is the GitHub repository active?
+* Is documentation available?
+* Can the resource actually be used?
+* Has pricing changed?
+* Has the offer expired?
+
+---
+
+# 15. EXPIRATION ENGINE
+
+Temporary offers must never become stale content.
+
+Track:
+
+FREE UNTIL
+LAST VERIFIED
+STATUS
+
+Statuses:
+
+ACTIVE
+EXPIRING_SOON
+EXPIRED
+SUSPENDED
+UNVERIFIED
+
+When an offer expires, automatically move it out of active recommendations.
+
+Do not delete it.
+
+Preserve historical intelligence.
+
+---
+
+# 16. SOURCE REGISTRY
+
+Create a Source Registry.
+
+Each source should have:
+
+* Source URL
+* Source type
+* Category
+* Crawl frequency
+* Last checked
+* Last changed
+* Parser
+* Reliability score
+* Active/inactive
+* Error count
+* Discovery method
+
+Source tiers:
+
+TIER 1:
+Daily
+
+* Pricing pages
+* Official announcements
+* Changelogs
+* GitHub releases
+* GitHub repositories
+* Free-tier pages
+
+TIER 2:
+Every few days
+
+* Blogs
+* Documentation
+* Product launch sources
+* Community sources
+
+TIER 3:
+Discovery
+
+* New domains
+* User submissions
+* Newly discovered sources
+* Search-discovered sources
+
+---
+
+# 17. DISCOVERY ENGINE
+
+The discovery engine should be extremely aggressive.
+
+Do not rely on one source.
+
+Continuously discover:
+
+* New free offers
+* Changed pricing
+* Expanded free tiers
+* New GitHub repositories
+* New MCP servers
+* New agent skills
+* New open-source projects
+* New cloud credits
+* Temporary promotions
+* New free APIs
+* Free SaaS alternatives
+
+Prioritize official sources.
+
+Use secondary sources for discovery and corroboration, not as the sole authority for important claims.
+
+---
+
+# 18. GITHUB INTELLIGENCE
+
+GitHub is a first-class data source.
+
+Search and classify repositories for:
+
+* AI agents
+* Agent frameworks
+* MCP
+* MCP servers
+* Agent skills
+* Workflows
+* Automation
+* OCR
+* Speech
+* Image generation
+* Video generation
+* Databases
+* Vector databases
+* Scraping
+* Developer tools
+* SaaS alternatives
+* HR technology
+* Recruiting
+* Productivity
+* Infrastructure
+
+Analyze:
+
+* README
+* License
+* Releases
+* Stars
+* Forks
+* Issues
+* Last commit
+* Contributors
+* Topics
+* Installation
+* Docker support
+* API availability
+* Documentation
+* Security indicators
+
+Do not rank repositories purely by stars.
+
+---
+
+# 19. CAPABILITY GRAPH
+
+The platform should understand capabilities, not merely products.
+
+Example:
+
+CAPABILITY:
+"Resume parsing"
+
+Connect:
+
+* Open-source repositories
+* Free APIs
+* MCP servers
+* Agent skills
+* Workflows
+* SaaS alternatives
+* Tutorials
+* Models
+
+Another:
+
+CAPABILITY:
+"Build AI recruitment agent"
+
+Connect:
+
+* LLM
+* Agent framework
+* MCP
+* Resume parser
+* Database
+* Vector DB
+* Workflow
+* Hosting
+* Monitoring
+
+This creates the foundation for Free Stack generation.
+
+---
+
+# 20. FREE STACK BUILDER
+
+User enters:
+
+"Build an AI recruitment agent."
+
+The system analyzes the requirement and constructs a stack.
+
+Example:
+
+LLM
+↓
+AGENT FRAMEWORK
+↓
+MCP
+↓
+DATABASE
+↓
+VECTOR DATABASE
+↓
+WORKFLOW
+↓
+HOSTING
+↓
+MONITORING
+
+For each component provide:
+
+* Recommended free option
+* Why selected
+* Setup difficulty
+* Limitations
+* Commercial usage
+* Cost
+* Alternative options
+
+At the end calculate:
+
+COMMERCIAL EQUIVALENT
+$427/month
+
+FREE IMPLEMENTATION
+$0–$12/month
+
+POTENTIAL SAVING
+$415/month
+
+Do not manufacture the savings number.
+
+Calculate it from stored pricing data.
+
+---
+
+# 21. COST REDUCTION ENGINE
+
+Create a separate experience for organizations.
+
+User can enter:
+
+* Existing software
+* Monthly cost
+* Number of users
+* Current usage
+* Business purpose
+
+Example:
+
+Zapier — $799/month
+Datadog — $1,000/month
+OpenAI API — $1,200/month
+
+The system finds:
+
+* Free replacement
+* Open-source replacement
+* Free tier
+* Self-hosted alternative
+* Downgrade opportunity
+* Consolidation opportunity
+
+For each recommendation show:
+
+CURRENT COST
+POSSIBLE COST
+MONTHLY SAVING
+ANNUAL SAVING
+MIGRATION DIFFICULTY
+TECHNICAL COMPLEXITY
+OPERATIONAL RISK
+SECURITY CONSIDERATIONS
+RECOMMENDATION
+
+Use conservative estimates.
+
+---
+
+# 22. "REPLACE MY TOOL" FEATURE
+
+Allow users to enter:
+
+"Replace Zapier"
+
+Return:
+
+* Best free replacement
+* Best open-source replacement
+* Best self-hosted replacement
+* Cheapest commercial alternative
+* Migration difficulty
+* Supported integrations
+* Limitations
+* Estimated savings
+
+This is a secondary feature, not the primary identity of the platform.
+
+---
+
+# 23. RESOURCE DETAIL PAGE
+
+Resource pages should feel like futuristic intelligence dossiers.
+
+Display prominently:
+
+RESOURCE NAME
+CATEGORY
+FREE SCORE
+CONFIDENCE
+CURRENT STATUS
+
+Then:
+
+WHY IT MATTERS
+WHAT YOU GET
+WHO CAN USE IT
+HOW MUCH IS FREE
+COMMERCIAL USAGE
+LICENSE
+CARD REQUIRED
+LIMITATIONS
+HOW TO SET IT UP
+HOW TO USE IT
+API EXAMPLES
+ALTERNATIVES
+ESTIMATED SAVINGS
+VERIFICATION
+SOURCE EVIDENCE
+
+Primary CTA:
+
+USE THIS FOR FREE
+
+Secondary:
+
+ADD TO MY STACK
+
+SAVE
+
+SHARE
+
+REPORT OUTDATED INFORMATION
+
+---
+
+# 24. USER SUBMISSIONS
+
+Allow users to submit discoveries.
+
+User provides:
+
+* URL
+* Name
+* Description
+* Why it is useful
+
+Submission enters:
+
+SUBMITTED
+↓
+AUTOMATED ANALYSIS
+↓
+VERIFICATION
+↓
+APPROVED / REJECTED
+
+Never publish user submissions automatically without verification.
+
+---
+
+# 25. DAILY INTELLIGENCE
+
+Create a daily intelligence experience.
+
+Example:
+
+TODAY'S FREE INTELLIGENCE
+
+8 NEW OPPORTUNITIES
+
+3 HIGH VALUE
+2 TEMPORARY
+2 OPEN SOURCE
+1 CLOUD CREDIT
+
+Show:
+
+* What changed
+* Why it matters
+* Potential savings
+* Expiration
+* Verification
+
+---
+
+# 26. PERSONALIZED FREE RADAR
+
+Eventually allow users to select interests:
+
+AI
+Coding
+MCP
+Cloud
+Automation
+HR
+Recruiting
+Design
+Productivity
+Developer tools
+
+Generate a personalized feed:
+
+"7 new freebies for you."
+
+Potential output:
+
+2 free APIs
+1 open-source replacement
+2 GitHub projects
+1 cloud credit program
+1 temporary promotion
+
+Potential savings:
+
+$340/month
+
+---
+
+# 27. VISUAL DESIGN — NON-NEGOTIABLE
+
+The target audience is predominantly Gen-Z.
+
+The website must feel:
+
+FUTURISTIC
+IMMERSIVE
+FAST
+INTERACTIVE
+PREMIUM
+SLIGHTLY ADDICTIVE
+TECHNICAL
+VISUALLY UNFORGETTABLE
+
+Do NOT build a generic SaaS dashboard.
+
+Do NOT build a plain Tailwind template.
+
+Do NOT make it look like a corporate enterprise portal.
+
+Do NOT use generic AI robot imagery.
+
+Do NOT use giant AI brains.
+
+Do NOT use boring cards everywhere without motion.
+
+---
+
+# 28. COLOR SYSTEM
+
+Primary background:
+
+Deep black
+Midnight blue
+Dark charcoal
+
+Neon accents:
+
+Electric cyan
+Electric purple
+Lime green
+
+Use orange/red for:
+
+Warnings
+Expiration
+Risk
+Failed verification
+
+Bright colors should feel luminous against the dark background.
+
+Use gradients and glow intelligently.
+
+---
+
+# 29. BACKGROUND
+
+Use:
+
+* Animated subtle grid
+* Dot matrix
+* Fine digital lines
+* Very subtle particles
+* Depth layers
+* Ambient glow
+* Network connections
+
+Background animation must remain subtle enough that content remains readable.
+
+---
+
+# 30. TYPOGRAPHY
+
+Use a futuristic sans-serif for headings.
+
+Use monospace fonts for:
+
+* Numbers
+* Technical labels
+* Status
+* Logs
+* Metadata
+* Code
+* Scores
+* Dates
+* System information
+
+Important titles may have subtle glow effects.
+
+---
+
+# 31. GLASSMORPHISM
+
+Use:
+
+* Transparent dark panels
+* Background blur
+* Glowing borders
+* Subtle reflections
+* Layered depth
+
+Do not turn every element into a glass card.
+
+Use hierarchy.
+
+---
+
+# 32. HOLOGRAPHIC CARDS
+
+Resource cards should react to mouse movement.
+
+Possible effects:
+
+* Slight 3D tilt
+* Light following cursor
+* Holographic gradient shift
+* Border glow
+* Depth shadow
+* Internal reflection
+
+Keep text readable.
+
+Do not over-animate.
+
+---
+
+# 33. MOTION DESIGN
+
+Use animation throughout the product.
+
+Micro interactions:
+100–200ms
+
+UI transitions:
+250–400ms
+
+Data animations:
+600–1200ms
+
+Major intelligence animations:
+1–2 seconds
+
+Ambient animations:
+Slow and continuous
+
+Use smooth easing.
+
+Support:
+
+prefers-reduced-motion
+
+When reduced motion is enabled, retain functionality but remove unnecessary movement.
+
+---
+
+# 34. INTERACTIVE SYSTEM EFFECTS
+
+Include:
+
+* Live data streams
+* Typing animations
+* Blinking terminal cursor
+* Animated counters
+* Resource discovery animations
+* Verification animations
+* Animated savings numbers
+* Particle effects
+* Cursor interaction
+* Holographic cards
+* Dynamic connection lines
+* Smooth scaling
+* Animated progress indicators
+
+When an AI explanation is generated, allow it to appear with a subtle typing effect.
+
+---
+
+# 35. SOUND
+
+Sound must be OFF by default.
+
+Provide:
+
+SOUND: OFF / ON
+
+Optional sounds:
+
+* UI click
+* Discovery
+* Verification
+* Success
+* Warning
+* Ambient hum
+
+Respect browser autoplay restrictions.
+
+Do not make sounds annoying.
+
+---
+
+# 36. DISCOVERY ANIMATION
+
+When showing a newly discovered resource, animate:
+
+DISCOVERED
+↓
+ANALYZING
+↓
+VERIFYING
+↓
+VERIFIED
+↓
+PUBLISHED
+
+This should visually communicate the intelligence pipeline.
+
+Do not fake system activity.
+
+Only display real statuses.
+
+---
+
+# 37. RETENTION / EXPLORATION
+
+The site should encourage exploration.
+
+Create modules such as:
+
+TODAY'S CRAZIEST FIND
+
+YOU ARE PROBABLY OVERPAYING FOR THIS
+
+FREE BEFORE IT DISAPPEARS
+
+5 GITHUB REPOS YOU SHOULD KNOW
+
+BUILD THIS FOR $0
+
+NEW THIS HOUR
+
+HIDDEN FREE TIER
+
+BEST FREE AI STACK TODAY
+
+BIGGEST SAVING DISCOVERED TODAY
+
+These should be generated from real data.
+
+---
+
+# 38. SEARCH EXPERIENCE
+
+Search must support natural language.
+
+Examples:
+
+"I need OCR."
+
+"Build an AI recruiter."
+
+"Replace Zapier."
+
+"Free database for an AI agent."
+
+"Need an MCP server for GitHub."
+
+"How can I host this for free?"
+
+The system should map user intent to capabilities and resources.
+
+---
+
+# 39. SEO
+
+Build technically strong SEO.
+
+Every resource should have an indexable page.
+
+Generate structured metadata where appropriate.
+
+Create pages around:
+
+* Free AI APIs
+* Free MCP servers
+* Free agent frameworks
+* Free GitHub AI tools
+* Free cloud credits
+* Free automation tools
+* Open-source alternatives
+* Free developer tools
+* Free HR tools
+* Free recruiting tools
+
+But do not create thousands of thin autogenerated pages.
+
+Every indexed page should contain meaningful intelligence.
+
+---
+
+# 40. DATA INTEGRITY
+
+Never fabricate.
+
+Never hallucinate pricing.
+
+Never hallucinate free tiers.
+
+Never hallucinate licenses.
+
+Never hallucinate commercial rights.
+
+Never fabricate GitHub statistics.
+
+Never fabricate savings.
+
+When data is uncertain:
+
+DISPLAY:
+
+UNVERIFIED
+
+UNKNOWN
+
+NEEDS REVIEW
+
+Confidence must be visible.
+
+---
+
+# 41. ADMIN / OPERATIONS CONSOLE
+
+Create an internal admin interface.
+
+Show:
+
+* Source health
+* Failed crawls
+* New discoveries
+* Verification queue
+* Expiring resources
+* Recently changed resources
+* Duplicate resources
+* User submissions
+* Low-confidence resources
+* GitHub ingestion status
+* Scheduled jobs
+* Database statistics
+
+Allow manual:
+
+* Approve
+* Reject
+* Edit
+* Verify
+* Expire
+* Merge duplicate
+* Disable source
+* Re-run discovery
+
+---
+
+# 42. ERROR HANDLING
+
+The application must gracefully handle:
+
+* Source unavailable
+* API rate limit
+* GitHub rate limit
+* Invalid HTML
+* Changed website structure
+* Broken links
+* Expired API
+* Database failure
+* Scheduled job failure
+* Duplicate discovery
+
+Never crash the entire discovery pipeline because one source failed.
+
+Log errors.
+
+Continue processing remaining sources.
+
+---
+
+# 43. DEDUPLICATION
+
+The same resource may appear in:
+
+* GitHub
+* Reddit
+* Hacker News
+* official blog
+* pricing page
+* user submission
+
+These should become one canonical resource with multiple evidence sources.
+
+Do not create five duplicate entries.
+
+---
+
+# 44. SECURITY
+
+Never expose secrets to the frontend.
+
+Use environment variables for:
+
+* API keys
+* GitHub tokens if used
+* provider credentials
+
+Do not hard-code secrets.
+
+Sanitize scraped content.
+
+Do not execute arbitrary code from repositories.
+
+Do not trust README content as executable instructions.
+
+---
+
+# 45. DEVELOPMENT STRATEGY
+
+Build incrementally.
+
+PHASE 1:
+Application shell
+Database schema
+Navigation
+Design system
+Homepage
+
+PHASE 2:
+Resource database
+Resource detail pages
+Search
+Categories
+
+PHASE 3:
+Source Registry
+GitHub ingestion
+RSS ingestion
+Discovery pipeline
+
+PHASE 4:
+Verification
+Expiration
+Evidence
+Confidence
+
+PHASE 5:
+Free Radar
+Daily intelligence
+
+PHASE 6:
+Free Stack Builder
+
+PHASE 7:
+Cost Reduction Engine
+
+PHASE 8:
+User submissions
+
+PHASE 9:
+Admin console
+
+Do not proceed to the next phase until the current phase is functional.
+
+---
+
+# 46. TESTING
+
+After each phase:
+
+* Run application
+* Test frontend
+* Test API
+* Test database
+* Test mobile layout
+* Test desktop layout
+* Test animations
+* Test accessibility
+* Test reduced-motion mode
+* Test failed network requests
+* Test empty states
+* Test malformed data
+* Test duplicate data
+
+Do not merely check that the page renders.
+
+Test actual functionality.
+
+---
+
+# 47. MOBILE
+
+The visual experience must remain impressive on mobile.
+
+Do not simply shrink the desktop UI.
+
+Adapt:
+
+* Navigation
+* Radar
+* Cards
+* Motion
+* Search
+* Stack builder
+* Cost analysis
+
+Touch interactions should replace hover-only interactions.
+
+---
+
+# 48. PERFORMANCE
+
+Despite the visual complexity, the site must remain fast.
+
+Optimize:
+
+* Images
+* JavaScript
+* Animation
+* Fonts
+* API calls
+* Database queries
+
+Use CSS transforms for animations where possible.
+
+Avoid unnecessary re-renders.
+
+Lazy-load expensive components.
+
+Do not let particle effects destroy mobile performance.
+
+---
+
+# 49. PRODUCT PHILOSOPHY
+
+Every feature must answer at least one of these questions:
+
+1. Does this help users discover something valuable?
+2. Does this help users understand whether it is genuinely free?
+3. Does this help users actually use it?
+4. Does this help users save money?
+5. Does this make the discovery experience more engaging?
+
+If a feature answers none of these, do not build it.
+
+---
+
+# 50. SUCCESS CRITERIA
+
+The final application should make a user think:
+
+"I didn't know this existed."
+
+Then:
+
+"I can actually use this."
+
+Then:
+
+"Why was I paying for this?"
+
+And ideally:
+
+"What else can I replace?"
+
+The platform should create a natural loop:
+
+DISCOVER
+→ VERIFY
+→ USE
+→ SAVE
+→ EXPLORE
+→ DISCOVER AGAIN
+
+---
+
+# 51. CRITICAL BUILD RULE
+
+Do not optimize for making the website look finished quickly.
+
+Optimize for building a real intelligence system underneath an exceptional interface.
+
+The frontend should be spectacular.
+
+The data should be real.
+
+The verification should be trustworthy.
+
+The savings calculations should be defensible.
+
+The discovery engine should continuously improve.
+
+The platform must become more valuable every day as its knowledge base grows.
+
+---
+
+# 52. FINAL EXPERIENCE
+
+The ultimate product should feel like:
+
+**THE INTERNET'S FUTURISTIC CONTROL CENTER FOR FREE RESOURCES, OPEN SOURCE, AI, AND COST REDUCTION.**
+
+A user should be able to enter with:
+
+"I need something."
+
+And leave with:
+
+"I found exactly what I needed, learned how to use it, and saved money."
+
+For organizations, the platform should eventually answer:
+
+"We spend $18,000/month on software."
+
+→ Analyze
+
+→ Discover alternatives
+
+→ Calculate savings
+
+→ Explain migration
+
+→ Build the replacement stack
+
+→ Track savings
+
+The long-term product is not a directory.
+
+It is an **autonomous cost-reduction intelligence system**.
+
+Build toward that architecture from day one.
+
+Final principle:
+
+**DISCOVER. BUILD. SAVE. REPEAT. ♾**

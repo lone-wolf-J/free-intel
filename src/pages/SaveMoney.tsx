@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, Calculator, ShieldQuestion, SearchCheck, ExternalLink, Zap, ArrowRight, TrendingUp, TrendingDown, Minus, RefreshCw } from "lucide-react";
-import { api, type CostAnalysis, type CostAnalysisLine, type ProductResolution, type Alternative } from "@/lib/api";
+import { api, type CostAnalysis, type CostAnalysisLine, type ProductResolution, type Alternative, type Plan } from "@/lib/api";
 import { Panel, SectionTitle, Counter, EmptyState } from "@/components/ui/primitives";
 import { sfx } from "@/lib/sound";
 
@@ -257,8 +257,9 @@ export default function SaveMoney() {
   );
 }
 
+function toArray<T = unknown>(v: unknown, def: T[] = []): T[] { return Array.isArray(v) ? (v as T[]) : def; }
 function extractedPrices(res: ProductResolution): number[] {
-  return (res.product?.plans || [])
+  return toArray<Plan>(res.product?.plans)
     .map((p) => p.price_month)
     .filter((p): p is number => typeof p === "number" && p > 0);
 }
@@ -322,9 +323,9 @@ function ResolutionInfo({ res }: { res: ProductResolution }) {
           </a>
         )}
       </div>
-      {p.plans.length > 0 && (
+      {toArray<Plan>(p.plans).length > 0 && (
         <div className="flex flex-wrap gap-1">
-          {p.plans.slice(0, 5).map((pl, idx) => (
+          {toArray<Plan>(p.plans).slice(0, 5).map((pl, idx) => (
             <span key={idx} className="chip border-slate-600/50 text-slate-300">
               {pl.name}: {typeof pl.price_month === "number" ? `$${pl.price_month}/mo` : "price n/a"}
               {pl.has_free_tier ? " · FREE TIER" : ""}
