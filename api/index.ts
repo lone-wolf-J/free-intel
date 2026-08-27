@@ -40,15 +40,17 @@ app.get("/api/resources", async (c) => {
     : sort === "newest" ? sql`ORDER BY created_at DESC`
     : sql`ORDER BY free_score DESC`;
 
+  const blocked = ['pricing', 'directory', 'ai-directory', 'research', 'newsletter', 'news', 'comparison', 'tutorial', 'guide', 'list', 'roundup', 'announcement'];
+
   let rows, countRows;
 
   if (q) {
     const p = `%${q}%`;
-    rows = await sql`SELECT * FROM resources WHERE (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p}) AND resource_type != 'article' AND category != ALL(${['pricing', 'directory', 'ai-directory', 'research', 'newsletter', 'news', 'comparison', 'tutorial', 'guide', 'list', 'roundup', 'announcement']}) ${order} LIMIT ${lim} OFFSET ${off}`;
-    countRows = await sql`SELECT COUNT(*) as n FROM resources WHERE (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p}) AND resource_type != 'article' AND category != ALL(${['pricing', 'directory', 'ai-directory', 'research', 'newsletter', 'news', 'comparison', 'tutorial', 'guide', 'list', 'roundup', 'announcement']})`;
+    rows = await sql`SELECT * FROM resources WHERE (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p}) AND resource_type != 'article' AND NOT (category = ANY(${blocked})) ${order} LIMIT ${lim} OFFSET ${off}`;
+    countRows = await sql`SELECT COUNT(*) as n FROM resources WHERE (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p}) AND resource_type != 'article' AND NOT (category = ANY(${blocked}))`;
   } else if (category && category !== "all") {
-    rows = await sql`SELECT * FROM resources WHERE category = ${category} AND resource_type != 'article' AND category != ALL(${['pricing', 'directory', 'ai-directory', 'research', 'newsletter', 'news', 'comparison', 'tutorial', 'guide', 'list', 'roundup', 'announcement']}) ${order} LIMIT ${lim} OFFSET ${off}`;
-    countRows = await sql`SELECT COUNT(*) as n FROM resources WHERE category = ${category} AND resource_type != 'article' AND category != ALL(${['pricing', 'directory', 'ai-directory', 'research', 'newsletter', 'news', 'comparison', 'tutorial', 'guide', 'list', 'roundup', 'announcement']})`;
+    rows = await sql`SELECT * FROM resources WHERE category = ${category} AND resource_type != 'article' ${order} LIMIT ${lim} OFFSET ${off}`;
+    countRows = await sql`SELECT COUNT(*) as n FROM resources WHERE category = ${category} AND resource_type != 'article'`;
   } else if (origin) {
     rows = await sql`SELECT * FROM resources WHERE origin = ${origin} AND resource_type != 'article' ${order} LIMIT ${lim} OFFSET ${off}`;
     countRows = await sql`SELECT COUNT(*) as n FROM resources WHERE origin = ${origin} AND resource_type != 'article'`;
@@ -57,9 +59,8 @@ app.get("/api/resources", async (c) => {
     rows = await sql`SELECT * FROM resources WHERE free_types::text ILIKE ${ftp} AND resource_type != 'article' ${order} LIMIT ${lim} OFFSET ${off}`;
     countRows = await sql`SELECT COUNT(*) as n FROM resources WHERE free_types::text ILIKE ${ftp} AND resource_type != 'article'`;
   } else {
-    const blocked = ['pricing', 'directory', 'ai-directory', 'research', 'newsletter', 'news', 'comparison', 'tutorial', 'guide', 'list', 'roundup', 'announcement'];
-    rows = await sql`SELECT * FROM resources WHERE resource_type != 'article' AND category != ALL(${blocked}) ${order} LIMIT ${lim} OFFSET ${off}`;
-    countRows = await sql`SELECT COUNT(*) as n FROM resources WHERE resource_type != 'article' AND category != ALL(${blocked})`;
+    rows = await sql`SELECT * FROM resources WHERE resource_type != 'article' AND NOT (category = ANY(${blocked})) ${order} LIMIT ${lim} OFFSET ${off}`;
+    countRows = await sql`SELECT COUNT(*) as n FROM resources WHERE resource_type != 'article' AND NOT (category = ANY(${blocked}))`;
   }
 
   const filteredRows = (rows as any[]).filter(isTool);
