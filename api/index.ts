@@ -25,14 +25,18 @@ app.get("/api/resources", async (c) => {
     : sql`ORDER BY free_score DESC`;
 
   let rows, countRows;
+  const articleFilter = `AND resource_type != 'article' AND category NOT IN ('pricing', 'directory', 'ai-directory', 'research', 'newsletter', 'news', 'comparison', 'tutorial', 'guide', 'list', 'roundup', 'announcement')`;
+
   if (q) {
     const p = `%${q}%`;
-    rows = await sql`SELECT * FROM resources WHERE (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p}) ${order} LIMIT ${lim} OFFSET ${off}`;
-    countRows = await sql`SELECT COUNT(*) as n FROM resources WHERE (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p})`;
+    rows = await sql.unsafe(`SELECT * FROM resources WHERE (name ILIKE '${p.replace(/'/g, "''")}' OR description ILIKE '${p.replace(/'/g, "''")}' OR tags::text ILIKE '${p.replace(/'/g, "''")}') ${articleFilter} ORDER BY free_score DESC LIMIT ${lim} OFFSET ${off}`);
+    countRows = await sql.unsafe(`SELECT COUNT(*) as n FROM resources WHERE (name ILIKE '${p.replace(/'/g, "''")}' OR description ILIKE '${p.replace(/'/g, "''")}' OR tags::text ILIKE '${p.replace(/'/g, "''")}') ${articleFilter}`);
   } else if (category && category !== "all") {
-    rows = await sql`SELECT * FROM resources WHERE category = ${category} ${order} LIMIT ${lim} OFFSET ${off}`;
-    countRows = await sql`SELECT COUNT(*) as n FROM resources WHERE category = ${category}`;
+    const c2 = category.replace(/'/g, "''");
+    rows = await sql.unsafe(`SELECT * FROM resources WHERE category = '${c2}' ${articleFilter} ORDER BY free_score DESC LIMIT ${lim} OFFSET ${off}`);
+    countRows = await sql.unsafe(`SELECT COUNT(*) as n FROM resources WHERE category = '${c2}' ${articleFilter}`);
   } else if (origin) {
+    const o = origin.replace(/'/g, "''");
     rows = await sql`SELECT * FROM resources WHERE origin = ${origin} ${order} LIMIT ${lim} OFFSET ${off}`;
     countRows = await sql`SELECT COUNT(*) as n FROM resources WHERE origin = ${origin}`;
   } else if (free_type && free_type !== "all") {
@@ -40,8 +44,8 @@ app.get("/api/resources", async (c) => {
     rows = await sql`SELECT * FROM resources WHERE free_types::text ILIKE ${ftp} ${order} LIMIT ${lim} OFFSET ${off}`;
     countRows = await sql`SELECT COUNT(*) as n FROM resources WHERE free_types::text ILIKE ${ftp}`;
   } else {
-    rows = await sql`SELECT * FROM resources ${order} LIMIT ${lim} OFFSET ${off}`;
-    countRows = await sql`SELECT COUNT(*) as n FROM resources`;
+    rows = await sql.unsafe(`SELECT * FROM resources WHERE 1=1 ${articleFilter} ORDER BY free_score DESC LIMIT ${lim} OFFSET ${off}`);
+    countRows = await sql.unsafe(`SELECT COUNT(*) as n FROM resources WHERE 1=1 ${articleFilter}`);
   }
 
   return c.json({
@@ -52,7 +56,7 @@ app.get("/api/resources", async (c) => {
 
 // ─── Facets ─── (MUST be before :slug to avoid route conflict)
 app.get("/api/resources/facets", async (c) => {
-  const cats = await sql`SELECT category, COUNT(*) as n FROM resources WHERE category IS NOT NULL GROUP BY category ORDER BY n DESC`;
+  const cats = await sql`SELECT category, COUNT(*) as n FROM resources WHERE category IS NOT NULL AND resource_type != 'article' AND category NOT IN ('pricing', 'directory', 'ai-directory', 'research', 'newsletter', 'news', 'comparison', 'tutorial', 'guide', 'list', 'roundup', 'announcement') GROUP BY category ORDER BY n DESC`;
   return c.json({ categories: (cats as any[]).map((r: any) => ({ category: r.category, n: Number(r.n) })), types: [] });
 });
 
@@ -62,13 +66,17 @@ app.post("/api/resources/ai-search", async (c) => {
   if (!q) return c.json({ count: 0, items: [] });
   const terms = q.toLowerCase().split(/\s+/);
   const pats = terms.slice(0, 5).map((t: string) => `%${t}%`);
-  const result = await sql`
+  const esc = (s: string) => s.replace(/'/g, "''");
+  const result = await sql.unsafe(`
     SELECT *, free_score + CASE WHEN 'open_source' = ANY(SELECT jsonb_array_elements_text(free_types)) THEN 10 ELSE 0 END as relevance
     FROM resources
-    WHERE name ILIKE ${pats[0]} OR description ILIKE ${pats[0]} OR tags::text ILIKE ${pats[0]}
-       OR name ILIKE ${pats[1] || pats[0]} OR description ILIKE ${pats[1] || pats[0]} OR tags::text ILIKE ${pats[1] || pats[0]}
-       OR name ILIKE ${pats[2] || pats[0]} OR description ILIKE ${pats[2] || pats[0]} OR tags::text ILIKE ${pats[2] || pats[0]}
-    ORDER BY relevance DESC LIMIT 50`;
+    WHERE resource_type != 'article'
+      AND category NOT IN ('pricing', 'directory', 'ai-directory', 'research', 'newsletter', 'news', 'comparison', 'tutorial', 'guide', 'list', 'roundup', 'announcement')
+      AND url NOT LIKE '%reddit.com%' AND url NOT LIKE '%arxiv.org%' AND url NOT LIKE '%theguardian%' AND url NOT LIKE '%medium.com%' AND url NOT LIKE '%substack.com%'
+      AND (name ILIKE '${esc(pats[0])}' OR description ILIKE '${esc(pats[0])}' OR tags::text ILIKE '${esc(pats[0])}'
+        OR name ILIKE '${esc(pats[1] || pats[0])}' OR description ILIKE '${esc(pats[1] || pats[0])}' OR tags::text ILIKE '${esc(pats[1] || pats[0])}'
+        OR name ILIKE '${esc(pats[2] || pats[0])}' OR description ILIKE '${esc(pats[2] || pats[0])}' OR tags::text ILIKE '${esc(pats[2] || pats[0])}')
+    ORDER BY relevance DESC LIMIT 50`);
   return c.json({ count: (result as any[]).length, items: (result as any[]).map(mapResource), query: q, expanded_terms: terms });
 });
 
@@ -122,12 +130,12 @@ app.get("/api/deals", async (c) => {
   let dbDeals;
   if (q) {
     const p = `%${q}%`;
-    dbDeals = await sql`SELECT * FROM resources WHERE free_score >= 50 AND (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p}) ORDER BY free_score DESC LIMIT 100`;
+    dbDeals = await sql`SELECT * FROM resources WHERE free_score >= 50 AND resource_type != 'article' AND category NOT IN ('pricing', 'directory', 'ai-directory', 'research', 'newsletter', 'news', 'comparison', 'tutorial', 'guide', 'list', 'roundup', 'announcement') AND url NOT LIKE '%reddit.com%' AND url NOT LIKE '%arxiv.org%' AND url NOT LIKE '%theguardian%' AND url NOT LIKE '%medium.com%' AND url NOT LIKE '%substack.com%' AND (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p}) ORDER BY free_score DESC LIMIT 100`;
   } else {
-    dbDeals = await sql`SELECT * FROM resources WHERE free_score >= 50 ORDER BY free_score DESC LIMIT 100`;
+    dbDeals = await sql`SELECT * FROM resources WHERE free_score >= 50 AND resource_type != 'article' AND category NOT IN ('pricing', 'directory', 'ai-directory', 'research', 'newsletter', 'news', 'comparison', 'tutorial', 'guide', 'list', 'roundup', 'announcement') AND url NOT LIKE '%reddit.com%' AND url NOT LIKE '%arxiv.org%' AND url NOT LIKE '%theguardian%' AND url NOT LIKE '%medium.com%' AND url NOT LIKE '%substack.com%' ORDER BY free_score DESC LIMIT 100`;
   }
 
-  const dbItems = (dbDeals as any[]).map((r: any) => ({
+  const dbItems = (dbDeals as any[]).filter(isTool).map((r: any) => ({
     id: r.slug, name: r.name, description: r.description, category: r.category || "General",
     deal_type: (Array.isArray(r.free_types) && r.free_types.includes("open_source")) ? "open_source" : "free_tier",
     score: r.free_score || 0, tags: parseJson(r.tags, []), url: r.url || r.github_url,
@@ -437,14 +445,17 @@ app.post("/api/stacks/generate", async (c) => {
     const results: any[] = [];
     for (const term of searchTerms) {
       const p = `%${term}%`;
-      const rows = await sql`SELECT slug, name, description, url, github_url, free_score, category, tags, license, self_hostable, popularity, provider, free_types
+      const rows = await sql`SELECT slug, name, description, url, github_url, free_score, category, tags, license, self_hostable, popularity, provider, free_types, resource_type
         FROM resources
         WHERE (tags::text ILIKE ${p} OR capabilities::text ILIKE ${p} OR category ILIKE ${p} OR description ILIKE ${p})
         AND free_score >= 40
+        AND resource_type != 'article'
+        AND category NOT IN ('pricing', 'directory', 'ai-directory', 'research', 'newsletter', 'news', 'comparison', 'tutorial', 'guide', 'list', 'roundup', 'announcement')
+        AND url NOT LIKE '%reddit.com%' AND url NOT LIKE '%arxiv.org%' AND url NOT LIKE '%theguardian%' AND url NOT LIKE '%medium.com%' AND url NOT LIKE '%substack.com%'
         ORDER BY free_score DESC, popularity DESC NULLS LAST
-        LIMIT 5`;
+        LIMIT 8`;
       for (const r of (rows as any[])) {
-        if (!usedSlugs.has(r.slug)) {
+        if (!usedSlugs.has(r.slug) && isTool(r)) {
           results.push(r);
           usedSlugs.add(r.slug);
         }
@@ -479,13 +490,16 @@ app.post("/api/stacks/generate", async (c) => {
     const goalWords = goalLower.split(/\s+/).filter((w: string) => w.length > 3);
     for (const word of goalWords.slice(0, 2)) {
       const p = `%${word}%`;
-      const rows = await sql`SELECT slug, name, description, url, github_url, free_score, category, tags, license, self_hostable, popularity, provider, free_types
+      const rows = await sql`SELECT slug, name, description, url, github_url, free_score, category, tags, license, self_hostable, popularity, provider, free_types, resource_type
         FROM resources
         WHERE (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p})
         AND free_score >= 40
+        AND resource_type != 'article'
+        AND category NOT IN ('pricing', 'directory', 'ai-directory', 'research', 'newsletter', 'news', 'comparison', 'tutorial', 'guide', 'list', 'roundup', 'announcement')
+        AND url NOT LIKE '%reddit.com%' AND url NOT LIKE '%arxiv.org%' AND url NOT LIKE '%theguardian%' AND url NOT LIKE '%medium.com%' AND url NOT LIKE '%substack.com%'
         ORDER BY free_score DESC
-        LIMIT 5`;
-      const results = (rows as any[]).filter((r: any) => !usedSlugs.has(r.slug));
+        LIMIT 8`;
+      const results = (rows as any[]).filter((r: any) => !usedSlugs.has(r.slug) && isTool(r));
       if (results.length > 0 && !layers.find(l => l.capability === word)) {
         layers.push({
           layer: word.charAt(0).toUpperCase() + word.slice(1),
@@ -518,6 +532,21 @@ app.post("/api/stacks/generate", async (c) => {
 });
 
 // ─── Helpers ───
+const BAD_CATEGORIES = new Set(["pricing", "directory", "ai-directory", "research", "newsletter", "news", "vendor-blog", "vendor blog", "comparison", "tutorial", "guide", "list", "roundup", "announcement"]);
+const BAD_URL_PATTERNS = [/reddit\.com/i, /arxiv\.org/i, /theguardian\.com/i, /medium\.com/i, /substack\.com/i, /twitter\.com/i, /x\.com/i, /linkedin\.com\/pulse/i, /hackernews\.com/i, /news\.ycombinator\.com/i, /\.pdf$/i];
+const BAD_NAME_PATTERNS = [/highlights/i, /self-promotion/i, /thread/i, /backs down/i, /expands access/i, /commitment to/i, /boom/i, /what will we/i, /comment/i, /show hn/i];
+
+function isTool(r: any): boolean {
+  if (r.resource_type === "article") return false;
+  const cat = (r.category || "").toLowerCase();
+  if (BAD_CATEGORIES.has(cat)) return false;
+  const url = (r.url || "").toLowerCase();
+  if (BAD_URL_PATTERNS.some(p => p.test(url))) return false;
+  const name = (r.name || "").toLowerCase();
+  if (BAD_NAME_PATTERNS.some(p => p.test(name))) return false;
+  return true;
+}
+
 function parseJson(v: any, def: any): any {
   if (v == null) return def;
   if (typeof v === "object") return v;
