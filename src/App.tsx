@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, Component, type ReactNode } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import Nav from "@/components/layout/Nav";
 import Footer from "@/components/layout/Footer";
@@ -13,6 +13,24 @@ import GithubIntel from "@/pages/GithubIntel";
 import Deals from "@/pages/Deals";
 import Submit from "@/pages/Submit";
 import Admin from "@/pages/Admin";
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="max-w-3xl mx-auto px-6 py-20 text-center">
+          <div className="font-mono text-4xl font-bold text-red-neon mb-4">CRASH</div>
+          <p className="text-slate-400 text-sm mb-4">Something went wrong rendering this page.</p>
+          <pre className="text-xs text-slate-600 bg-slate-900 p-4 rounded text-left overflow-auto max-h-48">{this.state.error.message}</pre>
+          <button onClick={() => { this.setState({ error: null }); window.location.reload(); }} className="btn-neon mt-6">RELOAD</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const TITLES: Record<string, string> = {
   "/": "Free Intel — Stop Paying For What You Can Get For Free",
@@ -43,7 +61,8 @@ export default function App() {
         <BackgroundFX />
         <Nav />
         <main className="relative z-10 pt-14">
-          <Routes>
+          <ErrorBoundary>
+            <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/discover" element={<Discover />} />
             <Route path="/radar" element={<Radar />} />
@@ -61,6 +80,7 @@ export default function App() {
               </div>
             } />
           </Routes>
+          </ErrorBoundary>
         </main>
         <Footer />
       </div>
