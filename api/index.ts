@@ -157,26 +157,56 @@ app.post("/api/radar/github-scan", async (c) => {
   const token = process.env.GITHUB_TOKEN;
   if (!token) return c.json({ error: "github_token_not_configured" }, 500);
 
-  const searchUrl = `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}+free+open+source&sort=stars&per_page=10`;
-  const resp = await fetch(searchUrl, { headers: { Authorization: `Bearer ${token}`, "User-Agent": "free-intel" } });
+  const searchUrl = `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}+stars:>50&sort=stars&order=desc&per_page=15`;
+  const resp = await fetch(searchUrl, {
+    headers: { Authorization: `Bearer ${token}`, "User-Agent": "free-intel", Accept: "application/vnd.github+json" },
+  });
+
+  if (resp.status === 403 || resp.status === 429) {
+    const reset = resp.headers.get("x-ratelimit-reset");
+    const remaining = resp.headers.get("x-ratelimit-remaining");
+    return c.json({ error: "rate_limited", remaining, resets_at: reset ? new Date(Number(reset) * 1000).toISOString() : null }, 429);
+  }
   if (!resp.ok) return c.json({ error: `github_api_${resp.status}` }, 502);
+
   const data = await resp.json() as any;
   const repos = data.items || [];
+  let discovered = 0, alreadyKnown = 0;
+  const newNames: string[] = [];
 
-  let discovered = 0;
   for (const repo of repos) {
     const slug = `${repo.owner?.login || "unknown"}-${repo.name}`.toLowerCase().replace(/[^a-z0-9]+/g, "-");
     const existing = await sql`SELECT id FROM resources WHERE slug = ${slug}`;
-    if ((existing as any[]).length) continue;
+    if ((existing as any[]).length) { alreadyKnown++; continue; }
+
+    const topics: string[] = repo.topics || [];
+    const desc = (repo.description || "").toLowerCase();
+    const allText = [...topics, desc, repo.full_name].join(" ").toLowerCase();
+    const category = guessCategory(allText);
+    const freeScore = calcFreeScore(repo);
+
     await sql`INSERT INTO resources (slug, name, description, url, github_url, provider, category, tags, capabilities, resource_type, free_types, license, popularity, forks, github_last_push, verification_status, origin, confidence_score, free_score, created_at, updated_at)
-      VALUES (${slug}, ${repo.full_name}, ${repo.description || ""}, ${repo.html_url}, ${repo.html_url}, ${repo.owner?.login}, 'Open Source',
-        ${JSON.stringify(repo.topics || [])}, ${JSON.stringify(repo.topics?.slice(0, 5) || [])}, 'github_repo',
-        ${JSON.stringify(["open_source"])}, ${repo.license?.spdx_id || "UNKNOWN"}, ${repo.stargazers_count}, ${repo.forks_count},
-        ${repo.pushed_at}, 'discovered', 'github', 30, 35, NOW(), NOW()) ON CONFLICT (slug) DO NOTHING`;
+      VALUES (${slug}, ${repo.full_name}, ${repo.description || ""}, ${repo.html_url}, ${repo.html_url}, ${repo.owner?.login}, ${category},
+        ${JSON.stringify(topics.slice(0, 20))}, ${JSON.stringify(topics.slice(0, 8))}, 'github_repo',
+        ${JSON.stringify(["open_source"])}, ${repo.license?.spdx_id || "UNKNOWN"}, ${repo.stargazers_count || 0}, ${repo.forks_count || 0},
+        ${repo.pushed_at || null}, 'discovered', 'github', 30, ${freeScore}, NOW(), NOW()) ON CONFLICT (slug) DO NOTHING`;
+
+    await sql`INSERT INTO events (type, title, detail, resource_id, severity, created_at)
+      VALUES ('discovery', ${'NEW REPOSITORY: ' + repo.full_name}, ${'Discovered via GitHub scan: ' + query + ' | Stars: ' + repo.stargazers_count + ' | License: ' + (repo.license?.spdx_id || 'UNKNOWN')},
+        (SELECT id FROM resources WHERE slug = ${slug}), 'info', NOW())`;
+
     discovered++;
+    newNames.push(repo.full_name);
   }
 
-  return c.json({ ok: true, query, processed: repos.length, discovered, verified: 0, expired: 0, errors: [], message: `${discovered} new repositories discovered.` });
+  const rateRemaining = resp.headers.get("x-ratelimit-remaining");
+  return c.json({
+    ok: true, query, processed: repos.length, discovered, already_known: alreadyKnown,
+    verified: 0, expired: 0, errors: [],
+    rate_limit_remaining: rateRemaining ? Number(rateRemaining) : null,
+    new_repositories: newNames,
+    message: discovered > 0 ? `${discovered} new repositories discovered from "${query}". ${alreadyKnown} already known.` : `No new repositories found for "${query}". ${alreadyKnown} already in database.`,
+  });
 });
 
 // ─── Scan Run ───
@@ -316,6 +346,56 @@ function mapResource(r: any) {
     free_score_components: parseJson(r.free_score_components, {}),
     plans_json: parseJson(r.plans_json, null),
   };
+}
+
+function guessCategory(text: string): string {
+  const t = text.toLowerCase();
+  if (t.includes("llm") || t.includes("gpt") || t.includes("transformer") || t.includes("language model") || t.includes("chat") || t.includes("inference")) return "AI / LLM";
+  if (t.includes("agent") || t.includes("agentic") || t.includes("autonomous") || t.includes("crew")) return "AI / Agent";
+  if (t.includes("mcp") || t.includes("tool-use") || t.includes("function-call")) return "AI / MCP";
+  if (t.includes("vision") || t.includes("image") || t.includes("stable-diffusion") || t.includes("midjourney") || t.includes("ocr")) return "AI / Vision";
+  if (t.includes("voice") || t.includes("tts") || t.includes("speech") || t.includes("audio") || t.includes("stt")) return "AI / Voice";
+  if (t.includes("embed") || t.includes("vector") || t.includes("rag") || t.includes("retrieval")) return "AI / Embeddings";
+  if (t.includes("code") || t.includes("copilot") || t.includes("editor") || t.includes("ide") || t.includes("linter") || t.includes("formatter")) return "Developer Tools";
+  if (t.includes("cli") || t.includes("terminal") || t.includes("shell") || t.includes("bash")) return "Developer Tools / CLI";
+  if (t.includes("api") || t.includes("rest") || t.includes("graphql") || t.includes("grpc")) return "Developer Tools / API";
+  if (t.includes("database") || t.includes("sql") || t.includes("postgres") || t.includes("mongo") || t.includes("redis")) return "Database";
+  if (t.includes("hosting") || t.includes("deploy") || t.includes("vercel") || t.includes("docker") || t.includes("kubernetes") || t.includes("k8s")) return "Infrastructure";
+  if (t.includes("monitor") || t.includes("observ") || t.includes("log") || t.includes("trace") || t.includes("metric")) return "Infrastructure / Monitoring";
+  if (t.includes("security") || t.includes("auth") || t.includes("encrypt") || t.includes("vault") || t.includes("sso")) return "Security";
+  if (t.includes("automat") || t.includes("workflow") || t.includes("pipeline") || t.includes("ci/cd") || t.includes("zapier")) return "Automation";
+  if (t.includes("crm") || t.includes("sales") || t.includes("lead") || t.includes("customer")) return "Business / CRM";
+  if (t.includes("email") || t.includes("newsletter") || t.includes("smtp") || t.includes("mail")) return "Business / Email";
+  if (t.includes("design") || t.includes("ui") || t.includes("ux") || t.includes("figma") || t.includes("svg")) return "Design";
+  if (t.includes("data") || t.includes("analytics") || t.includes("dashboard") || t.includes("report")) return "Data / Analytics";
+  if (t.includes("note") || t.includes("wiki") || t.includes("doc") || t.includes("knowledge") || t.includes("markdown")) return "Productivity";
+  if (t.includes("task") || t.includes("project") || t.includes("kanban") || t.includes("todo")) return "Productivity";
+  if (t.includes("self-host") || t.includes("selfhost") || t.includes("docker") || t.includes("homelab")) return "Self-Hosted";
+  if (t.includes("free") || t.includes("open") || t.includes("oss")) return "Open Source";
+  return "Other";
+}
+
+function calcFreeScore(repo: any): number {
+  let score = 30;
+  const topics: string[] = (repo.topics || []).map((t: string) => t.toLowerCase());
+  const desc = (repo.description || "").toLowerCase();
+  const allText = [...topics, desc].join(" ");
+
+  if (repo.license?.spdx_id && !["NOASSERTION", "UNLICENSED", "SEE LICENSE IN LICENSE"].includes(repo.license.spdx_id)) score += 12;
+  if (repo.stargazers_count > 10000) score += 8;
+  else if (repo.stargazers_count > 1000) score += 5;
+  if (repo.forks_count > 500) score += 5;
+  else if (repo.forks_count > 50) score += 3;
+  if (allText.includes("free")) score += 5;
+  if (allText.includes("self-host") || allText.includes("selfhost")) score += 5;
+  if (allText.includes("local") || allText.includes("privacy")) score += 3;
+  if (repo.pushed_at) {
+    const pushed = new Date(repo.pushed_at);
+    const daysSince = (Date.now() - pushed.getTime()) / 86400000;
+    if (daysSince < 30) score += 5;
+    else if (daysSince < 90) score += 3;
+  }
+  return Math.min(score, 100);
 }
 
 export default app;
