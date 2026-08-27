@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { neon } from "@neondatabase/serverless";
-import { findTool, searchTools, type ToolRecord } from "./alternatives-db";
+import { findTool, searchTools, getAllTools, getCategories, type ToolRecord } from "./alternatives-db";
 
 const sql = neon(process.env.POSTGRES_URL!);
 
@@ -287,8 +287,6 @@ app.post("/api/scans/run", async (c) => {
 });
 
 // ─── Alternatives Intel ───
-import { getAllTools, getCategories } from "./alternatives-db";
-
 app.get("/api/alternatives/categories", (c) => {
   return c.json({ categories: getCategories() });
 });
