@@ -40,15 +40,15 @@ app.get("/api/resources", async (c) => {
 
   const result = await sql.unsafe(
     `SELECT * FROM resources ${where} ${orderClause} LIMIT ${Number(limit)} OFFSET ${Number(offset)}`
-  );
+  ) as unknown as any[];
 
   const countResult = await sql.unsafe(
     `SELECT COUNT(*) as n FROM resources ${where}`
-  );
+  ) as unknown as any[];
 
   return c.json({
-    count: Number((countResult as any)[0]?.n || 0),
-    items: (result as any[]).map((r: any) => ({
+    count: Number(countResult[0]?.n || 0),
+    items: result.map((r: any) => ({
       ...r,
       tags: typeof r.tags === "string" ? JSON.parse(r.tags) : r.tags || [],
       capabilities: typeof r.capabilities === "string" ? JSON.parse(r.capabilities) : r.capabilities || [],
@@ -74,11 +74,11 @@ app.post("/api/resources/ai-search", async (c) => {
      WHERE ${conditions.join(" OR ")}
      ORDER BY relevance DESC
      LIMIT 50`
-  );
+  ) as unknown as any[];
 
   return c.json({
-    count: (result as any[]).length,
-    items: (result as any[]).map((r: any) => ({
+    count: result.length,
+    items: result.map((r: any) => ({
       ...r,
       tags: typeof r.tags === "string" ? JSON.parse(r.tags) : r.tags || [],
       capabilities: typeof r.capabilities === "string" ? JSON.parse(r.capabilities) : r.capabilities || [],
@@ -91,9 +91,9 @@ app.post("/api/resources/ai-search", async (c) => {
 });
 
 app.get("/api/resources/facets", async (c) => {
-  const cats = await sql.unsafe(`SELECT category, COUNT(*) as n FROM resources WHERE category IS NOT NULL GROUP BY category ORDER BY n DESC`);
+  const cats = await sql.unsafe(`SELECT category, COUNT(*) as n FROM resources WHERE category IS NOT NULL GROUP BY category ORDER BY n DESC`) as unknown as any[];
   return c.json({
-    categories: (cats as any[]).map((r: any) => ({ category: r.category, n: Number(r.n) })),
+    categories: cats.map((r: any) => ({ category: r.category, n: Number(r.n) })),
     types: [],
   });
 });
