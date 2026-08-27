@@ -76,11 +76,17 @@ app.post("/api/resources/ai-search", async (c) => {
   if (!q) return c.json({ count: 0, items: [] });
 
   const terms = q.toLowerCase().split(/\s+/);
-  const conditions = terms.map((t: string) =>
-    `(name ILIKE ${"%" + t + "%"} OR description ILIKE ${"%" + t + "%"} OR tags::text ILIKE ${"%" + t + "%"} OR capabilities::text ILIKE ${"%" + t + "%"} OR alt_of ILIKE ${"%" + t + "%"})`
-  );
+  const pat = terms.map((t: string) => `%${t}%`);
 
-  const result = await sql`SELECT *, free_score + CASE WHEN 'open_source' = ANY(SELECT jsonb_array_elements_text(free_types)) THEN 10 ELSE 0 END as relevance FROM resources WHERE ${sql.unsafe(conditions.join(" OR "))} ORDER BY relevance DESC LIMIT 50`;
+  const result = await sql`
+    SELECT *, free_score + CASE WHEN 'open_source' = ANY(SELECT jsonb_array_elements_text(free_types)) THEN 10 ELSE 0 END as relevance
+    FROM resources
+    WHERE name ILIKE ${pat[0]} OR description ILIKE ${pat[0]} OR tags::text ILIKE ${pat[0]}
+       OR name ILIKE ${pat[1] || pat[0]} OR description ILIKE ${pat[1] || pat[0]} OR tags::text ILIKE ${pat[1] || pat[0]}
+       OR name ILIKE ${pat[2] || pat[0]} OR description ILIKE ${pat[2] || pat[0]} OR tags::text ILIKE ${pat[2] || pat[0]}
+       OR name ILIKE ${pat[3] || pat[0]} OR description ILIKE ${pat[3] || pat[0]} OR tags::text ILIKE ${pat[3] || pat[0]}
+    ORDER BY relevance DESC
+    LIMIT 50`;
 
   return c.json({
     count: (result as any[]).length,
