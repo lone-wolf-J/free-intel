@@ -1,26 +1,18 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { sql, ensureSchema } from "./db";
+import { neon } from "@neondatabase/serverless";
 import { DEALS_SEED } from "../server/db/deals-seed";
+
+const sql = neon(process.env.POSTGRES_URL!);
 
 const app = new Hono();
 
 app.use("*", cors());
 
-app.use("*", async (c, next) => {
-  try {
-    await ensureSchema();
-  } catch (e) {
-    console.error("[free-intel] schema init failed:", e);
-  }
-  await next();
-});
-
 app.get("/api/health", (c) =>
   c.json({ ok: true, service: "free-intel-api", version: "1.0.0" })
 );
 
-// Resources list
 app.get("/api/resources", async (c) => {
   const { q, category, free_type, sort, limit = "50", offset = "0" } = c.req.query();
 
@@ -28,16 +20,16 @@ app.get("/api/resources", async (c) => {
   const params: any[] = [];
 
   if (q) {
-    where += ` AND (name ILIKE $${params.length + 1} OR description ILIKE $${params.length + 1} OR tags::text ILIKE $${params.length + 1})`;
     params.push(`%${q}%`);
+    where += ` AND (name ILIKE '${params[params.length - 1]}' OR description ILIKE '${params[params.length - 1]}' OR tags::text ILIKE '${params[params.length - 1]}')`;
   }
   if (category && category !== "all") {
-    where += ` AND category = $${params.length + 1}`;
     params.push(category);
+    where += ` AND category = '${params[params.length - 1]}'`;
   }
   if (free_type && free_type !== "all") {
-    where += ` AND free_types::text ILIKE $${params.length + 1}`;
     params.push(`%${free_type}%`);
+    where += ` AND free_types::text ILIKE '${params[params.length - 1]}'`;
   }
 
   const orderClause = sort === "name" ? "ORDER BY name" :
@@ -47,18 +39,16 @@ app.get("/api/resources", async (c) => {
     "ORDER BY free_score DESC";
 
   const result = await sql.unsafe(
-    `SELECT * FROM resources ${where} ${orderClause} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
-    [...params, Number(limit), Number(offset)]
+    `SELECT * FROM resources ${where} ${orderClause} LIMIT ${Number(limit)} OFFSET ${Number(offset)}`
   );
 
   const countResult = await sql.unsafe(
-    `SELECT COUNT(*) as n FROM resources ${where}`,
-    params
+    `SELECT COUNT(*) as n FROM resources ${where}`
   );
 
   return c.json({
-    count: Number(countResult[0]?.n || 0),
-    items: result.map((r: any) => ({
+    count: Number((countResult as any)[0]?.n || 0),
+    items: (result as any[]).map((r: any) => ({
       ...r,
       tags: typeof r.tags === "string" ? JSON.parse(r.tags) : r.tags || [],
       capabilities: typeof r.capabilities === "string" ? JSON.parse(r.capabilities) : r.capabilities || [],
@@ -69,29 +59,26 @@ app.get("/api/resources", async (c) => {
   });
 });
 
-// AI Search
 app.post("/api/resources/ai-search", async (c) => {
   const { q } = await c.req.json();
   if (!q) return c.json({ count: 0, items: [] });
 
   const terms = q.toLowerCase().split(/\s+/);
-  const conditions = terms.map((t: string, i: number) =>
-    `(name ILIKE $${i + 1} OR description ILIKE $${i + 1} OR tags::text ILIKE $${i + 1} OR capabilities::text ILIKE $${i + 1} OR alt_of ILIKE $${i + 1})`
+  const conditions = terms.map((t: string) =>
+    `(name ILIKE '%${t}%' OR description ILIKE '%${t}%' OR tags::text ILIKE '%${t}%' OR capabilities::text ILIKE '%${t}%' OR alt_of ILIKE '%${t}%')`
   );
-  const params = terms.map((t: string) => `%${t}%`);
 
   const result = await sql.unsafe(
     `SELECT *, free_score + CASE WHEN 'open_source' = ANY(SELECT jsonb_array_elements_text(free_types)) THEN 10 ELSE 0 END as relevance
      FROM resources
      WHERE ${conditions.join(" OR ")}
      ORDER BY relevance DESC
-     LIMIT 50`,
-    params
+     LIMIT 50`
   );
 
   return c.json({
-    count: result.length,
-    items: result.map((r: any) => ({
+    count: (result as any[]).length,
+    items: (result as any[]).map((r: any) => ({
       ...r,
       tags: typeof r.tags === "string" ? JSON.parse(r.tags) : r.tags || [],
       capabilities: typeof r.capabilities === "string" ? JSON.parse(r.capabilities) : r.capabilities || [],
@@ -103,16 +90,14 @@ app.post("/api/resources/ai-search", async (c) => {
   });
 });
 
-// Facets
 app.get("/api/resources/facets", async (c) => {
-  const cats = await sql`SELECT category, COUNT(*) as n FROM resources WHERE category IS NOT NULL GROUP BY category ORDER BY n DESC`;
+  const cats = await sql.unsafe(`SELECT category, COUNT(*) as n FROM resources WHERE category IS NOT NULL GROUP BY category ORDER BY n DESC`);
   return c.json({
-    categories: cats.map((r: any) => ({ category: r.category, n: Number(r.n) })),
+    categories: (cats as any[]).map((r: any) => ({ category: r.category, n: Number(r.n) })),
     types: [],
   });
 });
 
-// Deals
 app.get("/api/deals", async (c) => {
   const { type, category, q } = c.req.query();
   let deals = [...DEALS_SEED];
@@ -145,7 +130,6 @@ app.get("/api/deals", async (c) => {
   return c.json({ deals, stats, live_sources: { hackernews: 0, reddit: 0, producthunt: 0, github: 0, directories: 0 } });
 });
 
-// Stacks generate
 app.post("/api/stacks/generate", async (c) => {
   const { goal } = await c.req.json();
   return c.json({
