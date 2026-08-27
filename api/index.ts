@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { neon } from "@neondatabase/serverless";
-import { DEALS_SEED } from "../server/db/deals-seed";
 
 const sql = neon(process.env.POSTGRES_URL!);
 
@@ -9,27 +8,31 @@ const app = new Hono();
 
 app.use("*", cors());
 
-app.get("/api/health", (c) =>
-  c.json({ ok: true, service: "free-intel-api", version: "1.0.0" })
-);
+app.get("/api/health", async (c) => {
+  const count = await sql`SELECT COUNT(*) as n FROM resources`;
+  return c.json({ ok: true, service: "free-intel-api", version: "2.0.0", resources: Number(count[0].n) });
+});
 
 app.get("/api/resources", async (c) => {
   const { q, category, free_type, sort, limit = "50", offset = "0" } = c.req.query();
 
   let where = "WHERE 1=1";
   const params: any[] = [];
+  let pi = 1;
 
   if (q) {
-    params.push(`%${q}%`);
-    where += ` AND (name ILIKE '${params[params.length - 1]}' OR description ILIKE '${params[params.length - 1]}' OR tags::text ILIKE '${params[params.length - 1]}')`;
+    const p = `%${q}%`;
+    where += ` AND (name ILIKE $${pi} OR description ILIKE $${pi} OR tags::text ILIKE $${pi})`;
+    params.push(p); pi++;
   }
   if (category && category !== "all") {
-    params.push(category);
-    where += ` AND category = '${params[params.length - 1]}'`;
+    where += ` AND category = $${pi}`;
+    params.push(category); pi++;
   }
   if (free_type && free_type !== "all") {
-    params.push(`%${free_type}%`);
-    where += ` AND free_types::text ILIKE '${params[params.length - 1]}'`;
+    const p = `%${free_type}%`;
+    where += ` AND free_types::text ILIKE $${pi}`;
+    params.push(p); pi++;
   }
 
   const orderClause = sort === "name" ? "ORDER BY name" :
@@ -39,11 +42,13 @@ app.get("/api/resources", async (c) => {
     "ORDER BY free_score DESC";
 
   const result = await sql.unsafe(
-    `SELECT * FROM resources ${where} ${orderClause} LIMIT ${Number(limit)} OFFSET ${Number(offset)}`
+    `SELECT * FROM resources ${where} ${orderClause} LIMIT ${Number(limit)} OFFSET ${Number(offset)}`,
+    params
   ) as unknown as any[];
 
   const countResult = await sql.unsafe(
-    `SELECT COUNT(*) as n FROM resources ${where}`
+    `SELECT COUNT(*) as n FROM resources ${where}`,
+    params
   ) as unknown as any[];
 
   return c.json({
@@ -91,7 +96,7 @@ app.post("/api/resources/ai-search", async (c) => {
 });
 
 app.get("/api/resources/facets", async (c) => {
-  const cats = await sql.unsafe(`SELECT category, COUNT(*) as n FROM resources WHERE category IS NOT NULL GROUP BY category ORDER BY n DESC`) as unknown as any[];
+  const cats = await sql`SELECT category, COUNT(*) as n FROM resources WHERE category IS NOT NULL GROUP BY category ORDER BY n DESC` as unknown as any[];
   return c.json({
     categories: cats.map((r: any) => ({ category: r.category, n: Number(r.n) })),
     types: [],
@@ -100,34 +105,59 @@ app.get("/api/resources/facets", async (c) => {
 
 app.get("/api/deals", async (c) => {
   const { type, category, q } = c.req.query();
-  let deals = [...DEALS_SEED];
 
-  if (type && type !== "all") {
-    deals = deals.filter((d) => d.deal_type === type);
+  let where = "WHERE free_score >= 60";
+  const params: any[] = [];
+  let pi = 1;
+
+  if (q) {
+    const p = `%${q}%`;
+    where += ` AND (name ILIKE $${pi} OR description ILIKE $${pi} OR tags::text ILIKE $${pi})`;
+    params.push(p); pi++;
   }
   if (category) {
-    deals = deals.filter((d) => d.category.toLowerCase().includes(category.toLowerCase()));
+    where += ` AND category ILIKE $${pi}`;
+    params.push(`%${category}%`); pi++;
   }
-  if (q) {
-    const lower = q.toLowerCase();
-    deals = deals.filter((d) =>
-      d.name.toLowerCase().includes(lower) ||
-      d.description.toLowerCase().includes(lower) ||
-      d.tags.some((t) => t.includes(lower))
-    );
+  if (type === "free_tier") {
+    where += ` AND 'free_tier' = ANY(SELECT jsonb_array_elements_text(free_types))`;
+  } else if (type === "open_source") {
+    where += ` AND 'open_source' = ANY(SELECT jsonb_array_elements_text(free_types))`;
   }
 
-  deals.sort((a, b) => b.score - a.score);
+  const result = await sql.unsafe(
+    `SELECT *, free_score as score FROM resources ${where} ORDER BY free_score DESC LIMIT 100`,
+    params
+  ) as unknown as any[];
+
+  const items = result.map((r: any) => ({
+    id: r.slug,
+    name: r.name,
+    description: r.description,
+    category: r.category || "General",
+    deal_type: (r.free_types && Array.isArray(r.free_types) && r.free_types.includes("open_source")) ? "open_source" : "free_tier",
+    score: r.free_score || 0,
+    tags: typeof r.tags === "string" ? JSON.parse(r.tags) : r.tags || [],
+    url: r.url || r.github_url,
+    source: "free-intel-db",
+    provider: r.provider,
+    free_types: typeof r.free_types === "string" ? JSON.parse(r.free_types) : r.free_types || [],
+    free_allowance: r.free_allowance,
+    card_required: r.card_required,
+    self_hostable: r.self_hostable,
+    commercial_use: r.commercial_use,
+    price_last_checked: r.price_last_checked,
+  }));
 
   const stats = {
-    total: deals.length,
-    free_tier: deals.filter((d) => d.deal_type === "free_tier").length,
-    limited_promotion: deals.filter((d) => d.deal_type === "limited_promotion").length,
-    open_source: deals.filter((d) => d.deal_type === "open_source").length,
-    free_credits: deals.filter((d) => d.deal_type === "free_credits").length,
+    total: items.length,
+    free_tier: items.filter((d) => d.deal_type === "free_tier").length,
+    limited_promotion: 0,
+    open_source: items.filter((d) => d.deal_type === "open_source").length,
+    free_credits: 0,
   };
 
-  return c.json({ deals, stats, live_sources: { hackernews: 0, reddit: 0, producthunt: 0, github: 0, directories: 0 } });
+  return c.json({ deals: items, stats, live_sources: {} });
 });
 
 app.post("/api/stacks/generate", async (c) => {
