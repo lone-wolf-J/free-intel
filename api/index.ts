@@ -46,9 +46,9 @@ app.get("/api/resources", async (c) => {
 
   if (q) {
     const p = `%${q}%`;
-    const blockedStr = `(${blocked.map(b => `'${b}'`).join(',')})`;
-    rows = await unsafeRows(`SELECT * FROM resources WHERE (name ILIKE '${esc(p)}' OR description ILIKE '${esc(p)}' OR tags::text ILIKE '${esc(p)}') AND resource_type != 'article' AND NOT (category = ANY(ARRAY${blockedStr})) ${order} LIMIT ${lim} OFFSET ${off}`);
-    countRows = await unsafeRows(`SELECT COUNT(*) as n FROM resources WHERE (name ILIKE '${esc(p)}' OR description ILIKE '${esc(p)}' OR tags::text ILIKE '${esc(p)}') AND resource_type != 'article' AND NOT (category = ANY(ARRAY${blockedStr}))`);
+    const blockedStr = `ARRAY[${blocked.map(b => `'${b}'`).join(',')}]`;
+    rows = await unsafeRows(`SELECT * FROM resources WHERE (name ILIKE '${esc(p)}' OR description ILIKE '${esc(p)}' OR tags::text ILIKE '${esc(p)}') AND resource_type != 'article' AND NOT (category = ANY(${blockedStr})) ${order} LIMIT ${lim} OFFSET ${off}`);
+    countRows = await unsafeRows(`SELECT COUNT(*) as n FROM resources WHERE (name ILIKE '${esc(p)}' OR description ILIKE '${esc(p)}' OR tags::text ILIKE '${esc(p)}') AND resource_type != 'article' AND NOT (category = ANY(${blockedStr}))`);
   } else if (category && category !== "all") {
     rows = await unsafeRows(`SELECT * FROM resources WHERE category = '${esc(category)}' AND resource_type != 'article' ${order} LIMIT ${lim} OFFSET ${off}`);
     countRows = await unsafeRows(`SELECT COUNT(*) as n FROM resources WHERE category = '${esc(category)}' AND resource_type != 'article'`);
@@ -60,9 +60,9 @@ app.get("/api/resources", async (c) => {
     rows = await unsafeRows(`SELECT * FROM resources WHERE free_types::text ILIKE '${esc(ftp)}' AND resource_type != 'article' ${order} LIMIT ${lim} OFFSET ${off}`);
     countRows = await unsafeRows(`SELECT COUNT(*) as n FROM resources WHERE free_types::text ILIKE '${esc(ftp)}' AND resource_type != 'article'`);
   } else {
-    const blockedStr = `(${blocked.map(b => `'${b}'`).join(',')})`;
-    rows = await unsafeRows(`SELECT * FROM resources WHERE resource_type != 'article' AND NOT (category = ANY(ARRAY${blockedStr})) ${order} LIMIT ${lim} OFFSET ${off}`);
-    countRows = await unsafeRows(`SELECT COUNT(*) as n FROM resources WHERE resource_type != 'article' AND NOT (category = ANY(ARRAY${blockedStr}))`);
+    const blockedStr = `ARRAY[${blocked.map(b => `'${b}'`).join(',')}]`;
+    rows = await unsafeRows(`SELECT * FROM resources WHERE resource_type != 'article' AND NOT (category = ANY(${blockedStr})) ${order} LIMIT ${lim} OFFSET ${off}`);
+    countRows = await unsafeRows(`SELECT COUNT(*) as n FROM resources WHERE resource_type != 'article' AND NOT (category = ANY(${blockedStr}))`);
   }
 
   const filteredRows = (rows as any[]).filter(isTool);
