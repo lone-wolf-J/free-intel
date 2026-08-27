@@ -39,16 +39,16 @@ app.get("/api/resources", async (c) => {
 
   if (q) {
     const p = `%${q}%`;
-    rows = await sql`SELECT * FROM resources WHERE name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p}` as any[];
+    rows = await sql`SELECT * FROM resources WHERE name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p} LIMIT 500` as any[];
   } else if (category && category !== "all") {
-    rows = await sql`SELECT * FROM resources WHERE category = ${category}` as any[];
+    rows = await sql`SELECT * FROM resources WHERE category = ${category} LIMIT 500` as any[];
   } else if (origin) {
-    rows = await sql`SELECT * FROM resources WHERE origin = ${origin}` as any[];
+    rows = await sql`SELECT * FROM resources WHERE origin = ${origin} LIMIT 500` as any[];
   } else if (free_type && free_type !== "all") {
     const ftp = `%${free_type}%`;
-    rows = await sql`SELECT * FROM resources WHERE free_types::text ILIKE ${ftp}` as any[];
+    rows = await sql`SELECT * FROM resources WHERE free_types::text ILIKE ${ftp} LIMIT 500` as any[];
   } else {
-    rows = await sql`SELECT * FROM resources` as any[];
+    rows = await sql`SELECT * FROM resources LIMIT 500` as any[];
   }
 
   const sorted = (rows as any[])
