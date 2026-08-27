@@ -17,7 +17,7 @@ function isTool(r: any): boolean {
   if (BAD_NAME_PATTERNS.some(p => p.test(name))) return false;
   return true;
 }
-async function unsafeRows(query: string): Promise<any[]> { return (await sql.query(query)).rows as any[]; }
+async function unsafeRows(query: string): Promise<any[]> { return (await sql.query(query)) as any[]; }
 const esc = (s: string) => s.replace(/'/g, "''");
 
 const app = new Hono();
