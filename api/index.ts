@@ -4,6 +4,10 @@ import { neon } from "@neondatabase/serverless";
 
 const sql = neon(process.env.POSTGRES_URL!);
 
+function esc(s: string): string {
+  return s.replace(/'/g, "''");
+}
+
 const app = new Hono();
 
 app.use("*", cors());
@@ -17,22 +21,16 @@ app.get("/api/resources", async (c) => {
   const { q, category, free_type, sort, limit = "50", offset = "0" } = c.req.query();
 
   let where = "WHERE 1=1";
-  const params: any[] = [];
-  let pi = 1;
 
   if (q) {
-    const p = `%${q}%`;
-    where += ` AND (name ILIKE $${pi} OR description ILIKE $${pi} OR tags::text ILIKE $${pi})`;
-    params.push(p); pi++;
+    const p = esc(q);
+    where += ` AND (name ILIKE '%${p}%' OR description ILIKE '%${p}%' OR tags::text ILIKE '%${p}%')`;
   }
   if (category && category !== "all") {
-    where += ` AND category = $${pi}`;
-    params.push(category); pi++;
+    where += ` AND category = '${esc(category)}'`;
   }
   if (free_type && free_type !== "all") {
-    const p = `%${free_type}%`;
-    where += ` AND free_types::text ILIKE $${pi}`;
-    params.push(p); pi++;
+    where += ` AND free_types::text ILIKE '%${esc(free_type)}%'`;
   }
 
   const orderClause = sort === "name" ? "ORDER BY name" :
@@ -41,14 +39,15 @@ app.get("/api/resources", async (c) => {
     sort === "newest" ? "ORDER BY created_at DESC" :
     "ORDER BY free_score DESC";
 
+  const lim = Math.min(Number(limit) || 50, 200);
+  const off = Number(offset) || 0;
+
   const result = await sql.unsafe(
-    `SELECT * FROM resources ${where} ${orderClause} LIMIT ${Number(limit)} OFFSET ${Number(offset)}`,
-    params
+    `SELECT * FROM resources ${where} ${orderClause} LIMIT ${lim} OFFSET ${off}`
   ) as unknown as any[];
 
   const countResult = await sql.unsafe(
-    `SELECT COUNT(*) as n FROM resources ${where}`,
-    params
+    `SELECT COUNT(*) as n FROM resources ${where}`
   ) as unknown as any[];
 
   return c.json({
@@ -70,7 +69,7 @@ app.post("/api/resources/ai-search", async (c) => {
 
   const terms = q.toLowerCase().split(/\s+/);
   const conditions = terms.map((t: string) =>
-    `(name ILIKE '%${t}%' OR description ILIKE '%${t}%' OR tags::text ILIKE '%${t}%' OR capabilities::text ILIKE '%${t}%' OR alt_of ILIKE '%${t}%')`
+    `(name ILIKE '%${esc(t)}%' OR description ILIKE '%${esc(t)}%' OR tags::text ILIKE '%${esc(t)}%' OR capabilities::text ILIKE '%${esc(t)}%' OR alt_of ILIKE '%${esc(t)}%')`
   );
 
   const result = await sql.unsafe(
@@ -106,18 +105,13 @@ app.get("/api/resources/facets", async (c) => {
 app.get("/api/deals", async (c) => {
   const { type, category, q } = c.req.query();
 
-  let where = "WHERE free_score >= 60";
-  const params: any[] = [];
-  let pi = 1;
+  let where = "WHERE free_score >= 50";
 
   if (q) {
-    const p = `%${q}%`;
-    where += ` AND (name ILIKE $${pi} OR description ILIKE $${pi} OR tags::text ILIKE $${pi})`;
-    params.push(p); pi++;
+    where += ` AND (name ILIKE '%${esc(q)}%' OR description ILIKE '%${esc(q)}%' OR tags::text ILIKE '%${esc(q)}%')`;
   }
   if (category) {
-    where += ` AND category ILIKE $${pi}`;
-    params.push(`%${category}%`); pi++;
+    where += ` AND category ILIKE '%${esc(category)}%'`;
   }
   if (type === "free_tier") {
     where += ` AND 'free_tier' = ANY(SELECT jsonb_array_elements_text(free_types))`;
@@ -126,8 +120,7 @@ app.get("/api/deals", async (c) => {
   }
 
   const result = await sql.unsafe(
-    `SELECT *, free_score as score FROM resources ${where} ORDER BY free_score DESC LIMIT 100`,
-    params
+    `SELECT *, free_score as score FROM resources ${where} ORDER BY free_score DESC LIMIT 100`
   ) as unknown as any[];
 
   const items = result.map((r: any) => ({
