@@ -35,29 +35,30 @@ app.get("/api/resources", async (c) => {
   const lim = Math.min(Number(limit) || 50, 200);
   const off = Number(offset) || 0;
 
-  const blocked = ['pricing', 'directory', 'ai-directory', 'research', 'newsletter', 'news', 'comparison', 'tutorial', 'guide', 'list', 'roundup', 'announcement'];
-
   let rows: any[];
 
   if (q) {
     const p = `%${q}%`;
-    rows = await sql`SELECT * FROM resources WHERE (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p}) AND resource_type != 'article' AND NOT (category = ANY(${blocked})) ORDER BY free_score DESC LIMIT ${lim}` as any[];
+    rows = await sql`SELECT * FROM resources WHERE name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p}` as any[];
   } else if (category && category !== "all") {
-    rows = await sql`SELECT * FROM resources WHERE category = ${category} AND resource_type != 'article' ORDER BY free_score DESC LIMIT ${lim}` as any[];
+    rows = await sql`SELECT * FROM resources WHERE category = ${category}` as any[];
   } else if (origin) {
-    rows = await sql`SELECT * FROM resources WHERE origin = ${origin} AND resource_type != 'article' ORDER BY free_score DESC LIMIT ${lim}` as any[];
+    rows = await sql`SELECT * FROM resources WHERE origin = ${origin}` as any[];
   } else if (free_type && free_type !== "all") {
     const ftp = `%${free_type}%`;
-    rows = await sql`SELECT * FROM resources WHERE free_types::text ILIKE ${ftp} AND resource_type != 'article' ORDER BY free_score DESC LIMIT ${lim}` as any[];
+    rows = await sql`SELECT * FROM resources WHERE free_types::text ILIKE ${ftp}` as any[];
   } else {
-    rows = await sql`SELECT * FROM resources WHERE resource_type != 'article' AND NOT (category = ANY(${blocked})) ORDER BY free_score DESC LIMIT ${lim}` as any[];
+    rows = await sql`SELECT * FROM resources` as any[];
   }
 
-  const filteredRows = (rows as any[]).filter(isTool);
+  const sorted = (rows as any[])
+    .filter(isTool)
+    .sort((a: any, b: any) => (b.free_score || 0) - (a.free_score || 0))
+    .slice(off, off + lim);
 
   return c.json({
-    count: filteredRows.length,
-    items: filteredRows.map(mapResource),
+    count: sorted.length,
+    items: sorted.map(mapResource),
   });
 });
 
