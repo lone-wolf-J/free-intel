@@ -438,7 +438,6 @@ app.post("/api/cost/analyze", async (c) => {
           free_score: bestAlt.score, license: bestAlt.license || null,
           caveats: bestAlt.key_differences?.join(". ") || null,
           notes: bestAlt.type === "open_source" && bestAlt.self_hostable ? "Self-hostable" : bestAlt.type === "free_tier" ? "Cloud-hosted free tier" : null,
-          url: bestAlt.url,
         },
         also_considered: curated.alternatives.slice(1, 4).map(a => ({
           name: a.name, slug: a.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
