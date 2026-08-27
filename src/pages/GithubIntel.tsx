@@ -104,14 +104,14 @@ export default function GithubIntel() {
         <div className="mb-10">
           <div className="mono-label mb-3">RECENT SCAN LOG</div>
           <Panel className="divide-y divide-slate-800/50">
-            {scans.map((s) => (
+            {scans.map((s: any) => (
               <div key={s.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5 font-mono text-[11px]">
-                <span className={`chip ${s.status === "complete" ? "border-lime-neon/40 text-lime-neon" : s.status === "failed" ? "border-red-neon/40 text-red-neon" : "border-amber-neon/40 text-amber-neon"}`}>
-                  {String(s.status).toUpperCase()}
+                <span className={`chip ${(s.status || s.type) === "complete" || (s.status || s.type) === "discovery" ? "border-lime-neon/40 text-lime-neon" : (s.status || s.type) === "failed" ? "border-red-neon/40 text-red-neon" : "border-amber-neon/40 text-amber-neon"}`}>
+                  {String(s.status || s.type || "unknown").toUpperCase()}
                 </span>
-                <span className="tracking-widest text-slate-300">{String(s.kind).toUpperCase()}</span>
-                <span className="text-slate-600 ml-auto tabular-nums">{(s.finished_at || s.started_at || "").slice(0, 19)}</span>
-                {!!s.discovered && <span className="text-cyan">+{s.discovered} NEW</span>}
+                <span className="tracking-widest text-slate-300">{String(s.kind || s.title || "scan").toUpperCase()}</span>
+                <span className="text-slate-600 ml-auto tabular-nums">{(s.finished_at || s.created_at || s.started_at || "").slice(0, 19)}</span>
+                {(!!s.discovered || !!s.detail) && <span className="text-cyan">{s.detail || `+${s.discovered} NEW`}</span>}
               </div>
             ))}
           </Panel>

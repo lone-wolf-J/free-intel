@@ -179,7 +179,7 @@ export default function Deals() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filtered.map((deal, i) => (
             <motion.div
-              key={deal.slug}
+              key={(deal as any).slug || deal.name}
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.03 }}
@@ -199,7 +199,7 @@ export default function Deals() {
               const count = stats[cat.key as keyof typeof stats] || 0;
               const catDeals = deals.filter((d) => d.deal_type === cat.key);
               const avgScore = catDeals.reduce((a, b) => a + b.score, 0) / (count || 1);
-              const totalValue = catDeals.reduce((a, b) => a + b.value_usd_month, 0);
+              const totalValue = catDeals.reduce((a, b) => a + ((b as any).value_usd_month || 0), 0);
               return (
                 <div key={cat.key} className="text-center p-3 bg-void/40 rounded border border-slate-800">
                   <div className="text-lg">{cat.icon}</div>
@@ -236,10 +236,10 @@ function DealCard({ deal }: { deal: Deal }) {
     free_credits: "FREE CREDITS",
   }[deal.deal_type] || deal.deal_type;
 
-  const sourceIcon = deal.source.startsWith("github") ? <Github size={9} /> :
-    deal.source.startsWith("reddit") ? <MessageCircle size={9} /> :
-    deal.source.startsWith("hackernews") ? <MessageCircle size={9} /> :
-    deal.source.startsWith("producthunt") ? <Globe size={9} /> :
+  const sourceIcon = (deal.source || "").startsWith("github") ? <Github size={9} /> :
+    (deal.source || "").startsWith("reddit") ? <MessageCircle size={9} /> :
+    (deal.source || "").startsWith("hackernews") ? <MessageCircle size={9} /> :
+    (deal.source || "").startsWith("producthunt") ? <Globe size={9} /> :
     <Globe size={9} />;
 
   return (
@@ -265,9 +265,11 @@ function DealCard({ deal }: { deal: Deal }) {
         {deal.description}
       </p>
 
-      <div className="text-[9px] text-slate-500 font-mono mb-3 bg-slate-900/50 rounded px-2 py-1.5 line-clamp-2">
-        {deal.deal_detail}
-      </div>
+      {(deal as any).deal_detail && (
+        <div className="text-[9px] text-slate-500 font-mono mb-3 bg-slate-900/50 rounded px-2 py-1.5 line-clamp-2">
+          {(deal as any).deal_detail}
+        </div>
+      )}
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -280,8 +282,8 @@ function DealCard({ deal }: { deal: Deal }) {
             </div>
             <span className="font-mono text-[9px] text-slate-600">{deal.score}</span>
           </div>
-          {deal.value_usd_month > 0 && (
-            <span className="font-mono text-[9px] text-lime-neon">${deal.value_usd_month}/mo</span>
+          {(deal as any).value_usd_month > 0 && (
+            <span className="font-mono text-[9px] text-lime-neon">${(deal as any).value_usd_month}/mo</span>
           )}
         </div>
 
