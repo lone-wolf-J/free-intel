@@ -34,38 +34,24 @@ app.get("/api/resources", async (c) => {
   const { q, category, free_type, sort, origin, alt, slug, limit = "50", offset = "0" } = c.req.query();
   const lim = Math.min(Number(limit) || 50, 200);
   const off = Number(offset) || 0;
-  const order = sort === "name" ? "ORDER BY name"
-    : sort === "score" || sort === "confidence" ? "ORDER BY free_score DESC"
-    : sort === "popular" ? "ORDER BY popularity DESC NULLS LAST"
-    : sort === "newest" ? "ORDER BY created_at DESC"
-    : "ORDER BY free_score DESC";
 
-  const blocked = ['pricing', 'directory', 'ai-directory', 'research', 'newsletter', 'news', 'comparison', 'tutorial', 'guide', 'list', 'roundup', 'announcement'];
-
-  let rows: any[], countRows: any[];
+  let rows: any[];
 
   if (q) {
     const p = `%${q}%`;
-    const blockedStr = `ARRAY[${blocked.map(b => `'${b}'`).join(',')}]`;
-    rows = await unsafeRows(`SELECT * FROM resources WHERE (name ILIKE '${esc(p)}' OR description ILIKE '${esc(p)}' OR tags::text ILIKE '${esc(p)}') AND resource_type != 'article' AND NOT (category = ANY(${blockedStr})) ${order} LIMIT ${lim} OFFSET ${off}`);
-    countRows = await unsafeRows(`SELECT COUNT(*) as n FROM resources WHERE (name ILIKE '${esc(p)}' OR description ILIKE '${esc(p)}' OR tags::text ILIKE '${esc(p)}') AND resource_type != 'article' AND NOT (category = ANY(${blockedStr}))`);
+    rows = await sql`SELECT * FROM resources WHERE (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p}) ORDER BY free_score DESC LIMIT ${lim + 200} OFFSET ${off}` as any[];
   } else if (category && category !== "all") {
-    rows = await unsafeRows(`SELECT * FROM resources WHERE category = '${esc(category)}' AND resource_type != 'article' ${order} LIMIT ${lim} OFFSET ${off}`);
-    countRows = await unsafeRows(`SELECT COUNT(*) as n FROM resources WHERE category = '${esc(category)}' AND resource_type != 'article'`);
+    rows = await sql`SELECT * FROM resources WHERE category = ${category} ORDER BY free_score DESC LIMIT ${lim + 200} OFFSET ${off}` as any[];
   } else if (origin) {
-    rows = await unsafeRows(`SELECT * FROM resources WHERE origin = '${esc(origin)}' AND resource_type != 'article' ${order} LIMIT ${lim} OFFSET ${off}`);
-    countRows = await unsafeRows(`SELECT COUNT(*) as n FROM resources WHERE origin = '${esc(origin)}' AND resource_type != 'article'`);
+    rows = await sql`SELECT * FROM resources WHERE origin = ${origin} ORDER BY free_score DESC LIMIT ${lim + 200} OFFSET ${off}` as any[];
   } else if (free_type && free_type !== "all") {
     const ftp = `%${free_type}%`;
-    rows = await unsafeRows(`SELECT * FROM resources WHERE free_types::text ILIKE '${esc(ftp)}' AND resource_type != 'article' ${order} LIMIT ${lim} OFFSET ${off}`);
-    countRows = await unsafeRows(`SELECT COUNT(*) as n FROM resources WHERE free_types::text ILIKE '${esc(ftp)}' AND resource_type != 'article'`);
+    rows = await sql`SELECT * FROM resources WHERE free_types::text ILIKE ${ftp} ORDER BY free_score DESC LIMIT ${lim + 200} OFFSET ${off}` as any[];
   } else {
-    const blockedStr = `ARRAY[${blocked.map(b => `'${b}'`).join(',')}]`;
-    rows = await unsafeRows(`SELECT * FROM resources WHERE resource_type != 'article' AND NOT (category = ANY(${blockedStr})) ${order} LIMIT ${lim} OFFSET ${off}`);
-    countRows = await unsafeRows(`SELECT COUNT(*) as n FROM resources WHERE resource_type != 'article' AND NOT (category = ANY(${blockedStr}))`);
+    rows = await sql`SELECT * FROM resources ORDER BY free_score DESC LIMIT ${lim + 200} OFFSET ${off}` as any[];
   }
 
-  const filteredRows = (rows as any[]).filter(isTool);
+  const filteredRows = (rows as any[]).filter(isTool).slice(0, lim);
 
   return c.json({
     count: filteredRows.length,
