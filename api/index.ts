@@ -39,19 +39,19 @@ app.get("/api/resources", async (c) => {
 
   if (q) {
     const p = `%${q}%`;
-    rows = await sql`SELECT * FROM resources WHERE (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p}) ORDER BY free_score DESC LIMIT ${lim + 200} OFFSET ${off}` as any[];
+    rows = await sql`SELECT * FROM resources WHERE (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p}) ORDER BY free_score DESC LIMIT 2000` as any[];
   } else if (category && category !== "all") {
-    rows = await sql`SELECT * FROM resources WHERE category = ${category} ORDER BY free_score DESC LIMIT ${lim + 200} OFFSET ${off}` as any[];
+    rows = await sql`SELECT * FROM resources WHERE category = ${category} ORDER BY free_score DESC LIMIT 2000` as any[];
   } else if (origin) {
-    rows = await sql`SELECT * FROM resources WHERE origin = ${origin} ORDER BY free_score DESC LIMIT ${lim + 200} OFFSET ${off}` as any[];
+    rows = await sql`SELECT * FROM resources WHERE origin = ${origin} ORDER BY free_score DESC LIMIT 2000` as any[];
   } else if (free_type && free_type !== "all") {
     const ftp = `%${free_type}%`;
-    rows = await sql`SELECT * FROM resources WHERE free_types::text ILIKE ${ftp} ORDER BY free_score DESC LIMIT ${lim + 200} OFFSET ${off}` as any[];
+    rows = await sql`SELECT * FROM resources WHERE free_types::text ILIKE ${ftp} ORDER BY free_score DESC LIMIT 2000` as any[];
   } else {
-    rows = await sql`SELECT * FROM resources ORDER BY free_score DESC LIMIT ${lim + 200} OFFSET ${off}` as any[];
+    rows = await sql`SELECT * FROM resources ORDER BY free_score DESC LIMIT 2000` as any[];
   }
 
-  const filteredRows = (rows as any[]).filter(isTool).slice(0, lim);
+  const filteredRows = (rows as any[]).filter(isTool).slice(off, off + lim);
 
   return c.json({
     count: filteredRows.length,
