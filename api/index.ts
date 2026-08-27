@@ -50,17 +50,10 @@ app.get("/api/resources", async (c) => {
   });
 });
 
-// ─── Resource Detail ───
-app.get("/api/resources/:slug", async (c) => {
-  const slug = c.req.param("slug");
-  const rows = await sql`SELECT * FROM resources WHERE slug = ${slug}`;
-  if (!(rows as any[]).length) return c.json({ error: "not_found" }, 404);
-  const resource = mapResource((rows as any[])[0]);
-
-  const evRows = await sql`SELECT * FROM evidence WHERE resource_id = ${resource.id} LIMIT 20`;
-  const altRows = await sql`SELECT slug, name, free_score, verification_status, alt_kind, license, url FROM resources WHERE alt_of = ${resource.name} LIMIT 10`;
-
-  return c.json({ resource, evidence: evRows, alternatives: altRows });
+// ─── Facets ─── (MUST be before :slug to avoid route conflict)
+app.get("/api/resources/facets", async (c) => {
+  const cats = await sql`SELECT category, COUNT(*) as n FROM resources WHERE category IS NOT NULL GROUP BY category ORDER BY n DESC`;
+  return c.json({ categories: (cats as any[]).map((r: any) => ({ category: r.category, n: Number(r.n) })), types: [] });
 });
 
 // ─── AI Search ───
@@ -79,10 +72,15 @@ app.post("/api/resources/ai-search", async (c) => {
   return c.json({ count: (result as any[]).length, items: (result as any[]).map(mapResource), query: q, expanded_terms: terms });
 });
 
-// ─── Facets ───
-app.get("/api/resources/facets", async (c) => {
-  const cats = await sql`SELECT category, COUNT(*) as n FROM resources WHERE category IS NOT NULL GROUP BY category ORDER BY n DESC`;
-  return c.json({ categories: (cats as any[]).map((r: any) => ({ category: r.category, n: Number(r.n) })), types: [] });
+// ─── Resource Detail ───
+app.get("/api/resources/:slug", async (c) => {
+  const slug = c.req.param("slug");
+  const rows = await sql`SELECT * FROM resources WHERE slug = ${slug}`;
+  if (!(rows as any[]).length) return c.json({ error: "not_found" }, 404);
+  const resource = mapResource((rows as any[])[0]);
+  const evRows = await sql`SELECT * FROM evidence WHERE resource_id = ${resource.id} LIMIT 20`;
+  const altRows = await sql`SELECT slug, name, free_score, verification_status, alt_kind, license, url FROM resources WHERE alt_of = ${resource.name} LIMIT 10`;
+  return c.json({ resource, evidence: evRows, alternatives: altRows });
 });
 
 // ─── Capabilities ───
