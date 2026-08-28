@@ -4,6 +4,7 @@ export interface AIProvider {
   generateJSON<T>(prompt: string, options?: GenerateOptions): Promise<T>;
   getQuotaStatus(): Promise<QuotaStatus>;
   isAvailable(): boolean;
+  getStatus(): { name: string; available: boolean; consecutiveFailures: number; lastError: string | null };
 }
 
 export interface GenerateOptions {

@@ -45,7 +45,7 @@ searchRoute.post("/", async (c) => {
   const hasAiKey = process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY;
   if (hasAiKey) {
     try {
-      aiAnalysis = await analyzeWithGemini(query, scrapedData, "");
+      aiAnalysis = await analyzeWithGemini(query, scrapedData);
       console.log("[PI] AI result:", JSON.stringify(aiAnalysis).substring(0, 300));
     } catch (e: any) {
       console.error("[PI] AI error:", e?.message || e);

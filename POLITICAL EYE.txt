@@ -1,0 +1,2771 @@
+# POLITICAL EYE
+
+## Comprehensive Data Source Registry
+
+### Instructions to Manus
+
+Political Eye must be built around a multi-source research architecture.
+
+Do NOT treat this as a list of websites to scrape.
+
+Treat this as a **source-of-truth hierarchy and research acquisition framework**.
+
+For every important fact, Political Eye should attempt to identify:
+
+1. Primary source
+2. Secondary independent source
+3. Supporting source
+4. Historical source
+5. Latest available update
+
+Where sources disagree, retain the disagreement and flag it.
+
+Never silently choose one source and discard the others.
+
+---
+
+# 1. SOURCE HIERARCHY
+
+Every source must be assigned a reliability tier.
+
+## TIER 1 — PRIMARY / OFFICIAL
+
+These should normally be the canonical sources for factual records:
+
+* Election Commission of India
+* State Election Commissions
+* Lok Sabha / Parliament
+* Rajya Sabha
+* State Legislative Assemblies
+* Government ministries
+* State government departments
+* Comptroller and Auditor General
+* Supreme Court of India
+* High Courts
+* eCourts
+* Government Gazettes
+* PIB
+* official government portals
+* official budget documents
+* official scheme dashboards
+* official statistical agencies
+* RBI
+* SEBI
+* MCA
+* NITI Aayog
+* MoSPI
+* NCRB
+* official procurement portals
+* official political-party disclosures
+
+## TIER 2 — INSTITUTIONAL / RESEARCH
+
+Use for structured cross-checking:
+
+* ADR
+* MyNeta
+* PRS India
+* Lokniti-CSDS
+* India Data Portal
+* Centre for Monitoring Indian Economy where legally accessible
+* academic institutions
+* recognised policy research organisations
+
+## TIER 3 — ESTABLISHED JOURNALISM
+
+Use primarily for:
+
+* breaking events
+* political developments
+* investigations
+* interviews
+* controversies
+* political statements
+* protests
+* resignations
+* defections
+* events not yet documented through official records
+
+Use multiple independent publications where possible.
+
+## TIER 4 — OFFICIAL SOCIAL MEDIA
+
+Use verified accounts of:
+
+* politicians
+* political parties
+* Prime Minister's Office
+* President's Office
+* ministries
+* state governments
+* Chief Ministers
+* Election Commission
+* Parliament
+* courts
+
+Use primarily to establish:
+
+"Person X said Y on date Z."
+
+Do not treat social-media claims as independently verified facts.
+
+## TIER 5 — OPEN WEB
+
+Use only for discovery and supporting evidence.
+
+Never let an anonymous blog become the sole evidence for a major political fact.
+
+---
+
+# 2. ELECTION COMMISSION OF INDIA
+
+## PRIMARY SOURCE — ECI
+
+Website:
+
+https://www.eci.gov.in/
+
+Political Eye must make ECI one of its highest-priority sources.
+
+Acquire, where available:
+
+* Lok Sabha election results
+* State Assembly election results
+* by-election results
+* candidate lists
+* candidate affidavits
+* constituency results
+* party-wise results
+* vote totals
+* vote percentages
+* turnout
+* postal votes
+* NOTA
+* rejected votes
+* candidate deposits
+* election schedules
+* election notifications
+* Model Code of Conduct material
+* election expenditure
+* candidate expenditure
+* political party expenditure
+* political party contribution reports
+* party registration information
+* party recognition/status
+* election symbols
+* election statistical reports
+* electoral-roll related publications
+* election petitions/orders where published
+* instructions and circulars
+* repoll information
+* election-related orders
+
+Use ECI as the canonical source for election-result facts whenever available.
+
+Do not use Wikipedia as the canonical election source.
+
+---
+
+# 3. ECI HISTORICAL ELECTION REPORTS
+
+Political Eye must go beyond the current ECI website.
+
+Search for and ingest historical:
+
+* statistical reports
+* constituency-wise results
+* candidate-wise results
+* party-wise results
+* election summaries
+
+Target:
+
+1951–present where data is available.
+
+Minimum priority:
+
+2014–present.
+
+This allows Political Eye to eventually answer:
+
+"How has this constituency voted over the last 75 years?"
+
+---
+
+# 4. STATE ELECTION COMMISSIONS
+
+Every state has its own election machinery.
+
+Create a State Election Commission source registry.
+
+Track:
+
+* Panchayat elections
+* municipal elections
+* corporation elections
+* local-body elections
+* ward-level elections
+* candidate data where available
+* results
+* turnout
+* reservation changes
+* election notifications
+* election expenditure
+* election disputes
+
+Examples:
+
+Tamil Nadu State Election Commission
+
+https://tnsec.tn.gov.in/
+
+And equivalent SEC portals for every state/UT.
+
+Do not restrict Political Eye to Lok Sabha and Assembly elections.
+
+Eventually include local democracy.
+
+---
+
+# 5. AFFIDAVITS
+
+Use at least TWO sources.
+
+PRIMARY:
+
+ECI candidate affidavit system.
+
+SECONDARY:
+
+ADR / MyNeta
+
+https://www.myneta.info/
+
+MyNeta contains candidate affidavit information including financial, criminal and educational disclosures and has historical election coverage.
+
+Capture:
+
+* assets
+* liabilities
+* income
+* profession
+* education
+* criminal cases
+* spouse assets
+* dependent assets
+* property
+* vehicles
+* jewellery
+* investments
+* bank deposits where legally/publicly disclosed
+* loans
+* government dues
+* tax liabilities
+* contracts
+* business interests
+
+IMPORTANT:
+
+Never call affidavit assets "actual net worth."
+
+Use:
+
+**Declared Assets**
+
+and separately:
+
+**Declared Liabilities**
+
+Then calculate:
+
+Declared Assets − Declared Liabilities
+
+and label it:
+
+**Approximate Declared Net Position**
+
+Do not represent it as actual wealth.
+
+---
+
+# 6. ADR / NATIONAL ELECTION WATCH
+
+Primary secondary source:
+
+Association for Democratic Reforms
+
+https://adrindia.org/
+
+Use ADR for:
+
+* candidate analysis
+* criminal cases
+* assets
+* liabilities
+* political party finances
+* electoral bonds
+* election expenditure
+* candidate comparisons
+* party comparisons
+* historical analysis
+
+Use it as a structured cross-reference against ECI rather than blindly treating it as the primary authority.
+
+---
+
+# 7. ELECTORAL BONDS
+
+This requires a dedicated dataset.
+
+Sources:
+
+* ECI
+* State Bank of India disclosures
+* Supreme Court proceedings/orders
+* ADR matched datasets
+* official political-party disclosures
+
+Capture:
+
+* donor
+* political party
+* amount
+* date
+* source
+* court/document reference
+* matching methodology
+* confidence
+
+Never create unsupported donor-party relationships.
+
+---
+
+# 8. POLITICAL PARTY FINANCES
+
+Sources:
+
+ECI
+
+Political parties' official websites
+
+ADR
+
+Income Tax disclosures where publicly available
+
+MCA where applicable
+
+Party annual reports
+
+Party audited financial statements
+
+Election expenditure reports
+
+Contribution reports
+
+Audit reports
+
+Track:
+
+* donations
+* contributions
+* expenditure
+* election expenditure
+* assets
+* liabilities
+* income
+* major disclosed donors
+* electoral trusts
+* corporate donations
+* historical changes
+
+---
+
+# 9. PARLIAMENT
+
+Primary:
+
+https://sansad.in/
+
+Ingest:
+
+* Lok Sabha members
+* Rajya Sabha members
+* bills
+* acts
+* questions
+* answers
+* debates
+* parliamentary proceedings
+* committee reports
+* attendance where published
+* member profiles
+* parliamentary questions
+* motions
+* legislative history
+* government bills
+* private member bills
+* committees
+* committee membership
+* committee reports
+* parliamentary sessions
+
+Use historical parliamentary archives.
+
+Political Eye should eventually answer:
+
+"What did this MP actually do in Parliament?"
+
+---
+
+# 10. RAJYA SABHA
+
+Primary:
+
+https://rajyasabha.nic.in/
+
+and current Parliament/Sansad systems.
+
+Track:
+
+* member history
+* election/nomination
+* terms
+* questions
+* debates
+* attendance
+* committees
+* bills
+* interventions
+* declarations
+* member profile
+
+---
+
+# 11. STATE LEGISLATIVE ASSEMBLIES
+
+This needs to be a major source category.
+
+Create a source registry for EVERY state assembly.
+
+For each state:
+
+* official Assembly website
+* member directory
+* session records
+* questions
+* debates
+* bills
+* acts
+* committee reports
+* attendance
+* member biographies
+* constituency information
+* legislative calendars
+* government bills
+* private member bills
+* motions
+* budget speeches
+* Governor addresses
+
+Do not assume every state provides the same level of data.
+
+Store:
+
+AVAILABLE
+
+PARTIALLY AVAILABLE
+
+NOT AVAILABLE
+
+for each dataset.
+
+---
+
+# 12. PRS INDIA
+
+https://prsindia.org/
+
+Use as a secondary legislative source.
+
+Track:
+
+* MP track
+* MLA track
+* bills
+* legislative performance
+* attendance
+* questions
+* debates
+* committees
+* state legislatures
+* parliamentary research
+
+PRS should be cross-referenced with official Parliament/Assembly records.
+
+---
+
+# 13. CAG — COMPTROLLER AND AUDITOR GENERAL
+
+This should be one of Political Eye's largest data sources.
+
+Official:
+
+https://cag.gov.in/
+
+The CAG archive currently exposes thousands of reports covering Union departments, states and local bodies, with separate financial, compliance and performance audit categories.
+
+Ingest:
+
+* Union reports
+* State Finance Audit Reports
+* State Revenue Reports
+* Performance Audits
+* Compliance Audits
+* Financial Audits
+* Local Body Audit Reports
+* PSU audits
+* scheme audits
+* department audits
+* infrastructure audits
+* health audits
+* education audits
+* welfare audits
+* environment audits
+* procurement audits
+
+Extract:
+
+* finding
+* department
+* scheme
+* financial impact
+* period
+* irregularity
+* recommendation
+* government response
+* corrective action
+* unresolved finding
+
+Build a:
+
+**CAG Accountability Index**
+
+but do not call CAG findings "corruption" unless the CAG itself establishes that characterization.
+
+---
+
+# 14. STATE FINANCE DATA
+
+Use:
+
+* CAG State Finance Reports
+* State Finance Departments
+* State Budgets
+* RBI State Finances
+* Finance Commission reports
+* Ministry of Finance
+* RBI Database on Indian Economy
+
+Track:
+
+* GSDP
+* revenue
+* expenditure
+* debt
+* fiscal deficit
+* revenue deficit
+* capital expenditure
+* interest payments
+* subsidies
+* guarantees
+* outstanding liabilities
+* per-capita expenditure
+
+---
+
+# 15. UNION BUDGET
+
+Sources:
+
+Ministry of Finance
+
+https://www.indiabudget.gov.in/
+
+Track:
+
+* Budget estimates
+* Revised estimates
+* actual expenditure
+* ministry allocations
+* schemes
+* subsidies
+* tax changes
+* capital expenditure
+* fiscal deficit
+* debt
+* revenue
+* departmental spending
+
+Create:
+
+PROMISE → BUDGET → ALLOCATION → SPENDING → OUTCOME
+
+---
+
+# 16. STATE BUDGETS
+
+For every state, discover and ingest:
+
+* annual budget
+* budget speech
+* demand for grants
+* outcome budgets
+* revised estimates
+* actual expenditure
+* supplementary budgets
+* finance accounts
+
+Do not rely on news articles reporting budget numbers when the original budget is available.
+
+---
+
+# 17. GOVERNMENT SCHEMES
+
+Sources:
+
+Central government ministries
+
+State government departments
+
+MyScheme:
+
+https://www.myscheme.gov.in/
+
+India.gov.in
+
+https://www.india.gov.in/
+
+Data.gov.in
+
+https://www.data.gov.in/
+
+Track:
+
+* scheme
+* launch date
+* ministry
+* objective
+* budget
+* beneficiaries
+* target
+* actual beneficiaries
+* expenditure
+* implementation states
+* implementation agencies
+* audit findings
+* outcome indicators
+
+---
+
+# 18. PIB — PRESS INFORMATION BUREAU
+
+https://pib.gov.in/
+
+Use for:
+
+* government announcements
+* cabinet decisions
+* ministerial statements
+* policy launches
+* government claims
+* scheme announcements
+* government responses
+* official clarifications
+
+Important:
+
+PIB establishes what the government says.
+
+It does NOT automatically establish that the claim is independently true.
+
+Store:
+
+Government Claim
+
+separately from:
+
+Independent Evidence.
+
+---
+
+# 19. GOVERNMENT MINISTRIES
+
+Create a master ministry source registry.
+
+At minimum:
+
+* Prime Minister's Office
+* Ministry of Finance
+* Ministry of Home Affairs
+* Ministry of Defence
+* Ministry of External Affairs
+* Ministry of Education
+* Ministry of Health
+* Ministry of Labour
+* Ministry of Rural Development
+* Ministry of Agriculture
+* Ministry of Road Transport
+* Ministry of Railways
+* Ministry of Housing
+* Ministry of Environment
+* Ministry of Commerce
+* Ministry of IT
+* Ministry of Law
+* Ministry of Women & Child Development
+* Ministry of Social Justice
+* Ministry of Tribal Affairs
+* Ministry of Power
+* Ministry of Petroleum
+* Ministry of Jal Shakti
+* Ministry of MSME
+* Ministry of Statistics
+* Ministry of Corporate Affairs
+* Ministry of Information & Broadcasting
+
+And every state department.
+
+---
+
+# 20. GOVERNMENT ORDERS
+
+This is extremely important.
+
+Track:
+
+* Government Orders
+* notifications
+* circulars
+* gazette notifications
+* executive orders
+* departmental orders
+* cabinet decisions
+* policy changes
+
+For every state create a Government Order ingestion source.
+
+This is critical for building event chains such as:
+
+Order issued
+
+→ opposition
+
+→ protest
+
+→ court action
+
+→ modification
+
+→ withdrawal
+
+→ implementation.
+
+---
+
+# 21. INDIA CODE
+
+Official legislative database:
+
+https://www.indiacode.nic.in/
+
+Use for:
+
+* Acts
+* legislation
+* amendments
+* rules
+* regulations
+* legislative history where available
+
+Link:
+
+Party Promise → Bill → Act → Government Implementation.
+
+---
+
+# 22. SUPREME COURT
+
+Primary:
+
+https://www.sci.gov.in/
+
+Track:
+
+* judgments
+* orders
+* constitutional cases
+* election cases
+* political cases
+* government challenges
+* public-interest litigation
+* major policy litigation
+* electoral disputes
+* political-party cases
+* corruption cases
+* rights-related cases
+
+Do not summarize judgments without linking the original decision.
+
+---
+
+# 23. HIGH COURTS
+
+Create a registry for all High Courts.
+
+Track:
+
+* political cases
+* election petitions
+* government policy challenges
+* protests
+* arrests
+* public-interest litigation
+* corruption matters
+* administrative orders
+* political disputes
+
+---
+
+# 24. eCOURTS
+
+https://ecourts.gov.in/
+
+Use where publicly available for:
+
+* case status
+* case history
+* orders
+* court
+* parties
+* dates
+* status
+
+IMPORTANT:
+
+A case existing does not establish guilt.
+
+Use lifecycle:
+
+Complaint/FIR
+
+→ Investigation
+
+→ Chargesheet
+
+→ Trial
+
+→ Conviction
+
+OR
+
+→ Acquittal
+
+OR
+
+→ Discharge
+
+OR
+
+→ Closure.
+
+---
+
+# 25. NCRB
+
+National Crime Records Bureau:
+
+https://ncrb.gov.in/
+
+Use for:
+
+* crime statistics
+* state comparison
+* crime against women
+* violent crime
+* economic offences
+* cybercrime
+* prison data
+* police data
+
+Do not use NCRB statistics to directly attribute crime to a political party.
+
+Use them as state-level indicators.
+
+---
+
+# 26. INDIA JUSTICE REPORT
+
+Use as a secondary institutional source for:
+
+* justice delivery
+* police
+* prisons
+* judiciary
+* legal aid
+* state comparisons
+
+Cross-reference with official statistics.
+
+---
+
+# 27. RBI
+
+https://www.rbi.org.in/
+
+Use:
+
+* State Finances
+* Handbook of Statistics
+* Database on Indian Economy
+* banking
+* inflation
+* credit
+* state debt
+* fiscal indicators
+* economic indicators
+
+This becomes important for the Government Performance layer.
+
+---
+
+# 28. MOSPI
+
+https://www.mospi.gov.in/
+
+Use:
+
+* GDP
+* GSDP-related datasets
+* employment
+* consumption
+* inflation
+* social indicators
+* national accounts
+* household surveys
+
+---
+
+# 29. NITI AAYOG
+
+https://www.niti.gov.in/
+
+Use:
+
+* SDG India Index
+* state rankings
+* health indicators
+* education indicators
+* innovation
+* development reports
+* state performance
+
+Do not blindly use NITI rankings as Political Eye's own score.
+
+Use the underlying indicators.
+
+---
+
+# 30. INDIA DATA PORTAL / OPEN GOVERNMENT DATA
+
+Use:
+
+https://www.data.gov.in/
+
+Search across:
+
+* demographics
+* agriculture
+* education
+* health
+* infrastructure
+* economy
+* government schemes
+* state data
+* district data
+
+Use APIs wherever available instead of scraping pages.
+
+---
+
+# 31. GOVERNMENT PROCUREMENT
+
+This is an important future layer.
+
+Use:
+
+Government e-Marketplace:
+
+https://gem.gov.in/
+
+Central Public Procurement Portal:
+
+https://eprocure.gov.in/
+
+State procurement portals.
+
+Track where public data is available:
+
+* tender
+* department
+* contractor
+* value
+* award
+* date
+* project
+* location
+* status
+
+Do NOT infer corruption merely because a politician is associated with a contractor.
+
+The system should identify relationships and let evidence speak.
+
+---
+
+# 32. MCA — MINISTRY OF CORPORATE AFFAIRS
+
+https://www.mca.gov.in/
+
+Use legally/publicly accessible information for:
+
+* company directors
+* company incorporation
+* company status
+* directors
+* company filings
+* charges
+* corporate relationships
+* registered business information
+
+This is particularly useful for politician business-interest research.
+
+Important:
+
+Do not infer ownership beyond what the records establish.
+
+---
+
+# 33. SEBI
+
+https://www.sebi.gov.in/
+
+Use for:
+
+* listed-company disclosures
+* regulatory orders
+* insider trading cases
+* securities violations
+* corporate actions
+* enforcement actions
+
+Relevant when politicians or politically connected businesses appear in corporate/regulatory records.
+
+---
+
+# 34. INCOME TAX DEPARTMENT
+
+Use publicly available official material where appropriate.
+
+Track:
+
+* tax-related official announcements
+* major enforcement actions
+* official releases
+* court-related tax cases
+
+Do not attempt to expose private taxpayer information.
+
+---
+
+# 35. ENFORCEMENT DIRECTORATE
+
+https://enforcementdirectorate.gov.in/
+
+Use official releases for:
+
+* searches
+* seizures
+* arrests
+* prosecutions
+* attachment actions
+* court developments
+
+Important:
+
+An ED action is an enforcement action, not proof of guilt.
+
+Political Eye must preserve this distinction.
+
+---
+
+# 36. CENTRAL BUREAU OF INVESTIGATION
+
+https://cbi.gov.in/
+
+Use official information regarding:
+
+* investigations
+* chargesheets
+* cases
+* court developments
+* official press releases
+
+Again:
+
+Investigation ≠ conviction.
+
+---
+
+# 37. CENTRAL VIGILANCE COMMISSION
+
+https://cvc.gov.in/
+
+Use:
+
+* annual reports
+* corruption statistics
+* vigilance information
+* disciplinary data
+* official recommendations
+
+---
+
+# 38. LOKPAL
+
+https://lokpal.gov.in/
+
+Use:
+
+* annual reports
+* official cases/statistics
+* institutional activity
+* complaints data where publicly available
+
+---
+
+# 39. STATE LOKAYUKTA
+
+Create a source registry for every state Lokayukta.
+
+Track:
+
+* complaints
+* investigations
+* reports
+* findings
+* recommendations
+* cases
+* action taken
+
+This should feed the Integrity & Accountability dashboard.
+
+---
+
+# 40. RTI SOURCES
+
+Create an RTI evidence layer.
+
+Use:
+
+* official RTI disclosures
+* government proactive disclosures
+* RTI replies published by government institutions
+* credible RTI-based investigations
+
+Store:
+
+question
+authority
+date
+response
+document
+source
+subject
+
+Never treat an RTI request itself as evidence of wrongdoing.
+
+The response is the evidence.
+
+---
+
+# 41. POLITICAL PARTY OFFICIAL WEBSITES
+
+Create a party-source registry.
+
+At minimum track major national and state parties.
+
+For every party capture:
+
+* manifesto
+* constitution
+* leadership
+* press releases
+* statements
+* policy positions
+* candidate announcements
+* alliance announcements
+* election campaigns
+* official speeches
+* official election promises
+
+Examples should include, where applicable:
+
+BJP
+
+INC
+
+AAP
+
+CPI
+
+CPI(M)
+
+BSP
+
+TMC
+
+DMK
+
+AIADMK
+
+TVK
+
+NTK
+
+PMK
+
+VCK
+
+NCP factions
+
+Shiv Sena factions
+
+RJD
+
+JD(U)
+
+SP
+
+BJD
+
+TDP
+
+YSRCP
+
+Janasena
+
+BRS
+
+JMM
+
+RJD
+
+LJP factions
+
+and all other nationally/state-relevant parties.
+
+Do NOT hardcode this list.
+
+Build a dynamic political-party registry from ECI.
+
+---
+
+# 42. POLITICAL PARTY SOCIAL ACCOUNTS
+
+Track official:
+
+* X
+* Facebook
+* YouTube
+* Instagram
+* Telegram where official
+* other verified channels
+
+Use primarily to capture:
+
+* statements
+* promises
+* announcements
+* responses
+* campaign messaging
+
+Archive the timestamp and original post URL.
+
+---
+
+# 43. POLITICIAN OFFICIAL ACCOUNTS
+
+Create verified social identities for:
+
+* PM
+* President
+* CMs
+* Union Ministers
+* MPs
+* MLAs
+* party leaders
+
+Do NOT automatically associate an account with a politician.
+
+Require verification through:
+
+* official website
+* verified profile
+* party site
+* government site
+* Parliament/Assembly profile
+
+---
+
+# 44. LOKNITI-CSDS
+
+Use for:
+
+* voter behaviour
+* election surveys
+* political attitudes
+* electoral behaviour
+* public opinion
+* election studies
+
+Keep:
+
+Observed Data
+
+separate from:
+
+Survey Data.
+
+Never present polling as actual election results.
+
+---
+
+# 45. ACADEMIC SOURCES
+
+Create a research layer using:
+
+* JSTOR
+* Google Scholar
+* SSRN
+* university research
+* peer-reviewed journals
+* political science publications
+
+Use for:
+
+* historical political analysis
+* institutional research
+* policy outcomes
+* election studies
+* political behaviour
+* historical context
+
+Academic research should provide context, not replace official records.
+
+---
+
+# 46. REPUTABLE NEWS SOURCES
+
+Create a broad news ingestion layer.
+
+National:
+
+* The Hindu
+* Indian Express
+* Hindustan Times
+* Times of India
+* Economic Times
+* Business Standard
+* The Telegraph
+* Deccan Herald
+* Tribune
+* News18
+* NDTV
+* India Today
+* BBC News
+* Reuters
+* PTI where licensed/available
+
+Regional sources are essential.
+
+For Tamil Nadu, include reputable Tamil and English regional publications.
+
+Do NOT create a system that only monitors English national media.
+
+---
+
+# 47. REGIONAL MEDIA
+
+For every state create a regional-media registry.
+
+Example:
+
+Tamil Nadu:
+
+* The Hindu Tamil
+* Dinamalar
+* Dinamani
+* Daily Thanthi
+* Maalai Malar
+* Puthiya Thalaimurai
+* News18 Tamil
+* Vikatan
+* other established outlets
+
+Then replicate equivalent regional source sets for:
+
+Kerala
+Karnataka
+Andhra Pradesh
+Telangana
+Maharashtra
+West Bengal
+Odisha
+Gujarat
+Punjab
+Rajasthan
+Uttar Pradesh
+Bihar
+Jharkhand
+Madhya Pradesh
+Chhattisgarh
+Assam
+North-East states
+etc.
+
+The objective is to avoid Delhi-centric political coverage.
+
+---
+
+# 48. PRESS TRUST OF INDIA
+
+Where legally accessible/licensed:
+
+PTI
+
+Use for:
+
+* breaking political events
+* election developments
+* government announcements
+* court events
+* political statements
+
+PTI should be treated as a news source, not primary evidence.
+
+---
+
+# 49. REUTERS
+
+Use for high-quality independent reporting on:
+
+* national political events
+* elections
+* economic policy
+* major controversies
+* international political developments
+
+Use the original Reuters article as a source rather than copying its text.
+
+---
+
+# 50. INTERNET ARCHIVE / HISTORICAL WEB
+
+Use where legally and technically appropriate.
+
+Purpose:
+
+Recover historical:
+
+* party websites
+* old manifestos
+* political statements
+* government pages
+* election material
+* campaign promises
+* historical party leadership pages
+
+This becomes especially important for 2014–2016 information that has disappeared from modern websites.
+
+---
+
+# 51. GOOGLE / BING / SEARCH ENGINES
+
+Search engines should be discovery tools.
+
+Do NOT treat search results themselves as authoritative sources.
+
+Use them to discover:
+
+* original PDFs
+* government documents
+* archived pages
+* old party websites
+* obscure state government records
+* regional sources
+
+Then follow the source to the original document.
+
+---
+
+# 52. WIKIPEDIA
+
+Use only as:
+
+ENTITY DISCOVERY
+
+and:
+
+HISTORICAL CROSS-CHECK
+
+Never use Wikipedia as the canonical source for:
+
+* election results
+* assets
+* criminal cases
+* government performance
+* corruption
+* political claims
+
+Wikipedia can help identify the existence of an entity and then Political Eye must find primary evidence.
+
+---
+
+# 53. OPENSTREETMAP / MAP DATA
+
+Use:
+
+https://www.openstreetmap.org/
+
+for:
+
+* geography
+* constituency visualisation
+* districts
+* roads
+* locations
+* political-event mapping
+
+Use official constituency boundaries where available for electoral maps.
+
+Do not assume ordinary geographic boundaries equal electoral boundaries.
+
+---
+
+# 54. ELECTION CONSTITUENCY BOUNDARIES
+
+Use official ECI / Delimitation Commission material.
+
+This is important because constituency boundaries change.
+
+Political Eye must maintain:
+
+Constituency A — historical boundary
+
+Constituency A — current boundary
+
+Do not compare vote results across changed boundaries without warning.
+
+---
+
+# 55. DELIMITATION COMMISSION
+
+Track:
+
+* constituency boundaries
+* delimitation orders
+* reservation changes
+* constituency renaming
+* SC/ST reserved constituency changes
+
+This is essential for historical election comparisons.
+
+---
+
+# 56. FINANCE COMMISSION
+
+Use:
+
+* Finance Commission reports
+* state allocation data
+* grants
+* fiscal transfers
+* devolution
+* recommendations
+
+This helps explain state finances without attributing national fiscal transfers incorrectly to a state government.
+
+---
+
+# 57. GST COUNCIL
+
+Use:
+
+https://gstcouncil.gov.in/
+
+Track:
+
+* GST decisions
+* state revenue implications
+* tax changes
+* compensation
+* policy decisions
+
+---
+
+# 58. CENTRAL STATISTICS / SURVEY DATA
+
+Use:
+
+* MOSPI
+* NSS
+* PLFS
+* Census
+* NFHS
+* National Sample Survey
+* Economic Census
+* Periodic Labour Force Survey
+
+for:
+
+* employment
+* poverty
+* income
+* demographics
+* health
+* education
+* consumption
+* labour participation
+
+---
+
+# 59. HEALTH
+
+Sources:
+
+* Ministry of Health
+* National Health Authority
+* NFHS
+* HMIS
+* NITI Aayog
+* state health departments
+* CAG
+* WHO where appropriate
+
+Track:
+
+* hospitals
+* doctors
+* health expenditure
+* maternal mortality
+* infant mortality
+* insurance coverage
+* public-health outcomes
+* scheme implementation
+
+---
+
+# 60. EDUCATION
+
+Sources:
+
+* Ministry of Education
+* UDISE+
+* AISHE
+* state education departments
+* ASER
+* NITI Aayog
+* CAG
+
+Track:
+
+* enrolment
+* dropout
+* school infrastructure
+* teachers
+* learning outcomes
+* higher education
+* government expenditure
+* schemes
+
+---
+
+# 61. EMPLOYMENT
+
+Sources:
+
+* PLFS
+* Ministry of Labour
+* EPFO
+* state labour departments
+* MOSPI
+* RBI
+* CMIE where legally available
+
+Keep:
+
+Official employment statistics
+
+separate from:
+
+Private estimates.
+
+---
+
+# 62. AGRICULTURE
+
+Sources:
+
+* Ministry of Agriculture
+* state agriculture departments
+* agricultural census
+* MSP documentation
+* procurement data
+* PM-KISAN
+* crop insurance data
+* CAG
+* RBI
+
+Track:
+
+* farm income indicators
+* procurement
+* subsidies
+* irrigation
+* crop insurance
+* agricultural schemes
+* farmer protests
+* government commitments
+
+---
+
+# 63. INFRASTRUCTURE
+
+Sources:
+
+* NHAI
+* Ministry of Road Transport
+* Ministry of Railways
+* Ministry of Housing
+* state PWDs
+* urban development departments
+* CAG
+* procurement portals
+
+Track:
+
+* roads
+* railways
+* airports
+* ports
+* metro systems
+* housing
+* water
+* sewage
+* electricity
+
+---
+
+# 64. ENVIRONMENT
+
+Sources:
+
+* Ministry of Environment
+* CPCB
+* State Pollution Control Boards
+* NGT
+* CAG
+* environmental clearance systems
+
+Track:
+
+* pollution
+* environmental clearances
+* forest diversion
+* environmental violations
+* major projects
+* climate commitments
+* government action
+
+---
+
+# 65. POLICE / LAW & ORDER
+
+Sources:
+
+* NCRB
+* Ministry of Home Affairs
+* State Police
+* State Home Departments
+* court records
+* CAG
+
+Track:
+
+* crime
+* police strength
+* vacancies
+* convictions
+* cases
+* prison occupancy
+* police reforms
+* law-and-order incidents
+
+Do not attribute crime rates directly to a government without analytical qualification.
+
+---
+
+# 66. ELECTION VIOLENCE
+
+Sources:
+
+* ECI
+* State Election Commissions
+* police records
+* court records
+* government reports
+* reputable independent journalism
+
+Separate:
+
+Reported violence
+
+from:
+
+Officially confirmed incidents.
+
+---
+
+# 67. PROTEST DATABASE
+
+Create a dedicated Protest/Event source class.
+
+Track:
+
+* date
+* location
+* issue
+* participants
+* organisation
+* government response
+* police action
+* arrests
+* injuries/deaths where officially confirmed
+* court intervention
+* government decision
+* outcome
+
+Sources:
+
+* police
+* government
+* court
+* protest organisers
+* multiple reputable news sources
+
+Do not rely solely on protest organisers or government statements.
+
+---
+
+# 68. POLITICAL DEFECTIONS
+
+Sources:
+
+* ECI
+* Parliament
+* Legislative Assemblies
+* party statements
+* Speaker decisions
+* court judgments
+* official gazettes/orders
+* reputable journalism
+
+Track:
+
+Person
+
+→ Old Party
+
+→ Date
+
+→ New Party
+
+→ Reason claimed
+
+→ Official status
+
+→ Legal/constitutional proceedings
+
+→ Outcome
+
+---
+
+# 69. ANTI-DEFECTION CASES
+
+Track:
+
+* Speaker decisions
+* Assembly records
+* Supreme Court
+* High Courts
+* constitutional cases
+
+Separate:
+
+Political defection
+
+from:
+
+Legal disqualification.
+
+---
+
+# 70. POLITICAL ALLIANCES
+
+Sources:
+
+* party announcements
+* ECI
+* election seat-sharing agreements
+* candidate lists
+* official coalition documents
+* reputable reporting
+
+Create temporal alliance relationships.
+
+Example:
+
+Alliance formed
+
+→ seat sharing
+
+→ election
+
+→ government formation
+
+→ alliance dispute
+
+→ exit
+
+---
+
+# 71. GOVERNMENT FORMATION
+
+For every state and Union government:
+
+Track:
+
+* election result
+* coalition
+* majority
+* support letters
+* oath
+* cabinet
+* resignations
+* confidence votes
+* floor tests
+* President/Governor decisions
+* court intervention
+
+---
+
+# 72. GOVERNOR SOURCES
+
+Official Governor websites.
+
+Track:
+
+* appointments
+* speeches
+* bills reserved
+* decisions
+* constitutional communications where public
+* major controversies
+* court cases
+
+Do not infer motives.
+
+Record documented actions.
+
+---
+
+# 73. PRESIDENT OF INDIA
+
+https://presidentofindia.nic.in/
+
+Track:
+
+* constitutional appointments
+* assent
+* speeches
+* ordinances
+* bills
+* official events
+* constitutional decisions
+
+---
+
+# 74. PRIME MINISTER'S OFFICE
+
+https://www.pmindia.gov.in/
+
+Track:
+
+* speeches
+* announcements
+* government programmes
+* cabinet-related information
+* major policy statements
+* official achievements claimed by PMO
+
+Again:
+
+Official claim ≠ independently verified outcome.
+
+---
+
+# 75. PARLIAMENTARY COMMITTEES
+
+Track:
+
+* committee
+* members
+* report
+* recommendation
+* government response
+* implementation
+
+This can become a significant accountability layer.
+
+---
+
+# 76. RTI / GOVERNMENT DISCLOSURE
+
+Search:
+
+* RTI portals
+* proactive disclosure pages
+* annual reports
+* departmental disclosure documents
+
+Use them to find data that is not easily discoverable through normal government websites.
+
+---
+
+# 77. STATE GOVERNMENT PORTALS
+
+Create a crawler registry containing every:
+
+* state government portal
+* department portal
+* finance department
+* home department
+* education
+* health
+* industry
+* transport
+* rural development
+* urban development
+* agriculture
+* environment
+* social welfare
+
+Do not rely on a single state portal.
+
+---
+
+# 78. DISTRICT ADMINISTRATION
+
+Eventually include:
+
+* district collectorates
+* district government websites
+* district-level schemes
+* district expenditure
+* major government projects
+* local events
+* government orders
+
+This is especially important for constituency-level intelligence.
+
+---
+
+# 79. MUNICIPAL CORPORATIONS
+
+Create a local government layer.
+
+Track:
+
+* municipal budgets
+* elected representatives
+* tenders
+* projects
+* expenditure
+* property tax
+* water
+* sanitation
+* waste
+* infrastructure
+* audit findings
+
+This should be Phase 2/3 rather than blocking national launch.
+
+---
+
+# 80. PANCHAYATS
+
+Eventually ingest:
+
+* Panchayat budgets
+* elected members
+* schemes
+* expenditure
+* audit reports
+* development works
+
+Use official Panchayati Raj sources.
+
+---
+
+# 81. MYGOV
+
+https://www.mygov.in/
+
+Use for:
+
+* government campaigns
+* citizen initiatives
+* policy announcements
+* public consultation
+* government communication
+
+---
+
+# 82. PIB FACT CHECK
+
+Use the official PIB Fact Check mechanism for government-verified responses to misinformation.
+
+Do not automatically treat every PIB fact-check as the final truth.
+
+Store:
+
+Claim
+
+→ Government assessment
+
+→ Evidence
+
+→ Political Eye assessment where independently possible.
+
+---
+
+# 83. COURT + NEWS CROSS-REFERENCE
+
+For controversial political events:
+
+Always attempt:
+
+News report
+
+*
+
+Official court document
+
+*
+
+Government statement
+
+*
+
+Opposition/party statement
+
+*
+
+Primary document
+
+This is especially important for:
+
+* arrests
+* corruption
+* protests
+* political bans
+* government orders
+* disqualifications
+* election disputes.
+
+---
+
+# 84. POLITICAL CLAIM RESEARCH
+
+For every major political claim:
+
+Capture:
+
+Speaker
+Date
+Exact statement
+Original source
+Context
+Evidence
+Counter-evidence
+Political Eye assessment
+
+Do not strip statements from context.
+
+---
+
+# 85. MANIFESTO SOURCE ARCHIVE
+
+For every election, find manifests from:
+
+1. Official party website
+2. Party social media
+3. ECI-related documents
+4. Internet Archive
+5. News reports
+6. ADR
+7. PRS
+8. Regional media
+9. Academic archives
+10. Digitised historical documents
+
+The original manifesto PDF should be preserved where legally permissible.
+
+---
+
+# 86. MANIFESTO OCR
+
+Many Indian political documents are PDFs or scanned PDFs.
+
+Build:
+
+PDF
+
+→ OCR
+
+→ text extraction
+
+→ language detection
+
+→ translation
+
+→ promise extraction
+
+→ human/AI verification.
+
+Support:
+
+English
+Hindi
+Tamil
+Telugu
+Kannada
+Malayalam
+Bengali
+Marathi
+Gujarati
+Punjabi
+Odia
+Assamese
+
+---
+
+# 87. MULTI-SOURCE FACT RECORD
+
+Every fact in the database should support:
+
+fact_id
+
+entity
+
+attribute
+
+value
+
+valid_from
+
+valid_to
+
+primary_source
+
+secondary_source
+
+supporting_sources
+
+source_date
+
+retrieved_date
+
+confidence
+
+verification_status
+
+notes
+
+This becomes the foundation of Political Eye.
+
+---
+
+# 88. SOURCE CONFLICT ENGINE
+
+When two sources disagree:
+
+Example:
+
+ECI says candidate received 102,000 votes.
+
+News report says 101,500.
+
+Do NOT overwrite the news record.
+
+Mark:
+
+Conflict detected.
+
+Canonical value:
+
+ECI
+
+Supporting value:
+
+News report
+
+Reason:
+
+Primary election result takes precedence.
+
+The same logic must apply to:
+
+* assets
+* party affiliation
+* dates
+* election results
+* government claims
+* case status.
+
+---
+
+# 89. SOURCE FRESHNESS
+
+Assign refresh intervals.
+
+Breaking political events:
+
+5–30 minutes
+
+Government orders:
+
+1–6 hours
+
+Political positions:
+
+6–12 hours
+
+Politician profiles:
+
+daily
+
+Party leadership:
+
+daily
+
+Election information:
+
+high priority during election periods
+
+Assets:
+
+when new affidavit becomes available
+
+CAG:
+
+daily/weekly
+
+Budgets:
+
+daily during budget season
+
+Historical datasets:
+
+periodic validation.
+
+---
+
+# 90. SOURCE DISCOVERY ENGINE
+
+Manus should build a source discovery agent.
+
+It should continuously ask:
+
+What official sources exist for this state?
+
+What political parties exist?
+
+What Assembly exists?
+
+What government departments exist?
+
+What election happened?
+
+What documents were published?
+
+What new CAG reports appeared?
+
+What new court orders appeared?
+
+What new government orders appeared?
+
+What new affidavits appeared?
+
+What new manifestos appeared?
+
+What new political events occurred?
+
+---
+
+# 91. STATE-BY-STATE SOURCE MATRIX
+
+Create a database table:
+
+State
+
+Election Commission
+
+Assembly
+
+Government Portal
+
+Finance Department
+
+CAG
+
+Lokayukta
+
+Police
+
+SEC
+
+High Court
+
+Procurement
+
+Budget
+
+Health
+
+Education
+
+Agriculture
+
+Urban Development
+
+Rural Development
+
+Environment
+
+Official CM source
+
+Major regional media
+
+Political parties
+
+Do this for every state and UT.
+
+The admin interface should show missing source integrations.
+
+---
+
+# 92. SOURCE COVERAGE SCORE
+
+Every state should have:
+
+Source Coverage
+
+Political Coverage
+
+Election Coverage
+
+Financial Coverage
+
+Legislative Coverage
+
+Governance Coverage
+
+Event Coverage
+
+Promise Coverage
+
+Court Coverage
+
+Media Coverage
+
+Do not hide missing sources.
+
+---
+
+# 93. POLITICAL EYE SHOULD TRACK THE SOURCE ITSELF
+
+Each source should have:
+
+source_id
+
+publisher
+
+domain
+
+source_type
+
+jurisdiction
+
+language
+
+reliability_tier
+
+official_status
+
+API_available
+
+robots_policy
+
+terms_reviewed
+
+last_checked
+
+last_successful_fetch
+
+frequency
+
+status
+
+This creates a maintainable research infrastructure.
+
+---
+
+# 94. API-FIRST ACQUISITION
+
+Whenever an official API exists:
+
+USE THE API.
+
+Do not scrape the website unnecessarily.
+
+Priority:
+
+API
+
+→ downloadable dataset
+
+→ official document
+
+→ structured page
+
+→ HTML
+
+→ PDF
+
+→ OCR
+
+→ search discovery.
+
+---
+
+# 95. DO NOT OVERWRITE ORIGINAL DOCUMENTS
+
+For every important source document store:
+
+document ID
+
+title
+
+publisher
+
+date
+
+URL
+
+document hash
+
+retrieval timestamp
+
+file type
+
+language
+
+OCR status
+
+extraction status
+
+linked entities
+
+This creates reproducibility.
+
+---
+
+# 96. SOURCE CITATION ON EVERY POLITICAL EYE PAGE
+
+Every major page should contain:
+
+**Sources**
+
+ECI
+CAG
+Parliament
+ADR
+PRS
+Government
+Court
+News
+
+Users should be able to inspect the underlying source.
+
+---
+
+# 97. SOURCE FILTER IN UI
+
+Allow users to filter information by:
+
+Official
+
+Court
+
+Audit
+
+Election Commission
+
+Parliament
+
+Government
+
+Political Party
+
+Research Institution
+
+Media
+
+Social Media
+
+This gives users control over evidence quality.
+
+---
+
+# 98. SOURCE SEARCH PRIORITY
+
+When answering a user question, Political Eye AI should search in this order:
+
+1. Political Eye structured database
+2. Primary government source
+3. ECI / Parliament / Assembly
+4. Court / CAG
+5. Official party/politician source
+6. Institutional research
+7. Reputable journalism
+8. Social media
+9. General web
+
+Do not reverse this order.
+
+---
+
+# 99. FINAL MANUS INSTRUCTION
+
+Do not simply create 100 web scrapers.
+
+Create a **Source Registry + Source Adapters + Research Agents + Evidence Store**.
+
+Architecture:
+
+SOURCE REGISTRY
+
+↓
+
+SOURCE ADAPTER
+
+↓
+
+DOCUMENT FETCHER
+
+↓
+
+PARSER/OCR
+
+↓
+
+ENTITY EXTRACTION
+
+↓
+
+ENTITY RESOLUTION
+
+↓
+
+FACT EXTRACTION
+
+↓
+
+SOURCE VALIDATION
+
+↓
+
+CROSS-SOURCE RECONCILIATION
+
+↓
+
+HUMAN REVIEW
+
+↓
+
+POLITICAL EYE DATABASE
+
+↓
+
+SEARCH INDEX
+
+↓
+
+KNOWLEDGE GRAPH
+
+↓
+
+VECTOR DATABASE
+
+↓
+
+ASK POLITICAL EYE
+
+---
+
+# 100. THE GOLDEN RULE
+
+Political Eye should never answer:
+
+"Because the internet says so."
+
+It should answer:
+
+"Here is what the official record says.
+
+Here is what independent research says.
+
+Here is what reputable reporting says.
+
+Here is where the sources agree.
+
+Here is where they disagree.
+
+Here is the evidence.
+
+Here is what Political Eye can and cannot establish."
+
+That distinction is what will separate Political Eye from every generic political-information website.
+
+The goal is not to collect the most webpages.
+
+The goal is to build the **most defensible political evidence graph for India.**
