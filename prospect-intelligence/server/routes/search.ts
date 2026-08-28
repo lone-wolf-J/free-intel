@@ -135,17 +135,17 @@ async function analyzeWithGemini(
   query: string,
   scrapedData: any
 ) {
-  const scrapedJson = JSON.stringify(scrapedData).slice(0, 4000);
+  const webResults = (scrapedData.web || scrapedData.google || []).slice(0, 8).map((r: any, i: number) => `${i + 1}. Title: ${r.title}\n   URL: ${r.url}\n   Snippet: ${r.snippet}`).join("\n\n");
+  const enriched = scrapedData.enriched ? `\n\nEnriched page content (top result):\n${scrapedData.enriched.slice(0, 2000)}` : "";
   const prompt = `You are a prospect intelligence analyst. Analyze "${query}" for sales intelligence.
 
-CRITICAL ANTI-HALLUCINATION RULES:
-- ONLY use verifiable public information. If you do not have reliable public knowledge about this exact person/company, you MUST state "Unknown" / "No public data found" for those fields.
-- DO NOT invent titles, companies, locations, or metrics. Fabrication is a failure.
-- Base your answer on your training data cutoff. If the entity is not a well-known public figure/company with Wikipedia/news coverage, treat as unknown.
-- confidenceScore must reflect verifiability: 85-95 for well-known public figures, 40-60 for partial matches, 5-15 for unknown/private individuals (you must use 5-15 in that case).
+FRESH WEB SEARCH RESULTS (use as PRIMARY source - this is real-time data crawled just now):
+${webResults || "No web results returned"}
+${enriched}
 
-Web scrape context (may be empty on Vercel - do NOT fabricate to fill it):
-${scrapedJson}
+CRITICAL RULES:
+- GROUND your answer in the web results above. If web results contain relevant info about "${query}", EXTRACT it and build the dossier from those snippets/URLs. Do NOT say "no data" when results exist.
+- confidenceScore: 85-95 if strong public figure with multiple results, 60-84 if moderate results, 30-50 if weak, 5-15 only if ZERO relevant results.
 
 Return ONLY valid JSON matching this EXACT schema:
 {
@@ -155,13 +155,6 @@ Return ONLY valid JSON matching this EXACT schema:
   "aiInsights": ["string", "string", "string"],
   "confidenceScore": number
 }
-
-For unknown/private individuals you MUST:
-- person.title = "Unknown - no public data found"
-- company fields = "Unknown"
-- sections: Summary item must say "No verifiable public information found for '${query}'. This appears to be a private individual or non-public entity. All details below are marked as unknown. Do not use for outreach without manual verification."
-- aiInsights must explain the lack of data
-- confidenceScore = 8
 
 Sections must include: Summary, Career, Role, Company, Activity, Leadership, Interests, Tech, Priorities, Signals, Challenges, Stakeholders, Relationships, Opportunities, Openers, Questions, Strategy, Risks, Confidence.`;
 

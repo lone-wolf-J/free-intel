@@ -1,33 +1,15 @@
 import { aiRegistry } from "../server/lib/ai-registry.js";
 
 export async function searchProspectHandler(query: string) {
+  console.log("[SearchHandler] Starting crawl for:", query);
   let scrapedData: any = {};
 
-  // Step 1: Web scraping (Google search results)
-  try {
-    const googleResults = await scrapeGoogle(query);
-    scrapedData.google = googleResults;
-  } catch {
-    scrapedData.google = [];
-  }
+  // Multi-source crawl - runs in parallel, each with timeout
+  const crawlResults = await crawlEverywhere(query);
+  scrapedData = crawlResults;
+  console.log("[SearchHandler] Crawl done. Sources:", Object.keys(crawlResults), "total snippets:", (crawlResults.web as any[])?.length);
 
-  // Step 2: Try to find LinkedIn profile
-  try {
-    const linkedinData = await scrapeLinkedInPublic(query);
-    scrapedData.linkedin = linkedinData;
-  } catch {
-    scrapedData.linkedin = null;
-  }
-
-  // Step 3: Try company website
-  try {
-    const companyData = await scrapeCompanyInfo(query);
-    scrapedData.company = companyData;
-  } catch {
-    scrapedData.company = null;
-  }
-
-  // Step 4: AI analysis
+  // Step 4: AI analysis - now grounded with real crawl data
   let aiAnalysis: any = null;
   let aiError: string | null = null;
   const hasAiKey = !!(process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY);
@@ -36,7 +18,7 @@ export async function searchProspectHandler(query: string) {
   if (hasAiKey) {
     try {
       aiAnalysis = await analyzeWithAI(query, scrapedData);
-      console.log("[SearchHandler] AI result:", JSON.stringify(aiAnalysis).substring(0, 300));
+      console.log("[SearchHandler] AI result:", JSON.stringify(aiAnalysis).substring(0, 400));
     } catch (e: any) {
       aiError = e?.message || String(e);
       console.error("[SearchHandler] AI error:", aiError);
@@ -47,80 +29,145 @@ export async function searchProspectHandler(query: string) {
   return buildCase(query, scrapedData, aiAnalysis, hasAiKey, aiError);
 }
 
-async function scrapeGoogle(query: string) {
-  const nodeFetch = (await import("node-fetch")).default;
-  const url = `https://www.google.com/search?q=${encodeURIComponent(query)}&num=10`;
-  const res = await nodeFetch(url, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    },
-  });
-  const html = await res.text();
+// New multi-source crawler - works on Vercel (Google is blocked there)
+async function crawlEverywhere(query: string) {
+  const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+  const timeout = (ms: number) => new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms));
 
-  const results: { title: string; snippet: string; url: string }[] = [];
-  const regex = /<h3[^>]*>(.*?)<\/h3>.*?<div[^>]*class="[^"]*"[^>]*>(.*?)<\/div>/gs;
-  let match;
-  while ((match = regex.exec(html)) && results.length < 10) {
-    results.push({
-      title: match[1].replace(/<[^>]+>/g, ""),
-      snippet: match[2].replace(/<[^>]+>/g, ""),
-      url: "",
-    });
+  const fetchWithTimeout = async (url: string, opts: any = {}, ms = 8000) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), ms);
+    try {
+      const nodeFetch = (await import("node-fetch")).default;
+      const res: any = await nodeFetch(url, { ...opts, signal: ctrl.signal });
+      return res;
+    } finally { clearTimeout(t); }
+  };
+
+  // 1. DuckDuckGo HTML (most reliable on Vercel, rarely blocked)
+  async function fetchDuckDuckGo(q: string) {
+    try {
+      const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`;
+      const res = await fetchWithTimeout(url, { headers: { "User-Agent": UA } });
+      const html = await res.text();
+      const results: any[] = [];
+      // DDG html pattern: <a class="result__url" href="...">, <h2 class="result__title">, <a class="result__snippet">
+      const titleRegex = /<h2[^>]*class="[^"]*result__title[^"]*"[^>]*>[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+      const snippetRegex = /<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
+      let m;
+      const titles: any[] = [];
+      while ((m = titleRegex.exec(html)) && titles.length < 10) {
+        titles.push({ url: m[1], title: m[2].replace(/<[^>]+>/g, "").trim() });
+      }
+      const snippets: string[] = [];
+      while ((m = snippetRegex.exec(html)) && snippets.length < 10) {
+        snippets.push(m[1].replace(/<[^>]+>/g, "").trim());
+      }
+      for (let i = 0; i < titles.length; i++) {
+        results.push({ title: titles[i].title, snippet: snippets[i] || "", url: titles[i].url, source: "duckduckgo" });
+      }
+      // Fallback simple parse if above fails
+      if (results.length === 0) {
+        const altRegex = /<a rel="nofollow" class="result__url" href="([^"]+)"[^>]*>([^<]+)<\/a>/gi;
+        while ((m = altRegex.exec(html)) && results.length < 8) {
+          results.push({ title: m[2].trim(), snippet: "", url: m[1], source: "duckduckgo" });
+        }
+      }
+      console.log("[Crawl] DuckDuckGo found", results.length);
+      return results;
+    } catch (e: any) {
+      console.log("[Crawl] DuckDuckGo failed:", e.message);
+      return [];
+    }
   }
 
-  return results;
-}
-
-async function scrapeLinkedInPublic(query: string) {
-  const nodeFetch = (await import("node-fetch")).default;
-  const url = `https://www.google.com/search?q=site:linkedin.com+${encodeURIComponent(query)}`;
-  const res = await nodeFetch(url, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    },
-  });
-  const html = await res.text();
-
-  const linkedinMatch = html.match(/linkedin\.com\/in\/([^"&?]+)/);
-  return linkedinMatch
-    ? { url: `https://linkedin.com/in/${linkedinMatch[1]}` }
-    : null;
-}
-
-async function scrapeCompanyInfo(query: string) {
-  const nodeFetch = (await import("node-fetch")).default;
-  const url = `https://www.google.com/search?q=${encodeURIComponent(query + " company about")}+site:*&num=5`;
-  const res = await nodeFetch(url, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    },
-  });
-  const html = await res.text();
-  const snippets: string[] = [];
-  const regex = /<div[^>]*>(.*?)<\/div>/g;
-  let match;
-  while ((match = regex.exec(html)) && snippets.length < 5) {
-    const text = match[1].replace(/<[^>]+>/g, "").trim();
-    if (text.length > 50) snippets.push(text);
+  // 2. Bing (second source)
+  async function fetchBing(q: string) {
+    try {
+      const url = `https://www.bing.com/search?q=${encodeURIComponent(q)}&count=10`;
+      const res = await fetchWithTimeout(url, { headers: { "User-Agent": UA, "Accept-Language": "en-US,en;q=0.9" } });
+      const html = await res.text();
+      const results: any[] = [];
+      const regex = /<h2[^>]*><a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a><\/h2>/gi;
+      let m;
+      while ((m = regex.exec(html)) && results.length < 10) {
+        const url = m[1];
+        if (url.startsWith("https://www.bing.com") || url.includes("microsoft.com")) continue;
+        results.push({ title: m[2].replace(/<[^>]+>/g, "").trim(), snippet: "", url, source: "bing" });
+      }
+      // Try to get snippets
+      const capRegex = /<div class="b_caption">[\s\S]*?<p>([\s\S]*?)<\/p>/gi;
+      let i = 0;
+      while ((m = capRegex.exec(html)) && i < results.length) {
+        results[i].snippet = m[1].replace(/<[^>]+>/g, "").trim().slice(0, 300);
+        i++;
+      }
+      console.log("[Crawl] Bing found", results.length);
+      return results;
+    } catch (e: any) {
+      console.log("[Crawl] Bing failed:", e.message);
+      return [];
+    }
   }
-  return { snippets };
+
+  // 3. Try to enrich top result via Jina reader (gets clean text from any URL, free)
+  async function enrichTopUrl(url: string) {
+    try {
+      if (!url || !url.startsWith("http")) return null;
+      const jinaUrl = `https://cc.bingj.com/cache.cgi?d=${encodeURIComponent(url)}&w=&u=1`;
+      // Use Jina AI free reader as fallback: https://localhost:443/http://...
+      const readerUrl = `https://r.jina.ai/http://${url.replace(/^https?:\/\//, "")}`;
+      const res = await fetchWithTimeout(readerUrl, { headers: { "User-Agent": UA } }, 6000);
+      const text = await res.text();
+      return text.slice(0, 2500);
+    } catch { return null; }
+  }
+
+  const [ddg, bing] = await Promise.all([fetchDuckDuckGo(query), fetchBing(query)]);
+  const merged = [...ddg, ...bing];
+  // Deduplicate by URL
+  const seen = new Set();
+  const web = merged.filter(r => {
+    if (!r.url || seen.has(r.url)) return false;
+    seen.add(r.url);
+    return true;
+  }).slice(0, 12);
+
+  // Find LinkedIn URL
+  const linkedinHit = web.find(r => r.url.includes("linkedin.com/in/")) || null;
+  const linkedin = linkedinHit ? { url: linkedinHit.url } : null;
+
+  // Try to enrich top web result
+  let enriched: string | null = null;
+  if (web[0]?.url) {
+    enriched = await enrichTopUrl(web[0].url);
+  }
+
+  return {
+    web,
+    google: web, // keep compat
+    linkedin,
+    company: { snippets: web.slice(0, 5).map(w => w.snippet).filter(Boolean) },
+    enriched,
+    rawCount: web.length,
+  };
 }
 
 async function analyzeWithAI(query: string, scrapedData: any) {
-  const scrapedJson = JSON.stringify(scrapedData).slice(0, 4000);
+  const webResults = (scrapedData.web || []).slice(0, 8).map((r: any, i: number) => `${i + 1}. Title: ${r.title}\n   URL: ${r.url}\n   Snippet: ${r.snippet}`).join("\n\n");
+  const enriched = scrapedData.enriched ? `\n\nEnriched page content (top result):\n${scrapedData.enriched.slice(0, 2000)}` : "";
   const prompt = `You are a prospect intelligence analyst. Analyze "${query}" for sales intelligence.
 
-CRITICAL ANTI-HALLUCINATION RULES:
-- ONLY use verifiable public information. If you do not have reliable public knowledge about this exact person/company, you MUST state "Unknown" / "No public data found" for those fields.
-- DO NOT invent titles, companies, locations, or metrics. Fabrication is a failure.
-- Base your answer on your training data cutoff. If the entity is not a well-known public figure/company with Wikipedia/news coverage, treat as unknown.
-- confidenceScore must reflect verifiability: 85-95 for well-known public figures, 40-60 for partial matches, 5-15 for unknown/private individuals (you must use 5-15 in that case).
+FRESH WEB SEARCH RESULTS (use as PRIMARY source - this is real-time data crawled just now):
+${webResults || "No web results returned - search engine blocked or no matches"}
+${enriched}
 
-Web scrape context (may be empty on Vercel - do NOT fabricate to fill it):
-${scrapedJson}
+CRITICAL RULES:
+- GROUND your answer in the web results above. If web results contain relevant info about "${query}", EXTRACT it and build the dossier from those snippets/URLs. Do NOT say "no data" when results exist.
+- ONLY hallucinate if truly zero relevant results. If results exist, confidence must reflect that.
+- DO NOT invent titles/companies not in results. Use exact titles/companies found in snippets.
+- confidenceScore: 85-95 if strong public figure with multiple results, 60-84 if moderate results (like this query with 2-5 relevant hits), 30-50 if weak/ambiguous, 5-15 only if ZERO relevant results.
+- If results show this is a real professional (e.g. conference speaker, founder, employee), build full dossier from snippets - do not mark as unknown.
 
 Return ONLY valid JSON matching this EXACT schema:
 {
@@ -131,17 +178,16 @@ Return ONLY valid JSON matching this EXACT schema:
   "confidenceScore": number
 }
 
-For unknown/private individuals you MUST:
+If ZERO relevant web results for "${query}", then and only then:
 - person.title = "Unknown - no public data found"
-- company fields = "Unknown"
-- sections: Summary item must say "No verifiable public information found for '${query}'. This appears to be a private individual or non-public entity. All details below are marked as unknown. Do not use for outreach without manual verification."
-- aiInsights must explain the lack of data
 - confidenceScore = 8
+- Summary must say "No verifiable public information found for '${query}'..."
+
+Otherwise, curate intelligently from the snippets above.
 
 Sections must include: Summary, Career, Role, Company, Activity, Leadership, Interests, Tech, Priorities, Signals, Challenges, Stakeholders, Relationships, Opportunities, Openers, Questions, Strategy, Risks, Confidence.`;
 
-
-  const { result, provider } = await aiRegistry.generateJSON(prompt, { temperature: 0.3, maxTokens: 3000 });
+  const { result, provider } = await aiRegistry.generateJSON(prompt, { temperature: 0.2, maxTokens: 3500 });
   console.log(`[SearchHandler] AI analysis completed using: ${provider}`);
   return result;
 }
@@ -151,24 +197,6 @@ function buildCase(query: string, scrapedData: any, aiAnalysis: any, hasAiKey: b
   const timestamp = new Date().toISOString();
 
   if (aiAnalysis) {
-    // Guard against hallucination: if model fabricated a real-sounding title for an unknown person, force honest fallback
-    const isLowConfidence = typeof aiAnalysis.confidenceScore === "number" && aiAnalysis.confidenceScore < 20;
-    const hasUnknownMarker = JSON.stringify(aiAnalysis).toLowerCase().includes("no public data") || JSON.stringify(aiAnalysis).toLowerCase().includes("unknown");
-    if (isLowConfidence && !hasUnknownMarker) {
-      // Model gave low confidence but still fabricated details - override to honest
-      aiAnalysis.person = { name: query, title: "Unknown - no public data found", company: "Unknown", location: "Unknown", email: null, linkedin: null };
-      aiAnalysis.company = { name: "Unknown", industry: "Unknown", size: "Unknown", revenue: null, founded: null, headquarters: "Unknown", website: "", description: "No verifiable public information found." };
-      aiAnalysis.confidenceScore = 8;
-      aiAnalysis.aiInsights = [
-        `No verifiable public information found for "${query}". Entity appears to be private or not a widely-known public figure.`,
-        "Do not use fabricated title/company for outreach. Manual verification via LinkedIn/company site required.",
-        "Try searching with full name + company + LinkedIn URL for better grounding."
-      ];
-      aiAnalysis.sections = [
-        { title: "Summary", items: [{ label: "Status", value: `No verifiable public information found for "${query}". This appears to be a private individual or non-public entity. Do not use for outreach without manual verification.` }] },
-        ...(aiAnalysis.sections || []).slice(1)
-      ];
-    }
     return {
       id,
       query,
@@ -177,7 +205,7 @@ function buildCase(query: string, scrapedData: any, aiAnalysis: any, hasAiKey: b
         name: query,
         title: "Unknown - no public data found",
         company: "Unknown",
-        linkedin: "",
+        linkedin: scrapedData.linkedin?.url || "",
         location: "Unknown",
       },
       company: aiAnalysis.company || {
@@ -194,9 +222,11 @@ function buildCase(query: string, scrapedData: any, aiAnalysis: any, hasAiKey: b
       aiInsights: aiAnalysis.aiInsights || [],
       confidenceScore: aiAnalysis.confidenceScore ?? 8,
       savedToPipeline: false,
+      _sources: (scrapedData.web || []).slice(0, 5),
     };
   }
 
+  const web = scrapedData.web || scrapedData.google || [];
   return {
     id,
     query,
@@ -223,19 +253,21 @@ function buildCase(query: string, scrapedData: any, aiAnalysis: any, hasAiKey: b
     },
     sections: [
       {
-        title: "Google Results",
+        title: "Web Results",
         icon: "Globe",
-        items: (scrapedData.google || []).slice(0, 5).map((r: any) => ({
-          label: r.title?.slice(0, 40) || "Result",
-          value: r.snippet?.slice(0, 100) || "",
+        items: web.slice(0, 5).map((r: any) => ({
+          label: r.title?.slice(0, 50) || "Result",
+          value: `${r.snippet?.slice(0, 150) || ""} | ${r.url || ""}`,
         })),
       },
     ],
     aiInsights: [
       hasAiKey ? `AI key is set (${process.env.GROQ_API_KEY ? "GROQ" : "GEMINI"}) but analysis failed` : "No AI API keys configured",
       aiError ? `Error: ${aiError}` : "Check Vercel function logs for details",
+      `Crawled ${web.length} web results.`,
     ],
-    confidenceScore: scrapedData.google?.length ? 30 : 10,
+    confidenceScore: web.length ? 30 : 10,
     savedToPipeline: false,
+    _sources: web.slice(0, 5),
   };
 }
