@@ -292,6 +292,23 @@ export default function IntelligenceDeck() {
     localStorage.setItem("pi_cases", JSON.stringify(cases));
   }, [cases]);
 
+  useEffect(() => {
+    const loadCases = () => {
+      const stored = localStorage.getItem("pi_cases");
+      if (stored) {
+        try { setCases(JSON.parse(stored)); } catch {}
+      }
+    };
+    const onUpdate = () => loadCases();
+    const onStorage = (e: StorageEvent) => { if (e.key === "pi_cases") loadCases(); };
+    window.addEventListener("pi_cases_updated", onUpdate);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("pi_cases_updated", onUpdate);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+
   const handleStageChange = (id: string, stage: CaseItem["stage"]) => {
     setCases((prev) =>
       prev.map((c) => (c.id === id ? { ...c, stage } : c))

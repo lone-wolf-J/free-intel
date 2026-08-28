@@ -365,16 +365,34 @@ export default function FindThem() {
 
   const handleSaveToPipeline = async () => {
     if (!result) return;
+    // Build pipeline case (per-user localStorage is source of truth for sharing)
+    const pipelineCase = {
+      ...result,
+      stage: "new" as const,
+      tags: (result as any).tags || [],
+      savedToPipeline: true,
+    };
+    // 1) Try server (best-effort, ephemeral on Vercel)
     try {
       await fetch("/api/cases", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(result),
+        body: JSON.stringify(pipelineCase),
       });
-      setResult({ ...result, savedToPipeline: true });
-    } catch {
-      setResult({ ...result, savedToPipeline: true });
-    }
+    } catch {}
+    // 2) Always persist to localStorage so Intel Deck + Action Center see it per-browser
+    try {
+      const raw = localStorage.getItem("pi_cases");
+      const existing = raw ? JSON.parse(raw) : [];
+      // Avoid duplicates by id
+      if (!existing.find((c: any) => c.id === pipelineCase.id)) {
+        existing.unshift(pipelineCase);
+        localStorage.setItem("pi_cases", JSON.stringify(existing));
+        // Notify other tabs/pages in same browser
+        window.dispatchEvent(new Event("pi_cases_updated"));
+      }
+    } catch {}
+    setResult({ ...result, savedToPipeline: true });
   };
 
   return (

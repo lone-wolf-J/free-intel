@@ -118,6 +118,21 @@ export default function ActionCenter() {
     localStorage.setItem("pi_pitches", JSON.stringify(pitches));
   }, [pitches]);
 
+  useEffect(() => {
+    const loadCases = () => {
+      const stored = localStorage.getItem("pi_cases");
+      if (stored) try { setCases(JSON.parse(stored)); } catch {}
+    };
+    const onUpdate = () => loadCases();
+    const onStorage = (e: StorageEvent) => { if (e.key === "pi_cases") loadCases(); };
+    window.addEventListener("pi_cases_updated", onUpdate);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("pi_cases_updated", onUpdate);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+
   const selectedCase = cases.find((c) => c.id === selectedCaseId);
 
   const handleGeneratePitch = async () => {
