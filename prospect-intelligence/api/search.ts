@@ -13,7 +13,21 @@ export async function OPTIONS(): Promise<Response> {
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const body = await request.json();
+    const rawBody = await request.text();
+    console.log("[Vercel-Search] Raw body:", rawBody);
+    console.log("[Vercel-Search] Raw body type:", typeof rawBody);
+    console.log("[Vercel-Search] Raw body length:", rawBody?.length);
+    console.log("[Vercel-Search] Raw body charCodes:", rawBody?.split('').slice(0, 20).map(c => c.charCodeAt(0)));
+    
+    let body: any;
+    try {
+      body = JSON.parse(rawBody);
+    } catch (parseErr) {
+      console.error("[Vercel-Search] Parse error, trying workaround...");
+      // Try to fix common Vercel body issues
+      const fixed = rawBody.replace(/\\"/g, '"');
+      body = JSON.parse(fixed);
+    }
     const { query } = body;
 
     if (!query || typeof query !== "string") {
