@@ -5,7 +5,15 @@ import { aiRegistry } from "../lib/ai-registry.js";
 export const searchRoute = new Hono();
 
 searchRoute.post("/", async (c) => {
-  const body = await c.req.json();
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch (e: any) {
+    console.error("[PI-Search] Failed to parse request body:", e.message);
+    const rawBody = await c.req.text();
+    console.error("[PI-Search] Raw body (first 200 chars):", rawBody?.substring(0, 200));
+    return c.json({ error: "Invalid request body", raw: rawBody?.substring(0, 200) }, 400);
+  }
   const { query } = body;
 
   if (!query || typeof query !== "string") {
