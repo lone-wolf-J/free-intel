@@ -80,9 +80,41 @@ export class AIRegistry {
       return { result: JSON.parse(raw), provider };
     } catch (e: any) {
       console.error("[AI Registry] JSON parse failed:", e.message);
-      console.error("[AI Registry] Raw text (last 500 chars):", text.slice(-500));
+      console.error("[AI Registry] Full raw text:", text);
+      // Try one more time: just extract whatever looks like JSON
+      const fallback = this.extractJSONFallback(text);
+      if (fallback) {
+        console.log("[AI Registry] Fallback JSON extraction succeeded");
+        return { result: fallback as T, provider };
+      }
       throw new Error(`JSON parse failed: ${e.message}`);
     }
+  }
+
+  private extractJSONFallback(text: string): any {
+    // Try to find any JSON-like structure
+    const patterns = [
+      /\{[\s\S]*"person"[\s\S]*\}/,
+      /\{[\s\S]*"sections"[\s\S]*\}/,
+      /\{[\s\S]*"confidenceScore"[\s\S]*\}/,
+    ];
+    
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match) {
+        try {
+          let raw = match[0];
+          raw = raw
+            .replace(/,\s*}/g, '}')
+            .replace(/,\s*]/g, ']')
+            .replace(/([{,]\s*)(\w+)(\s*:)/g, '$1"$2"$3');
+          return JSON.parse(raw);
+        } catch {
+          continue;
+        }
+      }
+    }
+    return null;
   }
 
   async getAllStatus(): Promise<Record<string, any>> {

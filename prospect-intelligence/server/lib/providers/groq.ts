@@ -1,15 +1,25 @@
-import { Groq } from "groq-sdk";
 import { BaseProvider, AIProvider, GenerateOptions, QuotaStatus } from "../ai-providers.js";
+
+let GroqClass: any = null;
+
+async function loadGroq() {
+  if (!GroqClass) {
+    const mod = await import("groq-sdk");
+    GroqClass = mod.Groq || mod.default?.Groq || mod.default;
+  }
+  return GroqClass;
+}
 
 export class GroqProvider extends BaseProvider implements AIProvider {
   name = "groq";
-  private client: Groq | null = null;
+  private client: any = null;
   private model = "openai/gpt-oss-20b";
 
-  private getClient(): Groq {
+  private async getClient(): Promise<any> {
     if (!this.client) {
       const key = process.env.GROQ_API_KEY;
       if (!key) throw new Error("GROQ_API_KEY not set");
+      const Groq = await loadGroq();
       this.client = new Groq({ apiKey: key });
       console.log("[GroqProvider] Client created on first use");
     }
@@ -21,9 +31,9 @@ export class GroqProvider extends BaseProvider implements AIProvider {
     
     try {
       console.log("[GroqProvider] Prompt length:", prompt.length);
-      console.log("[GroqProvider] Prompt:", prompt.substring(0, 200));
       console.log("[GroqProvider] Generating with model:", this.model);
-      const res = await this.getClient().chat.completions.create({
+      const client = await this.getClient();
+      const res = await client.chat.completions.create({
         model: this.model,
         messages: [{ role: "user", content: prompt }],
         temperature: options?.temperature ?? 0.3,
@@ -43,7 +53,7 @@ export class GroqProvider extends BaseProvider implements AIProvider {
 
   async getQuotaStatus(): Promise<QuotaStatus> {
     try {
-      this.getClient(); // lazy init
+      await this.getClient();
       return { available: this.isAvailable() };
     } catch {
       return { available: false, error: "GROQ_API_KEY not set" };

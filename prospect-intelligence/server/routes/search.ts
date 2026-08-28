@@ -42,18 +42,24 @@ searchRoute.post("/", async (c) => {
 
   // Step 4: AI analysis (if any key available)
   let aiAnalysis: any = null;
+  let aiError: string | null = null;
   const hasAiKey = process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY;
+  console.log("[PI-Search] GROQ_API_KEY:", process.env.GROQ_API_KEY ? "SET" : "MISSING");
+  console.log("[PI-Search] GEMINI_API_KEY:", process.env.GEMINI_API_KEY ? "SET" : "MISSING");
+  console.log("[PI-Search] hasAiKey:", !!hasAiKey);
   if (hasAiKey) {
     try {
       aiAnalysis = await analyzeWithGemini(query, scrapedData);
       console.log("[PI] AI result:", JSON.stringify(aiAnalysis).substring(0, 300));
     } catch (e: any) {
-      console.error("[PI] AI error:", e?.message || e);
+      aiError = e?.message || String(e);
+      console.error("[PI] AI error:", aiError);
+      console.error("[PI] AI error stack:", e?.stack);
     }
   }
 
   // Step 5: Build the case
-  const caseData = buildCase(query, scrapedData, aiAnalysis);
+  const caseData = buildCase(query, scrapedData, aiAnalysis, aiError);
 
   return c.json(caseData);
 });
@@ -138,9 +144,10 @@ Sections must include: Summary, Career, Role, Company, Activity, Leadership, Int
   return result;
 }
 
-function buildCase(query: string, scrapedData: any, aiAnalysis: any) {
+function buildCase(query: string, scrapedData: any, aiAnalysis: any, aiError?: string | null) {
   const id = Date.now().toString();
   const timestamp = new Date().toISOString();
+  const hasAiKey = !!(process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY);
 
   if (aiAnalysis) {
     return {
@@ -207,8 +214,8 @@ function buildCase(query: string, scrapedData: any, aiAnalysis: any) {
       },
     ],
     aiInsights: [
-      "Add GEMINI_API_KEY to .env for AI-powered analysis",
-      "Full analysis requires the backend server running",
+      hasAiKey ? `AI key is set (${process.env.GROQ_API_KEY ? "GROQ" : "GEMINI"}) but analysis failed` : "No AI API keys configured",
+      aiError ? `Error: ${aiError}` : "Check Vercel function logs for details",
     ],
     confidenceScore: scrapedData.google?.length ? 30 : 10,
     savedToPipeline: false,
