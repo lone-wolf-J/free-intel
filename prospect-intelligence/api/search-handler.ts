@@ -123,13 +123,56 @@ async function crawlEverywhere(query: string) {
     } catch { return null; }
   }
 
+  // Serper API (free 2500/month) - if SERPER_API_KEY set, use it. Most reliable on Vercel.
+  async function fetchSerper(q: string) {
+    const key = process.env.SERPER_API_KEY;
+    if (!key) { console.log("[Crawl] Serper skipped - no key"); return []; }
+    try {
+      const nodeFetch = (await import("node-fetch")).default;
+      const res: any = await nodeFetch("https://google.serper.dev/search", {
+        method: "POST",
+        headers: { "X-API-KEY": key, "Content-Type": "application/json" },
+        body: JSON.stringify({ q, num: 10 }),
+      });
+      const data: any = await res.json();
+      const results: any[] = (data.organic || []).slice(0, 10).map((r: any) => ({ title: r.title, snippet: r.snippet || "", url: r.link, source: "serper" }));
+      console.log("[Crawl] Serper found", results.length);
+      return results;
+    } catch (e: any) { console.log("[Crawl] Serper failed:", e.message); return []; }
+  }
+  // AllOrigins proxy + DuckDuckGo lite - bypasses Cloudflare
+  async function fetchViaAllOrigins(q: string) {
+    try {
+      const target = encodeURIComponent(`https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(q)}`);
+      const url = `https://api.allorigins.win/get?url=${target}`;
+      const res = await fetchWithTimeout(url, { headers: { "User-Agent": UA } }, 10000);
+      const data: any = await res.json();
+      const html = data.contents || "";
+      console.log("[Crawl] AllOrigins html len", html.length);
+      const results: any[] = [];
+      const regex = /<a rel="nofollow"[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>/gi;
+      let m;
+      while ((m = regex.exec(html)) && results.length < 8) {
+        const href = m[1];
+        // allorigins wraps urls like //duckduckgo.com/l/?uddg=https://...
+        let url = href;
+        const uddg = href.match(/uddg=([^&]+)/);
+        if (uddg) try { url = decodeURIComponent(uddg[1]); } catch {}
+        if (url.includes("duckduckgo.com")) continue;
+        results.push({ title: m[2].trim(), snippet: "", url, source: "allorigins" });
+      }
+      console.log("[Crawl] AllOrigins found", results.length);
+      return results;
+    } catch (e: any) { console.log("[Crawl] AllOrigins failed:", e.message); return []; }
+  }
   // Jina-wrapped fetchers - bypass Vercel IP blocks (free, no key)
   async function fetchGoogleViaJina(q: string) {
     try {
       const jinaUrl = `https://r.jina.ai/https://www.google.com/search?q=${encodeURIComponent(q)}&num=10`;
       const res = await fetchWithTimeout(jinaUrl, { headers: { "User-Agent": UA, "Accept": "text/markdown", "X-Return-Format": "markdown" } }, 10000);
       const text = await res.text();
-      console.log("[Crawl] Google-Jina text len", text.length, "snippet", text.slice(0, 600));
+      console.log("[Crawl] Google-Jina text len", text.length, "snippet", text.slice(0, 400));
+      if (text.includes("Just a moment") || text.includes("challenges.cloudflare")) { console.log("[Crawl] Google-Jina blocked by CF"); return []; }
       const results: any[] = [];
       const linkRegex = /\[([^\]]{5,150})\]\((https?:\/\/[^\)]+)\)/g;
       let m;
@@ -137,13 +180,11 @@ async function crawlEverywhere(query: string) {
         const url = m[2];
         if (url.includes("google.com/search") || url.includes("googleusercontent") || url.includes("support.google")) continue;
         const title = m[1].trim().replace(/\*\*/g, "");
-        // Try to get snippet: next line after link in jina markdown is often description
         results.push({ title, snippet: "", url, source: "google-jina" });
       }
-      // Also try to extract snippets from Jina markdown blocks
       const lines = text.split("\n");
       for (let i = 0; i < results.length; i++) {
-        const idx = lines.findIndex(l => l.includes(results[i].url));
+        const idx = lines.findIndex((l: any) => l.includes(results[i].url));
         if (idx >= 0 && lines[idx + 1]) results[i].snippet = lines[idx + 1].slice(0, 250);
       }
       console.log("[Crawl] Google-Jina found", results.length);
@@ -167,8 +208,8 @@ async function crawlEverywhere(query: string) {
     } catch (e: any) { console.log("[Crawl] Jina failed:", e.message); return []; }
   }
 
-  const [ddg, bing, jina, gjina] = await Promise.all([fetchDuckDuckGo(query), fetchBing(query), fetchViaJina(query), fetchGoogleViaJina(query)]);
-  const merged = [...ddg, ...bing, ...jina, ...gjina];
+  const [ddg, bing, jina, gjina, serper, allorig] = await Promise.all([fetchDuckDuckGo(query), fetchBing(query), fetchViaJina(query), fetchGoogleViaJina(query), fetchSerper(query), fetchViaAllOrigins(query)]);
+  const merged = [...serper, ...allorig, ...ddg, ...bing, ...jina, ...gjina];
   // Deduplicate by URL
   const seen = new Set();
   const web = merged.filter(r => {
