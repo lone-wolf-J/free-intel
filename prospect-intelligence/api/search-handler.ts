@@ -2,38 +2,26 @@ import { aiRegistry } from "../server/lib/ai-registry.js";
 
 export async function searchProspectHandler(query: string) {
   console.log("[SearchHandler] Starting crawl for:", query);
-  let scrapedData: any = {};
-
-  // Multi-source crawl - runs in parallel, each with timeout
   const crawlResults = await crawlEverywhere(query);
-  scrapedData = crawlResults;
-  console.log("[SearchHandler] Crawl done. Sources:", Object.keys(crawlResults), "total snippets:", (crawlResults.web as any[])?.length);
+  console.log("[SearchHandler] Crawl done. web:", (crawlResults.web as any[])?.length, "deep:", crawlResults.deepPages?.length, "enrich:", !!crawlResults.enrichment);
 
-  // Step 4: AI analysis - now grounded with real crawl data
   let aiAnalysis: any = null;
   let aiError: string | null = null;
-  const hasAiKey = !!(process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY);
-  console.log("[SearchHandler] hasAiKey:", hasAiKey);
-
+  const hasAiKey = !!(process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY || process.env.TINYFISH_API_KEY);
   if (hasAiKey) {
     try {
-      aiAnalysis = await analyzeWithAI(query, scrapedData);
+      aiAnalysis = await analyzeWithAI(query, crawlResults);
       console.log("[SearchHandler] AI result:", JSON.stringify(aiAnalysis).substring(0, 400));
     } catch (e: any) {
       aiError = e?.message || String(e);
       console.error("[SearchHandler] AI error:", aiError);
     }
   }
-
-  // Step 5: Build the case
-  return buildCase(query, scrapedData, aiAnalysis, hasAiKey, aiError);
+  return buildCase(query, crawlResults, aiAnalysis, hasAiKey, aiError);
 }
 
-// New multi-source crawler - works on Vercel (Google is blocked there)
 async function crawlEverywhere(query: string) {
   const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-  const timeout = (ms: number) => new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms));
-
   const fetchWithTimeout = async (url: string, opts: any = {}, ms = 12000) => {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), ms);
@@ -44,298 +32,209 @@ async function crawlEverywhere(query: string) {
     } finally { clearTimeout(t); }
   };
 
-  // 1. DuckDuckGo HTML (most reliable on Vercel, rarely blocked)
-  async function fetchDuckDuckGo(q: string) {
-    try {
-      const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`;
-      const res = await fetchWithTimeout(url, { headers: { "User-Agent": UA } });
-      const html = await res.text();
-      const results: any[] = [];
-      // DDG html pattern: <a class="result__url" href="...">, <h2 class="result__title">, <a class="result__snippet">
-      const titleRegex = /<h2[^>]*class="[^"]*result__title[^"]*"[^>]*>[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
-      const snippetRegex = /<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
-      let m;
-      const titles: any[] = [];
-      while ((m = titleRegex.exec(html)) && titles.length < 10) {
-        titles.push({ url: m[1], title: m[2].replace(/<[^>]+>/g, "").trim() });
-      }
-      const snippets: string[] = [];
-      while ((m = snippetRegex.exec(html)) && snippets.length < 10) {
-        snippets.push(m[1].replace(/<[^>]+>/g, "").trim());
-      }
-      for (let i = 0; i < titles.length; i++) {
-        results.push({ title: titles[i].title, snippet: snippets[i] || "", url: titles[i].url, source: "duckduckgo" });
-      }
-      // Fallback simple parse if above fails
-      if (results.length === 0) {
-        const altRegex = /<a rel="nofollow" class="result__url" href="([^"]+)"[^>]*>([^<]+)<\/a>/gi;
-        while ((m = altRegex.exec(html)) && results.length < 8) {
-          results.push({ title: m[2].trim(), snippet: "", url: m[1], source: "duckduckgo" });
-        }
-      }
-      console.log("[Crawl] DuckDuckGo found", results.length);
-      return results;
-    } catch (e: any) {
-      console.log("[Crawl] DuckDuckGo failed:", e.message);
-      return [];
-    }
-  }
-
-  // 2. Bing (second source)
-  async function fetchBing(q: string) {
-    try {
-      const url = `https://www.bing.com/search?q=${encodeURIComponent(q)}&count=10`;
-      const res = await fetchWithTimeout(url, { headers: { "User-Agent": UA, "Accept-Language": "en-US,en;q=0.9" } });
-      const html = await res.text();
-      const results: any[] = [];
-      const regex = /<h2[^>]*><a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a><\/h2>/gi;
-      let m;
-      while ((m = regex.exec(html)) && results.length < 10) {
-        const url = m[1];
-        if (url.startsWith("https://www.bing.com") || url.includes("microsoft.com")) continue;
-        results.push({ title: m[2].replace(/<[^>]+>/g, "").trim(), snippet: "", url, source: "bing" });
-      }
-      // Try to get snippets
-      const capRegex = /<div class="b_caption">[\s\S]*?<p>([\s\S]*?)<\/p>/gi;
-      let i = 0;
-      while ((m = capRegex.exec(html)) && i < results.length) {
-        results[i].snippet = m[1].replace(/<[^>]+>/g, "").trim().slice(0, 300);
-        i++;
-      }
-      console.log("[Crawl] Bing found", results.length);
-      return results;
-    } catch (e: any) {
-      console.log("[Crawl] Bing failed:", e.message);
-      return [];
-    }
-  }
-
-  // 3. Try to enrich top result via Jina reader (gets clean text from any URL, free)
-  async function enrichTopUrl(url: string) {
-    try {
-      if (!url || !url.startsWith("http")) return null;
-      const jinaUrl = `https://cc.bingj.com/cache.cgi?d=${encodeURIComponent(url)}&w=&u=1`;
-      // Use Jina AI free reader as fallback: https://localhost:443/http://...
-      const readerUrl = `https://r.jina.ai/http://${url.replace(/^https?:\/\//, "")}`;
-      const res = await fetchWithTimeout(readerUrl, { headers: { "User-Agent": UA } }, 6000);
-      const text = await res.text();
-      return text.slice(0, 2500);
-    } catch { return null; }
-  }
-
-  // Tier 1: Paid APIs - intelligent consumption (Serper 2500/mo primary, Tavily 1000/mo deep fallback)
+  // ---------- Tier 1: SEARCH (balanced consumption) ----------
   async function fetchSerper(q: string) {
     const key = process.env.SERPER_API_KEY;
-    if (!key) { console.log("[Crawl] Serper skipped - no key"); return []; }
+    if (!key) return [];
     try {
       const nodeFetch = (await import("node-fetch")).default;
-      const res: any = await nodeFetch("https://google.serper.dev/search", {
-        method: "POST",
-        headers: { "X-API-KEY": key, "Content-Type": "application/json" },
-        body: JSON.stringify({ q, num: 10 }),
-      });
+      const res: any = await nodeFetch("https://google.serper.dev/search", { method: "POST", headers: { "X-API-KEY": key, "Content-Type": "application/json" }, body: JSON.stringify({ q, num: 10 }) });
       const data: any = await res.json();
-      const results: any[] = (data.organic || []).slice(0, 10).map((r: any) => ({ title: r.title, snippet: r.snippet || "", url: r.link, source: "serper" }));
-      console.log("[Crawl] Serper found", results.length, "credits used: 1");
+      const results = (data.organic || []).slice(0, 10).map((r: any) => ({ title: r.title, snippet: r.snippet || "", url: r.link, source: "serper" }));
+      console.log("[Crawl] Serper", results.length);
       return results;
-    } catch (e: any) { console.log("[Crawl] Serper failed:", e.message); return []; }
+    } catch (e: any) { console.log("[Crawl] Serper fail", e.message); return []; }
   }
   async function fetchTavily(q: string) {
     const key = process.env.TAVILY_API_KEY;
-    if (!key) { console.log("[Crawl] Tavily skipped - no key"); return []; }
+    if (!key) return [];
     try {
       const nodeFetch = (await import("node-fetch")).default;
-      const res: any = await nodeFetch("https://api.tavily.com/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ api_key: key, query: q, max_results: 8, include_answer: false, search_depth: "basic" }),
-      });
+      const res: any = await nodeFetch("https://api.tavily.com/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ api_key: key, query: q, max_results: 8, search_depth: "basic", include_answer: false }) });
       const data: any = await res.json();
-      const results: any[] = (data.results || []).slice(0, 8).map((r: any) => ({ title: r.title, snippet: r.content?.slice(0, 300) || "", url: r.url, source: "tavily" }));
-      console.log("[Crawl] Tavily found", results.length, "credits used: 1");
+      const results = (data.results || []).slice(0, 8).map((r: any) => ({ title: r.title, snippet: r.content?.slice(0, 300) || "", url: r.url, source: "tavily" }));
+      console.log("[Crawl] Tavily", results.length);
       return results;
-    } catch (e: any) { console.log("[Crawl] Tavily failed:", e.message); return []; }
+    } catch (e: any) { console.log("[Crawl] Tavily fail", e.message); return []; }
   }
-  async function fetchBingViaJina(q: string) {
+  // Tier 1 free fallbacks (zero cost)
+  async function fetchDuckDuckGo(q: string) {
     try {
-      const jinaUrl = `https://r.jina.ai/https://www.bing.com/search?q=${encodeURIComponent(q)}`;
-      const res = await fetchWithTimeout(jinaUrl, { headers: { "User-Agent": UA, "Accept": "text/markdown" } }, 10000);
-      const text = await res.text();
-      console.log("[Crawl] Bing-Jina len", text.length, text.slice(0, 400));
-      if (text.includes("Just a moment") && text.includes("challenges.cloudflare")) return [];
-      const results: any[] = [];
-      const linkRegex = /\[([^\]]{5,150})\]\((https?:\/\/[^\)]+)\)/g;
-      let m;
-      while ((m = linkRegex.exec(text)) && results.length < 8) {
-        const url = m[2];
-        if (url.includes("bing.com/search") || url.includes("microsoft.com") || url.includes("bing.com/aclick")) continue;
-        results.push({ title: m[1].replace(/\*\*/g, "").trim(), snippet: "", url, source: "bing-jina" });
-      }
-      console.log("[Crawl] Bing-Jina found", results.length);
-      return results;
-    } catch (e: any) { console.log("[Crawl] Bing-Jina failed:", e.message); return []; }
-  }
-  // CorsProxy + Lite DDG - bypasses Cloudflare, more reliable than AllOrigins
-  async function fetchViaCorsProxy(q: string) {
-    try {
-      const target = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(q)}`;
-      const url = `https://corsproxy.io/?${encodeURIComponent(target)}`;
-      const res = await fetchWithTimeout(url, { headers: { "User-Agent": UA } }, 10000);
+      const res = await fetchWithTimeout(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`, { headers: { "User-Agent": UA } });
       const html = await res.text();
-      console.log("[Crawl] CorsProxy html len", html.length, "snippet", html.slice(0, 300));
       const results: any[] = [];
-      const regex = /<a rel="nofollow"[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>/gi;
-      let m;
-      while ((m = regex.exec(html)) && results.length < 8) {
-        const href = m[1];
-        let url = href;
-        const uddg = href.match(/uddg=([^&]+)/);
-        if (uddg) try { url = decodeURIComponent(uddg[1]); } catch {}
+      const altRegex = /<a rel="nofollow" class="result__url" href="([^"]+)"[^>]*>([^<]+)<\/a>/gi;
+      let m; while ((m = altRegex.exec(html)) && results.length < 8) {
+        let url = m[1]; const uddg = url.match(/uddg=([^&]+)/); if (uddg) try { url = decodeURIComponent(uddg[1]); } catch {}
         if (url.includes("duckduckgo.com")) continue;
-        results.push({ title: m[2].trim(), snippet: "", url, source: "corsproxy" });
+        results.push({ title: m[2].trim(), snippet: "", url, source: "duckduckgo" });
       }
-      // fallback Jina lite
-      if (results.length === 0) {
-        const jinaUrl = `https://r.jina.ai/http://lite.duckduckgo.com/lite/?q=${encodeURIComponent(q)}`;
-        const r2 = await fetchWithTimeout(jinaUrl, { headers: { "User-Agent": UA } }, 9000);
-        const txt = await r2.text();
-        console.log("[Crawl] Jina-lite len", txt.length, txt.slice(0, 400));
-        const linkRegex = /\[([^\]]{5,120})\]\((https?:\/\/[^\)]+)\)/g;
-        let n;
-        while ((n = linkRegex.exec(txt)) && results.length < 8) {
-          if (n[2].includes("duckduckgo.com")) continue;
-          results.push({ title: n[1].trim(), snippet: "", url: n[2], source: "jina-lite" });
-        }
-      }
-      console.log("[Crawl] CorsProxy found", results.length);
-      return results;
-    } catch (e: any) { console.log("[Crawl] CorsProxy failed:", e.message); return []; }
+      console.log("[Crawl] DDG", results.length); return results;
+    } catch (e: any) { console.log("[Crawl] DDG fail", e.message); return []; }
   }
   async function fetchViaAllOrigins(q: string) {
     try {
       const target = encodeURIComponent(`https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(q)}`);
-      const url = `https://api.allorigins.win/get?url=${target}`;
-      const res = await fetchWithTimeout(url, { headers: { "User-Agent": UA } }, 15000);
-      const data: any = await res.json();
-      const html = data.contents || "";
-      console.log("[Crawl] AllOrigins html len", html.length);
-      const results: any[] = [];
-      const regex = /<a rel="nofollow"[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>/gi;
-      let m;
-      while ((m = regex.exec(html)) && results.length < 8) {
-        const href = m[1];
-        let url = href;
-        const uddg = href.match(/uddg=([^&]+)/);
-        if (uddg) try { url = decodeURIComponent(uddg[1]); } catch {}
+      const res = await fetchWithTimeout(`https://api.allorigins.win/get?url=${target}`, { headers: { "User-Agent": UA } }, 15000);
+      const data: any = await res.json(); const html = data.contents || "";
+      const results: any[] = []; const regex = /<a rel="nofollow"[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>/gi;
+      let m; while ((m = regex.exec(html)) && results.length < 8) {
+        let url = m[1]; const uddg = url.match(/uddg=([^&]+)/); if (uddg) try { url = decodeURIComponent(uddg[1]); } catch {}
         if (url.includes("duckduckgo.com")) continue;
         results.push({ title: m[2].trim(), snippet: "", url, source: "allorigins" });
       }
-      console.log("[Crawl] AllOrigins found", results.length);
-      return results;
-    } catch (e: any) { console.log("[Crawl] AllOrigins failed:", e.message); return []; }
-  }
-  // Jina-wrapped fetchers - bypass Vercel IP blocks (free, no key)
-  async function fetchGoogleViaJina(q: string) {
-    try {
-      const jinaUrl = `https://r.jina.ai/https://www.google.com/search?q=${encodeURIComponent(q)}&num=10`;
-      const res = await fetchWithTimeout(jinaUrl, { headers: { "User-Agent": UA, "Accept": "text/markdown", "X-Return-Format": "markdown" } }, 10000);
-      const text = await res.text();
-      console.log("[Crawl] Google-Jina text len", text.length, "snippet", text.slice(0, 400));
-      if (text.includes("Just a moment") || text.includes("challenges.cloudflare")) { console.log("[Crawl] Google-Jina blocked by CF"); return []; }
-      const results: any[] = [];
-      const linkRegex = /\[([^\]]{5,150})\]\((https?:\/\/[^\)]+)\)/g;
-      let m;
-      while ((m = linkRegex.exec(text)) && results.length < 10) {
-        const url = m[2];
-        if (url.includes("google.com/search") || url.includes("googleusercontent") || url.includes("support.google")) continue;
-        const title = m[1].trim().replace(/\*\*/g, "");
-        results.push({ title, snippet: "", url, source: "google-jina" });
-      }
-      const lines = text.split("\n");
-      for (let i = 0; i < results.length; i++) {
-        const idx = lines.findIndex((l: any) => l.includes(results[i].url));
-        if (idx >= 0 && lines[idx + 1]) results[i].snippet = lines[idx + 1].slice(0, 250);
-      }
-      console.log("[Crawl] Google-Jina found", results.length);
-      return results;
-    } catch (e: any) { console.log("[Crawl] Google-Jina failed:", e.message); return []; }
-  }
-  async function fetchViaJina(q: string) {
-    try {
-      const jinaUrl = `https://r.jina.ai/http://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`;
-      const res = await fetchWithTimeout(jinaUrl, { headers: { "User-Agent": UA, "Accept": "text/markdown" } }, 9000);
-      const text = await res.text();
-      const results: any[] = [];
-      const linkRegex = /\[([^\]]{5,120})\]\((https?:\/\/[^\)]+)\)/g;
-      let m;
-      while ((m = linkRegex.exec(text)) && results.length < 8) {
-        if (m[2].includes("duckduckgo.com") || m[2].includes("bing.com")) continue;
-        results.push({ title: m[1].trim(), snippet: "", url: m[2], source: "jina" });
-      }
-      console.log("[Crawl] Jina found", results.length);
-      return results;
-    } catch (e: any) { console.log("[Crawl] Jina failed:", e.message); return []; }
+      console.log("[Crawl] AllOrigins", results.length); return results;
+    } catch (e: any) { console.log("[Crawl] AllOrigins fail", e.message); return []; }
   }
 
-  // Intelligent consumption: Tier 1 = paid APIs, Tier 2 = free proxies only if Tier 1 fails
-  // Try Serper first (2500/mo, fastest). Only call Tavily if Serper returns <3 results to save Tavily quota (1000/mo)
+  // Intelligent consumption: Serper primary (2500), Tavily only if Serper <3
   const serperResults = await fetchSerper(query);
   let tavilyResults: any[] = [];
   if (serperResults.length < 3) {
-    console.log("[Crawl] Serper low results, trying Tavily...");
+    console.log("[Crawl] Serper low, trying Tavily...");
     tavilyResults = await fetchTavily(query);
-  } else {
-    console.log("[Crawl] Serper sufficient, skipping Tavily to save quota");
+  } else console.log("[Crawl] Serper sufficient, skipping Tavily to save quota");
+
+  const [ddg, allorig] = await Promise.all([fetchDuckDuckGo(query), fetchViaAllOrigins(query)]);
+  const mergedSearch = [...serperResults, ...tavilyResults, ...ddg, ...allorig];
+  const seen = new Set(); const web = mergedSearch.filter((r: any) => { if (!r.url || seen.has(r.url)) return false; seen.add(r.url); return true; }).slice(0, 10);
+  console.log("[Crawl] Tier1 web total", web.length);
+
+  // ---------- Tier 2: DEEP SCRAPE (balanced across Firecrawl / Scrape.do / Jina) ----------
+  // Pick top 2 URLs for deep scrape, rotate provider by query hash to balance free limits
+  const hash = query.split("").reduce((a: number, b: string) => a + b.charCodeAt(0), 0);
+  const deepPages: any[] = [];
+  const topUrls = web.slice(0, 2).map((w: any) => w.url).filter(Boolean);
+
+  async function deepScrapeScrapeDo(url: string) {
+    const key = process.env.SCRAPE_DO_KEY;
+    if (!key) return null;
+    try {
+      const target = `https://api.scrape.do?token=${key}&url=${encodeURIComponent(url)}&render=true`;
+      const res = await fetchWithTimeout(target, {}, 10000);
+      const text = await res.text();
+      console.log("[Deep] Scrape.do", url.slice(0, 40), "len", text.length);
+      return text.slice(0, 3000);
+    } catch (e: any) { console.log("[Deep] Scrape.do fail", e.message); return null; }
+  }
+  async function deepScrapeFirecrawl(url: string) {
+    const key = process.env.FIRECRAWL_API_KEY;
+    if (!key) return null;
+    try {
+      const nodeFetch = (await import("node-fetch")).default;
+      const res: any = await nodeFetch("https://api.firecrawl.dev/v1/scrape", {
+        method: "POST", headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true, waitFor: 2000 })
+      });
+      const data: any = await res.json();
+      const md = data.data?.markdown || data.markdown || "";
+      console.log("[Deep] Firecrawl", url.slice(0, 40), "len", md.length);
+      return md.slice(0, 3000);
+    } catch (e: any) { console.log("[Deep] Firecrawl fail", e.message); return null; }
+  }
+  async function deepScrapeJina(url: string) {
+    try {
+      const jinaUrl = `https://r.jina.ai/http://${url.replace(/^https?:\/\//, "")}`;
+      const res = await fetchWithTimeout(jinaUrl, { headers: { "User-Agent": UA } }, 8000);
+      const text = await res.text();
+      console.log("[Deep] Jina", url.slice(0, 40), "len", text.length);
+      return text.slice(0, 3000);
+    } catch (e: any) { console.log("[Deep] Jina fail", e.message); return null; }
   }
 
-  // Tier 2: Free proxies run in parallel as fallback (zero cost, but flaky)
-  const [ddg, bing, jina, gjina, allorig, corsp, bingJina] = await Promise.all([fetchDuckDuckGo(query), fetchBing(query), fetchViaJina(query), fetchGoogleViaJina(query), fetchViaAllOrigins(query), fetchViaCorsProxy(query), fetchBingViaJina(query)]);
-  const merged = [...serperResults, ...tavilyResults, ...bingJina, ...corsp, ...allorig, ...ddg, ...bing, ...jina, ...gjina];
-  // Deduplicate by URL
-  const seen = new Set();
-  const web = merged.filter(r => {
-    if (!r.url || seen.has(r.url)) return false;
-    seen.add(r.url);
-    return true;
-  }).slice(0, 12);
+  for (let i = 0; i < topUrls.length; i++) {
+    const url = topUrls[i];
+    let content: string | null = null;
+    // Rotate provider: hash+i % 3 -> 0:Firecrawl, 1:Scrape.do, 2:Jina - balances free tier
+    const choice = (hash + i) % 3;
+    if (choice === 0) content = await deepScrapeFirecrawl(url) || await deepScrapeScrapeDo(url) || await deepScrapeJina(url);
+    else if (choice === 1) content = await deepScrapeScrapeDo(url) || await deepScrapeFirecrawl(url) || await deepScrapeJina(url);
+    else content = await deepScrapeJina(url) || await deepScrapeScrapeDo(url) || await deepScrapeFirecrawl(url);
+    if (content) deepPages.push({ url, content: content.slice(0, 2000) });
+  }
 
-  // Find LinkedIn URL
-  const linkedinHit = web.find(r => r.url.includes("linkedin.com/in/")) || null;
+  // ---------- Tier 3: ENRICHMENT (Explorium + Tinyfish + Public APIs) ----------
+  let exploriumData: any = null;
+  async function fetchExplorium(q: string) {
+    const key = process.env.EXPLORIUM_API_KEY;
+    if (!key) return null;
+    try {
+      const nodeFetch = (await import("node-fetch")).default;
+      // Try business enrichment - Explorium v2
+      const res: any = await nodeFetch(`https://api.explorium.ai/v1/prospects?query=${encodeURIComponent(q)}`, {
+        headers: { "api_key": key, "Content-Type": "application/json" }
+      });
+      const data: any = await res.json();
+      console.log("[Enrich] Explorium", JSON.stringify(data).slice(0, 300));
+      return data;
+    } catch (e: any) { console.log("[Enrich] Explorium fail", e.message); return null; }
+  }
+  async function fetchTinyfishEnrich(q: string, webSnippets: string) {
+    const key = process.env.TINYFISH_API_KEY;
+    if (!key) return null;
+    try {
+      const nodeFetch = (await import("node-fetch")).default;
+      const res: any = await nodeFetch("https://api.tinyfish.ai/v1/chat/completions", {
+        method: "POST", headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "tinyfish", messages: [{ role: "user", content: `Enrich prospect "${q}" given these web snippets:\n${webSnippets.slice(0, 1500)}\n\nReturn 2-3 concise enrichment insights about their role/company/industry.` }], max_tokens: 400 })
+      });
+      const data: any = await res.json();
+      const text = data.choices?.[0]?.message?.content || data.output || "";
+      console.log("[Enrich] Tinyfish", text.slice(0, 200));
+      return text.slice(0, 800);
+    } catch (e: any) { console.log("[Enrich] Tinyfish fail", e.message); return null; }
+  }
+  async function fetchPublicApis() {
+    try {
+      const res = await fetchWithTimeout("https://api.publicapis.org/entries?category=business&https=true", {}, 5000);
+      const data: any = await res.json();
+      const entries = (data.entries || []).slice(0, 3).map((e: any) => `${e.API}: ${e.Description} (${e.Link})`).join("; ");
+      console.log("[Enrich] PublicAPIs", entries.slice(0, 200));
+      return entries;
+    } catch (e: any) { console.log("[Enrich] PublicAPIs fail", e.message); return null; }
+  }
+
+  const webSnippets = web.map((w: any) => w.snippet).join(" ").slice(0, 1500);
+  const [explorium, tinyfish, publicApis] = await Promise.all([
+    fetchExplorium(query),
+    fetchTinyfishEnrich(query, webSnippets),
+    fetchPublicApis()
+  ]);
+
+  const linkedinHit = web.find((r: any) => r.url.includes("linkedin.com/in/")) || null;
   const linkedin = linkedinHit ? { url: linkedinHit.url } : null;
-
-  // Try to enrich top web result
-  let enriched: string | null = null;
-  if (web[0]?.url) {
-    enriched = await enrichTopUrl(web[0].url);
-  }
 
   return {
     web,
-    google: web, // keep compat
+    google: web,
     linkedin,
-    company: { snippets: web.slice(0, 5).map(w => w.snippet).filter(Boolean) },
-    enriched,
+    company: { snippets: web.slice(0, 5).map((w: any) => w.snippet).filter(Boolean) },
+    deepPages,
+    enrichment: { explorium, tinyfish, publicApis },
     rawCount: web.length,
   };
 }
 
 async function analyzeWithAI(query: string, scrapedData: any) {
   const webResults = (scrapedData.web || []).slice(0, 8).map((r: any, i: number) => `${i + 1}. Title: ${r.title}\n   URL: ${r.url}\n   Snippet: ${r.snippet}`).join("\n\n");
-  const enriched = scrapedData.enriched ? `\n\nEnriched page content (top result):\n${scrapedData.enriched.slice(0, 2000)}` : "";
+  const deepContent = (scrapedData.deepPages || []).map((d: any, i: number) => `Deep Page ${i + 1} (${d.url}):\n${d.content?.slice(0, 1500)}`).join("\n\n");
+  const enrich = scrapedData.enrichment ? `\n\nEnrichment:\n- Explorium: ${JSON.stringify(scrapedData.enrichment.explorium)?.slice(0, 600) || "none"}\n- Tinyfish: ${scrapedData.enrichment.tinyfish?.slice(0, 600) || "none"}\n- PublicAPIs sample: ${scrapedData.enrichment.publicApis?.slice(0, 400) || "none"}` : "";
+
   const prompt = `You are a prospect intelligence analyst. Analyze "${query}" for sales intelligence.
 
-FRESH WEB SEARCH RESULTS (use as PRIMARY source - this is real-time data crawled just now):
-${webResults || "No web results returned - search engine blocked or no matches"}
-${enriched}
+FRESH WEB SEARCH (PRIMARY - ${scrapedData.web?.length || 0} results):
+${webResults || "No web results"}
+
+DEEP PAGE CONTENT (from Firecrawl/Scrape.do/Jina - use this for depth):
+${deepContent || "No deep pages"}
+${enrich}
 
 CRITICAL RULES:
-- GROUND your answer in the web results above. If web results contain relevant info about "${query}", EXTRACT it and build the dossier from those snippets/URLs. Do NOT say "no data" when results exist.
-- ONLY hallucinate if truly zero relevant results. If results exist, confidence must reflect that.
-- DO NOT invent titles/companies not in results. Use exact titles/companies found in snippets.
-- confidenceScore: 85-95 if strong public figure with multiple results, 60-84 if moderate results (like this query with 2-5 relevant hits), 30-50 if weak/ambiguous, 5-15 only if ZERO relevant results.
-- If results show this is a real professional (e.g. conference speaker, founder, employee), build full dossier from snippets - do not mark as unknown.
+- GROUND in web + deep content above. If results exist, EXTRACT exact titles/companies/locations. Do NOT say "no data" when results exist.
+- confidenceScore: 85-95 strong public figure, 60-84 moderate (2-5 hits like this), 30-50 weak, 5-15 only if ZERO results.
+- If deep pages contain bio/details, use them to fill Career/Role/Company sections with specifics.
 
-Return ONLY valid JSON matching this EXACT schema:
+Return ONLY valid JSON:
 {
   "person": {"name": "string", "title": "string", "company": "string", "location": "string", "email": "string|null", "linkedin": "string|null"},
   "company": {"name": "string", "industry": "string", "size": "string", "revenue": "string|null", "founded": "string|null", "headquarters": "string", "website": "string", "description": "string"},
@@ -343,95 +242,38 @@ Return ONLY valid JSON matching this EXACT schema:
   "aiInsights": ["string", "string", "string"],
   "confidenceScore": number
 }
+If ZERO results, set title "Unknown - no public data found" and confidence 8. Otherwise curate intelligently.
 
-If ZERO relevant web results for "${query}", then and only then:
-- person.title = "Unknown - no public data found"
-- confidenceScore = 8
-- Summary must say "No verifiable public information found for '${query}'..."
-
-Otherwise, curate intelligently from the snippets above.
-
-Sections must include: Summary, Career, Role, Company, Activity, Leadership, Interests, Tech, Priorities, Signals, Challenges, Stakeholders, Relationships, Opportunities, Openers, Questions, Strategy, Risks, Confidence.`;
+Sections: Summary, Career, Role, Company, Activity, Leadership, Interests, Tech, Priorities, Signals, Challenges, Stakeholders, Relationships, Opportunities, Openers, Questions, Strategy, Risks, Confidence.`;
 
   const { result, provider } = await aiRegistry.generateJSON(prompt, { temperature: 0.2, maxTokens: 3500 });
-  console.log(`[SearchHandler] AI analysis completed using: ${provider}`);
+  console.log(`[SearchHandler] AI done via ${provider}`);
   return result;
 }
 
 function buildCase(query: string, scrapedData: any, aiAnalysis: any, hasAiKey: boolean, aiError: string | null) {
   const id = Date.now().toString();
   const timestamp = new Date().toISOString();
-
   if (aiAnalysis) {
     return {
-      id,
-      query,
-      timestamp,
-      person: aiAnalysis.person || {
-        name: query,
-        title: "Unknown - no public data found",
-        company: "Unknown",
-        linkedin: scrapedData.linkedin?.url || "",
-        location: "Unknown",
-      },
-      company: aiAnalysis.company || {
-        name: "Unknown",
-        industry: "Unknown",
-        size: "Unknown",
-        revenue: null,
-        founded: null,
-        headquarters: "Unknown",
-        website: "",
-        description: "No verifiable public information found.",
-      },
+      id, query, timestamp,
+      person: aiAnalysis.person || { name: query, title: "Unknown - no public data found", company: "Unknown", linkedin: scrapedData.linkedin?.url || "", location: "Unknown" },
+      company: aiAnalysis.company || { name: "Unknown", industry: "Unknown", size: "Unknown", revenue: null, founded: null, headquarters: "Unknown", website: "", description: "No verifiable public information found." },
       sections: aiAnalysis.sections || [],
       aiInsights: aiAnalysis.aiInsights || [],
       confidenceScore: aiAnalysis.confidenceScore ?? 8,
       savedToPipeline: false,
       _sources: (scrapedData.web || []).slice(0, 5),
+      _deepPages: scrapedData.deepPages || [],
     };
   }
-
-  const web = scrapedData.web || scrapedData.google || [];
+  const web = scrapedData.web || [];
   return {
-    id,
-    query,
-    timestamp,
-    person: {
-      name: query
-        .split(" ")
-        .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(" "),
-      title: "",
-      company: "",
-      linkedin: scrapedData.linkedin?.url || "",
-      location: "",
-    },
-    company: {
-      name: "",
-      industry: "",
-      size: "",
-      revenue: "",
-      founded: "",
-      headquarters: "",
-      website: "",
-      description: "",
-    },
-    sections: [
-      {
-        title: "Web Results",
-        icon: "Globe",
-        items: web.slice(0, 5).map((r: any) => ({
-          label: r.title?.slice(0, 50) || "Result",
-          value: `${r.snippet?.slice(0, 150) || ""} | ${r.url || ""}`,
-        })),
-      },
-    ],
-    aiInsights: [
-      hasAiKey ? `AI key is set (${process.env.GROQ_API_KEY ? "GROQ" : "GEMINI"}) but analysis failed` : "No AI API keys configured",
-      aiError ? `Error: ${aiError}` : "Check Vercel function logs for details",
-      `Crawled ${web.length} web results.`,
-    ],
+    id, query, timestamp,
+    person: { name: query.split(" ").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "), title: "", company: "", linkedin: scrapedData.linkedin?.url || "", location: "" },
+    company: { name: "", industry: "", size: "", revenue: "", founded: "", headquarters: "", website: "", description: "" },
+    sections: [{ title: "Web Results", icon: "Globe", items: web.slice(0, 5).map((r: any) => ({ label: r.title?.slice(0, 50) || "Result", value: `${r.snippet?.slice(0, 150) || ""} | ${r.url || ""}` })) }],
+    aiInsights: [hasAiKey ? `AI key set (${process.env.GROQ_API_KEY ? "GROQ" : "GEMINI"}) but analysis failed` : "No AI keys", aiError ? `Error: ${aiError}` : "Check logs", `Crawled ${web.length} web results.`],
     confidenceScore: web.length ? 30 : 10,
     savedToPipeline: false,
     _sources: web.slice(0, 5),
