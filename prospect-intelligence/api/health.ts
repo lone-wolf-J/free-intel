@@ -1,19 +1,15 @@
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import dotenv from "dotenv";
 dotenv.config();
 
-const corsHeaders: Record<string, string> = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-export async function GET(request: Request): Promise<Response> {
-  return new Response(JSON.stringify({ status: "ok", timestamp: new Date().toISOString() }), {
-    status: 200,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
+  if (req.method === "OPTIONS") {
+    return res.status(204).end();
+  }
 
-export async function OPTIONS(): Promise<Response> {
-  return new Response(null, { status: 204, headers: corsHeaders });
+  return res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
 }

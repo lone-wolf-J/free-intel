@@ -1,28 +1,25 @@
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import dotenv from "dotenv";
 dotenv.config();
 
 import { aiRegistry } from "../server/lib/ai-registry.js";
 
-const corsHeaders: Record<string, string> = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-export async function OPTIONS(): Promise<Response> {
-  return new Response(null, { status: 204, headers: corsHeaders });
-}
-
-export async function GET(request: Request): Promise<Response> {
-  const url = new URL(request.url);
+  if (req.method === "OPTIONS") {
+    return res.status(204).end();
+  }
 
   try {
-    if (url.pathname.endsWith("/ai-status")) {
+    if (req.url?.endsWith("/ai-status")) {
       const status = await aiRegistry.getAllStatus();
-      return jsonResponse(status);
+      return res.json(status);
     }
 
-    return jsonResponse({
+    return res.json({
       totalSearches: 0,
       totalCases: 0,
       industries: [],
@@ -30,13 +27,6 @@ export async function GET(request: Request): Promise<Response> {
       pipelineStages: { new: 0, qualified: 0, engaged: 0, closed: 0 },
     });
   } catch (e: any) {
-    return jsonResponse({ error: e.message }, 500);
+    return res.status(500).json({ error: e.message });
   }
-}
-
-function jsonResponse(data: any, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
 }

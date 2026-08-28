@@ -1,22 +1,24 @@
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import dotenv from "dotenv";
 dotenv.config();
 
 import { aiRegistry } from "../server/lib/ai-registry.js";
 
-const corsHeaders: Record<string, string> = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-export async function OPTIONS(): Promise<Response> {
-  return new Response(null, { status: 204, headers: corsHeaders });
-}
+  if (req.method === "OPTIONS") {
+    return res.status(204).end();
+  }
 
-export async function POST(request: Request): Promise<Response> {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
   try {
-    const body = await request.json();
-    const { tone, notes } = body;
+    const { tone, notes } = req.body;
 
     const prompt = `Generate a personalized sales/outreach pitch.
 
@@ -34,19 +36,12 @@ Generate a compelling email pitch. Return ONLY a JSON object (no markdown, no co
       { temperature: 0.7, maxTokens: 2048 }
     );
     console.log(`[Pitch] Generated using: ${provider}`);
-    return jsonResponse(result);
+    return res.json(result);
   } catch (e: any) {
     console.error("[Pitch] Error:", e);
-    return jsonResponse({
+    return res.json({
       subject: `Outreach pitch`,
       body: `Hi,\n\nI wanted to reach out based on some research we've done.\n\nWould love to connect.\n\nBest regards`,
     });
   }
-}
-
-function jsonResponse(data: any, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
 }
