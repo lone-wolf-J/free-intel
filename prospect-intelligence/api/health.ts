@@ -7,13 +7,13 @@ const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-export default async function handler(request: Request): Promise<Response> {
-  if (request.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: corsHeaders });
-  }
-
+export async function GET(request: Request): Promise<Response> {
   return new Response(JSON.stringify({ status: "ok", timestamp: new Date().toISOString() }), {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+export async function OPTIONS(): Promise<Response> {
+  return new Response(null, { status: 204, headers: corsHeaders });
 }

@@ -1,24 +1,17 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-export default async function handler(request: Request): Promise<Response> {
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-  };
+const corsHeaders: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
 
-  if (request.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: corsHeaders });
-  }
+export async function OPTIONS(): Promise<Response> {
+  return new Response(null, { status: 204, headers: corsHeaders });
+}
 
-  if (request.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
+export async function POST(request: Request): Promise<Response> {
   try {
     const body = await request.json();
     const { query } = body;
