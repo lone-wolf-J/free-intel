@@ -135,8 +135,19 @@ async function analyzeWithGemini(
   query: string,
   scrapedData: any
 ) {
-  const prompt = `Analyze "${query}" for sales intelligence. Return ONLY valid JSON matching this EXACT schema:
+  const scrapedJson = JSON.stringify(scrapedData).slice(0, 4000);
+  const prompt = `You are a prospect intelligence analyst. Analyze "${query}" for sales intelligence.
 
+CRITICAL ANTI-HALLUCINATION RULES:
+- ONLY use verifiable public information. If you do not have reliable public knowledge about this exact person/company, you MUST state "Unknown" / "No public data found" for those fields.
+- DO NOT invent titles, companies, locations, or metrics. Fabrication is a failure.
+- Base your answer on your training data cutoff. If the entity is not a well-known public figure/company with Wikipedia/news coverage, treat as unknown.
+- confidenceScore must reflect verifiability: 85-95 for well-known public figures, 40-60 for partial matches, 5-15 for unknown/private individuals (you must use 5-15 in that case).
+
+Web scrape context (may be empty on Vercel - do NOT fabricate to fill it):
+${scrapedJson}
+
+Return ONLY valid JSON matching this EXACT schema:
 {
   "person": {"name": "string", "title": "string", "company": "string", "location": "string", "email": "string|null", "linkedin": "string|null"},
   "company": {"name": "string", "industry": "string", "size": "string", "revenue": "string|null", "founded": "string|null", "headquarters": "string", "website": "string", "description": "string"},
@@ -144,6 +155,13 @@ async function analyzeWithGemini(
   "aiInsights": ["string", "string", "string"],
   "confidenceScore": number
 }
+
+For unknown/private individuals you MUST:
+- person.title = "Unknown - no public data found"
+- company fields = "Unknown"
+- sections: Summary item must say "No verifiable public information found for '${query}'. This appears to be a private individual or non-public entity. All details below are marked as unknown. Do not use for outreach without manual verification."
+- aiInsights must explain the lack of data
+- confidenceScore = 8
 
 Sections must include: Summary, Career, Role, Company, Activity, Leadership, Interests, Tech, Priorities, Signals, Challenges, Stakeholders, Relationships, Opportunities, Openers, Questions, Strategy, Risks, Confidence.`;
 
@@ -158,30 +176,46 @@ function buildCase(query: string, scrapedData: any, aiAnalysis: any, aiError?: s
   const hasAiKey = !!(process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY);
 
   if (aiAnalysis) {
+    const isLowConfidence = typeof aiAnalysis.confidenceScore === "number" && aiAnalysis.confidenceScore < 20;
+    const hasUnknownMarker = JSON.stringify(aiAnalysis).toLowerCase().includes("no public data") || JSON.stringify(aiAnalysis).toLowerCase().includes("unknown");
+    if (isLowConfidence && !hasUnknownMarker) {
+      aiAnalysis.person = { name: query, title: "Unknown - no public data found", company: "Unknown", location: "Unknown", email: null, linkedin: null };
+      aiAnalysis.company = { name: "Unknown", industry: "Unknown", size: "Unknown", revenue: null, founded: null, headquarters: "Unknown", website: "", description: "No verifiable public information found." };
+      aiAnalysis.confidenceScore = 8;
+      aiAnalysis.aiInsights = [
+        `No verifiable public information found for "${query}". Entity appears to be private or not a widely-known public figure.`,
+        "Do not use fabricated title/company for outreach. Manual verification via LinkedIn/company site required.",
+        "Try searching with full name + company + LinkedIn URL for better grounding."
+      ];
+      aiAnalysis.sections = [
+        { title: "Summary", items: [{ label: "Status", value: `No verifiable public information found for "${query}". This appears to be a private individual or non-public entity. Do not use for outreach without manual verification.` }] },
+        ...(aiAnalysis.sections || []).slice(1)
+      ];
+    }
     return {
       id,
       query,
       timestamp,
       person: aiAnalysis.person || {
         name: query,
-        title: "",
-        company: "",
+        title: "Unknown - no public data found",
+        company: "Unknown",
         linkedin: "",
-        location: "",
+        location: "Unknown",
       },
       company: aiAnalysis.company || {
-        name: "",
-        industry: "",
-        size: "",
-        revenue: "",
-        founded: "",
-        headquarters: "",
+        name: "Unknown",
+        industry: "Unknown",
+        size: "Unknown",
+        revenue: null,
+        founded: null,
+        headquarters: "Unknown",
         website: "",
-        description: "",
+        description: "No verifiable public information found.",
       },
       sections: aiAnalysis.sections || [],
       aiInsights: aiAnalysis.aiInsights || [],
-      confidenceScore: aiAnalysis.confidenceScore || 50,
+      confidenceScore: aiAnalysis.confidenceScore ?? 8,
       savedToPipeline: false,
     };
   }
