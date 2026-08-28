@@ -140,7 +140,42 @@ async function crawlEverywhere(query: string) {
       return results;
     } catch (e: any) { console.log("[Crawl] Serper failed:", e.message); return []; }
   }
-  // AllOrigins proxy + DuckDuckGo lite - bypasses Cloudflare
+  // CorsProxy + Lite DDG - bypasses Cloudflare, more reliable than AllOrigins
+  async function fetchViaCorsProxy(q: string) {
+    try {
+      const target = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(q)}`;
+      const url = `https://corsproxy.io/?${encodeURIComponent(target)}`;
+      const res = await fetchWithTimeout(url, { headers: { "User-Agent": UA } }, 10000);
+      const html = await res.text();
+      console.log("[Crawl] CorsProxy html len", html.length, "snippet", html.slice(0, 300));
+      const results: any[] = [];
+      const regex = /<a rel="nofollow"[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>/gi;
+      let m;
+      while ((m = regex.exec(html)) && results.length < 8) {
+        const href = m[1];
+        let url = href;
+        const uddg = href.match(/uddg=([^&]+)/);
+        if (uddg) try { url = decodeURIComponent(uddg[1]); } catch {}
+        if (url.includes("duckduckgo.com")) continue;
+        results.push({ title: m[2].trim(), snippet: "", url, source: "corsproxy" });
+      }
+      // fallback Jina lite
+      if (results.length === 0) {
+        const jinaUrl = `https://r.jina.ai/http://lite.duckduckgo.com/lite/?q=${encodeURIComponent(q)}`;
+        const r2 = await fetchWithTimeout(jinaUrl, { headers: { "User-Agent": UA } }, 9000);
+        const txt = await r2.text();
+        console.log("[Crawl] Jina-lite len", txt.length, txt.slice(0, 400));
+        const linkRegex = /\[([^\]]{5,120})\]\((https?:\/\/[^\)]+)\)/g;
+        let n;
+        while ((n = linkRegex.exec(txt)) && results.length < 8) {
+          if (n[2].includes("duckduckgo.com")) continue;
+          results.push({ title: n[1].trim(), snippet: "", url: n[2], source: "jina-lite" });
+        }
+      }
+      console.log("[Crawl] CorsProxy found", results.length);
+      return results;
+    } catch (e: any) { console.log("[Crawl] CorsProxy failed:", e.message); return []; }
+  }
   async function fetchViaAllOrigins(q: string) {
     try {
       const target = encodeURIComponent(`https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(q)}`);
@@ -154,7 +189,6 @@ async function crawlEverywhere(query: string) {
       let m;
       while ((m = regex.exec(html)) && results.length < 8) {
         const href = m[1];
-        // allorigins wraps urls like //duckduckgo.com/l/?uddg=https://...
         let url = href;
         const uddg = href.match(/uddg=([^&]+)/);
         if (uddg) try { url = decodeURIComponent(uddg[1]); } catch {}
@@ -208,8 +242,8 @@ async function crawlEverywhere(query: string) {
     } catch (e: any) { console.log("[Crawl] Jina failed:", e.message); return []; }
   }
 
-  const [ddg, bing, jina, gjina, serper, allorig] = await Promise.all([fetchDuckDuckGo(query), fetchBing(query), fetchViaJina(query), fetchGoogleViaJina(query), fetchSerper(query), fetchViaAllOrigins(query)]);
-  const merged = [...serper, ...allorig, ...ddg, ...bing, ...jina, ...gjina];
+  const [ddg, bing, jina, gjina, serper, allorig, corsp] = await Promise.all([fetchDuckDuckGo(query), fetchBing(query), fetchViaJina(query), fetchGoogleViaJina(query), fetchSerper(query), fetchViaAllOrigins(query), fetchViaCorsProxy(query)]);
+  const merged = [...serper, ...corsp, ...allorig, ...ddg, ...bing, ...jina, ...gjina];
   // Deduplicate by URL
   const seen = new Set();
   const web = merged.filter(r => {
