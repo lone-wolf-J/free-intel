@@ -6,6 +6,9 @@
       "dest": "/dist/assets/$1"
     },
     {
+      "handle": "filesystem"
+    },
+    {
       "src": "/(.*)",
       "dest": "/dist/$1"
     }
