@@ -123,24 +123,9 @@ async function crawlEverywhere(query: string) {
     } catch { return null; }
   }
 
-  // Serper API (free 2500/month) - if SERPER_API_KEY set, use it. Most reliable on Vercel.
+  // Tier 1: Paid APIs - intelligent consumption (Serper 2500/mo primary, Tavily 1000/mo deep fallback)
   async function fetchSerper(q: string) {
-    const key = process.env.SERPER_API_KEY || process.env.TAVILY_API_KEY;
-    // Try Tavily if Serper not set
-    if (process.env.TAVILY_API_KEY) {
-      try {
-        const nodeFetch = (await import("node-fetch")).default;
-        const res: any = await nodeFetch("https://api.tavily.com/search", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ api_key: process.env.TAVILY_API_KEY, query: q, max_results: 8, include_answer: false }),
-        });
-        const data: any = await res.json();
-        const results: any[] = (data.results || []).slice(0, 8).map((r: any) => ({ title: r.title, snippet: r.content?.slice(0, 300) || "", url: r.url, source: "tavily" }));
-        console.log("[Crawl] Tavily found", results.length);
-        if (results.length) return results;
-      } catch (e: any) { console.log("[Crawl] Tavily failed:", e.message); }
-    }
+    const key = process.env.SERPER_API_KEY;
     if (!key) { console.log("[Crawl] Serper skipped - no key"); return []; }
     try {
       const nodeFetch = (await import("node-fetch")).default;
@@ -151,9 +136,25 @@ async function crawlEverywhere(query: string) {
       });
       const data: any = await res.json();
       const results: any[] = (data.organic || []).slice(0, 10).map((r: any) => ({ title: r.title, snippet: r.snippet || "", url: r.link, source: "serper" }));
-      console.log("[Crawl] Serper found", results.length);
+      console.log("[Crawl] Serper found", results.length, "credits used: 1");
       return results;
     } catch (e: any) { console.log("[Crawl] Serper failed:", e.message); return []; }
+  }
+  async function fetchTavily(q: string) {
+    const key = process.env.TAVILY_API_KEY;
+    if (!key) { console.log("[Crawl] Tavily skipped - no key"); return []; }
+    try {
+      const nodeFetch = (await import("node-fetch")).default;
+      const res: any = await nodeFetch("https://api.tavily.com/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ api_key: key, query: q, max_results: 8, include_answer: false, search_depth: "basic" }),
+      });
+      const data: any = await res.json();
+      const results: any[] = (data.results || []).slice(0, 8).map((r: any) => ({ title: r.title, snippet: r.content?.slice(0, 300) || "", url: r.url, source: "tavily" }));
+      console.log("[Crawl] Tavily found", results.length, "credits used: 1");
+      return results;
+    } catch (e: any) { console.log("[Crawl] Tavily failed:", e.message); return []; }
   }
   async function fetchBingViaJina(q: string) {
     try {
@@ -276,8 +277,20 @@ async function crawlEverywhere(query: string) {
     } catch (e: any) { console.log("[Crawl] Jina failed:", e.message); return []; }
   }
 
-  const [ddg, bing, jina, gjina, serper, allorig, corsp, bingJina] = await Promise.all([fetchDuckDuckGo(query), fetchBing(query), fetchViaJina(query), fetchGoogleViaJina(query), fetchSerper(query), fetchViaAllOrigins(query), fetchViaCorsProxy(query), fetchBingViaJina(query)]);
-  const merged = [...serper, ...bingJina, ...corsp, ...allorig, ...ddg, ...bing, ...jina, ...gjina];
+  // Intelligent consumption: Tier 1 = paid APIs, Tier 2 = free proxies only if Tier 1 fails
+  // Try Serper first (2500/mo, fastest). Only call Tavily if Serper returns <3 results to save Tavily quota (1000/mo)
+  const serperResults = await fetchSerper(query);
+  let tavilyResults: any[] = [];
+  if (serperResults.length < 3) {
+    console.log("[Crawl] Serper low results, trying Tavily...");
+    tavilyResults = await fetchTavily(query);
+  } else {
+    console.log("[Crawl] Serper sufficient, skipping Tavily to save quota");
+  }
+
+  // Tier 2: Free proxies run in parallel as fallback (zero cost, but flaky)
+  const [ddg, bing, jina, gjina, allorig, corsp, bingJina] = await Promise.all([fetchDuckDuckGo(query), fetchBing(query), fetchViaJina(query), fetchGoogleViaJina(query), fetchViaAllOrigins(query), fetchViaCorsProxy(query), fetchBingViaJina(query)]);
+  const merged = [...serperResults, ...tavilyResults, ...bingJina, ...corsp, ...allorig, ...ddg, ...bing, ...jina, ...gjina];
   // Deduplicate by URL
   const seen = new Set();
   const web = merged.filter(r => {
