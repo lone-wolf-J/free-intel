@@ -34,7 +34,7 @@ async function crawlEverywhere(query: string) {
   const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
   const timeout = (ms: number) => new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms));
 
-  const fetchWithTimeout = async (url: string, opts: any = {}, ms = 8000) => {
+  const fetchWithTimeout = async (url: string, opts: any = {}, ms = 12000) => {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), ms);
     try {
@@ -180,7 +180,7 @@ async function crawlEverywhere(query: string) {
     try {
       const target = encodeURIComponent(`https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(q)}`);
       const url = `https://api.allorigins.win/get?url=${target}`;
-      const res = await fetchWithTimeout(url, { headers: { "User-Agent": UA } }, 10000);
+      const res = await fetchWithTimeout(url, { headers: { "User-Agent": UA } }, 15000);
       const data: any = await res.json();
       const html = data.contents || "";
       console.log("[Crawl] AllOrigins html len", html.length);
