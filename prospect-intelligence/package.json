@@ -16,6 +16,7 @@
     "@google/genai": "^2.19.0",
     "@hono/node-server": "^1.19.17",
     "@neondatabase/serverless": "^1.1.0",
+    "cheerio": "^1.2.0",
     "dotenv": "^17.4.2",
     "framer-motion": "^11.11.9",
     "groq-sdk": "^1.6.0",

@@ -1,8 +1,63 @@
 import { aiRegistry } from "../server/lib/ai-registry.js";
+import * as cheerio from "cheerio";
 
 // Simple in-memory cache (persists for warm Vercel functions, ~7-day logical TTL via timestamp check)
 const cache = new Map<string, { data: any; ts: number }>();
 const CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
+
+// Health metrics for monitoring (per https://github.com/TheWebScrapingClub/webscraping-from-0-to-hero - treat as infrastructure)
+const healthMetrics: Record<string, { success: number; fail: number; lastError?: string }> = {};
+
+function recordMetric(source: string, success: boolean, err?: string) {
+  if (!healthMetrics[source]) healthMetrics[source] = { success: 0, fail: 0 };
+  if (success) healthMetrics[source].success++;
+  else { healthMetrics[source].fail++; healthMetrics[source].lastError = err?.slice(0, 100); }
+}
+export function getHealthMetrics() { return healthMetrics; }
+
+// UA rotation + retry with backoff (per Handling Anti-Bot, Scale, And Maintenance)
+const UA_POOL = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+];
+const pickUA = () => UA_POOL[Math.floor(Math.random() * UA_POOL.length)];
+
+async function withRetry<T>(fn: () => Promise<T>, source: string, retries = 2): Promise<T> {
+  let lastErr: any;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const res = await fn();
+      recordMetric(source, true);
+      return res;
+    } catch (e: any) {
+      lastErr = e;
+      recordMetric(source, false, e.message);
+      if (i < retries) {
+        const backoff = 400 * Math.pow(2, i) + Math.random() * 200;
+        console.log(`[Retry] ${source} attempt ${i + 1} failed, backoff ${Math.round(backoff)}ms`);
+        await new Promise(r => setTimeout(r, backoff));
+      }
+    }
+  }
+  throw lastErr;
+}
+
+// Config-driven scrapers (per https://github.com/fabienvauchelles/scraping-workshop - per-site configs)
+const SCRAPER_CONFIG: Record<string, { parser: "api" | "html" | "browser"; priority: number }> = {
+  "linkedin.com": { parser: "browser", priority: 1 }, // JS-heavy, needs Firecrawl/Scrape.do
+  "levelshift.com": { parser: "html", priority: 2 },
+  "preludesys.com": { parser: "html", priority: 2 },
+  "equilar.com": { parser: "api", priority: 2 },
+  "default": { parser: "html", priority: 3 },
+};
+function getConfigForUrl(url: string) {
+  for (const [domain, cfg] of Object.entries(SCRAPER_CONFIG)) {
+    if (url.includes(domain)) return cfg;
+  }
+  return SCRAPER_CONFIG.default;
+}
 
 export async function searchProspectHandler(query: string) {
   const normalized = query.toLowerCase().trim();
@@ -25,7 +80,6 @@ export async function searchProspectHandler(query: string) {
     } catch (e: any) {
       aiError = e?.message || String(e);
       console.error("[SearchHandler] AI error:", aiError);
-      // Tinyfish fallback as LLM if Groq fails
       if (process.env.TINYFISH_API_KEY && aiError && aiError.includes("Groq")) {
         try {
           console.log("[Fallback] Trying Tinyfish LLM...");
@@ -35,9 +89,7 @@ export async function searchProspectHandler(query: string) {
     }
   }
   const result = buildCase(query, crawlResults, aiAnalysis, hasAiKey, aiError);
-  // Cache successful results with confidence >30
   if (result.confidenceScore > 30) cache.set(normalized, { data: result, ts: Date.now() });
-  // Keep cache size bounded
   if (cache.size > 200) {
     const firstKey = cache.keys().next().value as string;
     cache.delete(firstKey);
@@ -46,72 +98,89 @@ export async function searchProspectHandler(query: string) {
 }
 
 async function crawlEverywhere(query: string) {
-  const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36";
   const fetchWithTimeout = async (url: string, opts: any = {}, ms = 12000) => {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), ms);
     try {
       const nodeFetch = (await import("node-fetch")).default;
-      const res: any = await nodeFetch(url, { ...opts, signal: ctrl.signal });
+      const res: any = await nodeFetch(url, { ...opts, headers: { "User-Agent": pickUA(), ...(opts.headers || {}) }, signal: ctrl.signal });
       return res;
     } finally { clearTimeout(t); }
   };
 
   // ---------- Tier 1: SEARCH (quota-aware, priority order) ----------
+  // Reverse-engineer API calls (per Strategies For Dynamic Content & Robustness - prefer JSON APIs over HTML)
+  async function fetchDuckDuckGoJsonApi(q: string) {
+    // https://duckduckgo.com/d.js?q=... returns JSON {results:[{...}]} - much more robust than HTML scraping
+    return withRetry(async () => {
+      const res = await fetchWithTimeout(`https://duckduckgo.com/d.js?q=${encodeURIComponent(q)}&vqd=&p=1&o=json`, { headers: { "User-Agent": pickUA(), "Referer": "https://duckduckgo.com/" } }, 8000);
+      const data: any = await res.json();
+      const results = (data.results || []).slice(0, 8).map((r: any) => ({
+        title: (r.title || "").replace(/<[^>]+>/g, "").trim(),
+        snippet: (r.description || r.content || "").replace(/<[^>]+>/g, "").slice(0, 300).trim(),
+        url: r.url || r.href || "",
+        source: "ddg-api"
+      })).filter((r: any) => r.url);
+      console.log("[Crawl] DDG-API", results.length);
+      if (results.length) return results;
+      throw new Error("empty");
+    }, "ddg-api", 1).catch(() => [] as any[]);
+  }
+
   async function fetchSerper(q: string) {
     const key = process.env.SERPER_API_KEY;
     if (!key) return [];
-    try {
+    return withRetry(async () => {
       const nodeFetch = (await import("node-fetch")).default;
       const res: any = await nodeFetch("https://google.serper.dev/search", { method: "POST", headers: { "X-API-KEY": key, "Content-Type": "application/json" }, body: JSON.stringify({ q, num: 10 }) });
       const data: any = await res.json();
       const results = (data.organic || []).slice(0, 10).map((r: any) => ({ title: r.title, snippet: r.snippet || "", url: r.link, source: "serper" }));
       console.log("[Crawl] Serper", results.length); return results;
-    } catch (e: any) { console.log("[Crawl] Serper fail", e.message); return []; }
+    }, "serper", 1).catch(() => [] as any[]);
   }
   async function fetchTavily(q: string) {
     const key = process.env.TAVILY_API_KEY;
     if (!key) return [];
-    try {
+    return withRetry(async () => {
       const nodeFetch = (await import("node-fetch")).default;
       const res: any = await nodeFetch("https://api.tavily.com/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ api_key: key, query: q, max_results: 8, search_depth: "basic", include_answer: false }) });
       const data: any = await res.json();
       const results = (data.results || []).slice(0, 8).map((r: any) => ({ title: r.title, snippet: r.content?.slice(0, 300) || "", url: r.url, source: "tavily" }));
       console.log("[Crawl] Tavily", results.length); return results;
-    } catch (e: any) { console.log("[Crawl] Tavily fail", e.message); return []; }
+    }, "tavily", 1).catch(() => [] as any[]);
   }
   async function fetchBrave(q: string) {
     const key = process.env.BRAVE_API_KEY;
     if (!key) return [];
-    try {
+    return withRetry(async () => {
       const nodeFetch = (await import("node-fetch")).default;
       const res: any = await nodeFetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(q)}&count=10`, { headers: { "X-Subscription-Token": key, "Accept": "application/json" } });
       const data: any = await res.json();
       const results = (data.web?.results || []).slice(0, 8).map((r: any) => ({ title: r.title, snippet: r.description || "", url: r.url, source: "brave" }));
       console.log("[Crawl] Brave", results.length); return results;
-    } catch (e: any) { console.log("[Crawl] Brave fail", e.message); return []; }
+    }, "brave", 1).catch(() => [] as any[]);
   }
   async function fetchSerpApi(q: string) {
     const key = process.env.SERPAPI_KEY;
     if (!key) return [];
-    try {
+    return withRetry(async () => {
       const nodeFetch = (await import("node-fetch")).default;
       const res: any = await nodeFetch(`https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q)}&api_key=${key}`);
       const data: any = await res.json();
       const results = (data.organic_results || []).slice(0, 8).map((r: any) => ({ title: r.title, snippet: r.snippet || "", url: r.link, source: "serpapi" }));
       console.log("[Crawl] SerpApi", results.length); return results;
-    } catch (e: any) { console.log("[Crawl] SerpApi fail", e.message); return []; }
+    }, "serpapi", 1).catch(() => [] as any[]);
   }
   async function fetchBingApi(q: string) {
     const key = process.env.BING_API_KEY;
     if (!key) return [];
-    try {
+    return withRetry(async () => {
       const nodeFetch = (await import("node-fetch")).default;
       const res: any = await nodeFetch(`https://api.bing.microsoft.com/v7.0/search?q=${encodeURIComponent(q)}&count=8`, { headers: { "Ocp-Apim-Subscription-Key": key } });
       const data: any = await res.json();
       const results = (data.webPages?.value || []).slice(0, 8).map((r: any) => ({ title: r.name, snippet: r.snippet || "", url: r.url, source: "bing-api" }));
       console.log("[Crawl] BingAPI", results.length); return results;
-    } catch (e: any) { console.log("[Crawl] BingAPI fail", e.message); return []; }
+    }, "bing-api", 1).catch(() => [] as any[]);
   }
   async function fetchWikipedia(q: string) {
     try {
@@ -121,53 +190,76 @@ async function crawlEverywhere(query: string) {
       console.log("[Crawl] Wikipedia", results.length); return results;
     } catch (e: any) { console.log("[Crawl] Wikipedia fail", e.message); return []; }
   }
-  // Free fallbacks (zero cost, flaky but worth trying)
-  async function fetchDuckDuckGo(q: string) {
-    try {
-      const res = await fetchWithTimeout(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`, { headers: { "User-Agent": UA } });
+  // BeautifulSoup equivalent: cheerio for robust HTML parsing (per Core Tools & When To Use Them)
+  async function fetchDuckDuckGoHtml(q: string) {
+    return withRetry(async () => {
+      const res = await fetchWithTimeout(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`, { headers: { "User-Agent": pickUA() } });
       const html = await res.text();
-      const results: any[] = []; const altRegex = /<a rel="nofollow" class="result__url" href="([^"]+)"[^>]*>([^<]+)<\/a>/gi;
-      let m; while ((m = altRegex.exec(html)) && results.length < 8) {
-        let url = m[1]; const uddg = url.match(/uddg=([^&]+)/); if (uddg) try { url = decodeURIComponent(uddg[1]); } catch {}
-        if (url.includes("duckduckgo.com")) continue;
-        results.push({ title: m[2].trim(), snippet: "", url, source: "duckduckgo" });
-      }
-      console.log("[Crawl] DDG", results.length); return results;
-    } catch (e: any) { console.log("[Crawl] DDG fail", e.message); return []; }
+      const $ = cheerio.load(html);
+      const results: any[] = [];
+      // Try structured parsing first
+      $("a.result__url").each((_: any, el: any) => {
+        if (results.length >= 8) return;
+        const href = $(el).attr("href") || "";
+        let url = href; const m = href.match(/uddg=([^&]+)/); if (m) try { url = decodeURIComponent(m[1]); } catch {}
+        if (url.includes("duckduckgo.com")) return;
+        const titleEl = $(el).closest(".result").find(".result__title");
+        const title = titleEl.text().trim() || $(el).text().trim();
+        const snippet = $(el).closest(".result").find(".result__snippet").text().trim().slice(0, 300);
+        if (title) results.push({ title, snippet, url, source: "duckduckgo-html" });
+      });
+      console.log("[Crawl] DDG-HTML", results.length); if (results.length) return results; throw new Error("empty");
+    }, "ddg-html", 1).catch(() => [] as any[]);
   }
   async function fetchViaAllOrigins(q: string) {
-    try {
+    return withRetry(async () => {
       const target = encodeURIComponent(`https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(q)}`);
-      const res = await fetchWithTimeout(`https://api.allorigins.win/get?url=${target}`, { headers: { "User-Agent": UA } }, 15000);
+      const res = await fetchWithTimeout(`https://api.allorigins.win/get?url=${target}`, { headers: { "User-Agent": pickUA() } }, 15000);
       const data: any = await res.json(); const html = data.contents || "";
-      const results: any[] = []; const regex = /<a rel="nofollow"[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>/gi;
-      let m; while ((m = regex.exec(html)) && results.length < 8) {
-        let url = m[1]; const uddg = url.match(/uddg=([^&]+)/); if (uddg) try { url = decodeURIComponent(uddg[1]); } catch {}
-        if (url.includes("duckduckgo.com")) continue;
-        results.push({ title: m[2].trim(), snippet: "", url, source: "allorigins" });
-      }
-      console.log("[Crawl] AllOrigins", results.length); return results;
-    } catch (e: any) { console.log("[Crawl] AllOrigins fail", e.message); return []; }
+      const $ = cheerio.load(html);
+      const results: any[] = [];
+      $('a[rel="nofollow"]').each((_: any, el: any) => {
+        if (results.length >= 8) return;
+        const href = $(el).attr("href") || "";
+        let url = href; const m = href.match(/uddg=([^&]+)/); if (m) try { url = decodeURIComponent(m[1]); } catch {}
+        if (url.includes("duckduckgo.com")) return;
+        const title = $(el).text().trim();
+        if (title) results.push({ title, snippet: "", url, source: "allorigins" });
+      });
+      console.log("[Crawl] AllOrigins", results.length); if (results.length) return results; throw new Error("empty");
+    }, "allorigins", 1).catch(() => [] as any[]);
   }
 
-  // Tier 1 execution: Serper primary, others only if Serper <3 to save quota
-  const serperResults = await fetchSerper(query);
+  // Tier 1 execution: Serper primary, others only if Serper <3 to save quota (HTTPX-style async with concurrency + asyncio pattern)
+  const serperResults = await withRetry(() => fetchSerper(query), "serper-tier", 1).catch(() => [] as any[]);
   let tavilyResults: any[] = []; let braveResults: any[] = []; let serpApiResults: any[] = []; let bingApiResults: any[] = []; let wikiResults: any[] = [];
   if (serperResults.length < 3) {
-    console.log("[Crawl] Serper low, trying Tavily + Brave + SerpApi...");
-    const [tav, brave, serpapi, bingapi, wiki] = await Promise.all([fetchTavily(query), fetchBrave(query), fetchSerpApi(query), fetchBingApi(query), fetchWikipedia(query)]);
-    tavilyResults = tav; braveResults = brave; serpApiResults = serpapi; bingApiResults = bingapi; wikiResults = wiki;
+    console.log("[Crawl] Serper low, trying Tavily + Brave + SerpApi in parallel (HTTPX async)...");
+    const settled = await Promise.allSettled([fetchTavily(query), fetchBrave(query), fetchSerpApi(query), fetchBingApi(query), fetchWikipedia(query), fetchDuckDuckGoJsonApi(query)]);
+    tavilyResults = settled[0].status === "fulfilled" ? (settled[0].value as any[]) : [];
+    braveResults = settled[1].status === "fulfilled" ? (settled[1].value as any[]) : [];
+    serpApiResults = settled[2].status === "fulfilled" ? (settled[2].value as any[]) : [];
+    bingApiResults = settled[3].status === "fulfilled" ? (settled[3].value as any[]) : [];
+    wikiResults = settled[4].status === "fulfilled" ? (settled[4].value as any[]) : [];
+    const ddgJson = settled[5].status === "fulfilled" ? (settled[5].value as any[]) : [];
+    // Add DDG JSON results to pool
+    tavilyResults = [...tavilyResults, ...ddgJson];
   } else {
     console.log("[Crawl] Serper sufficient, skipping paid fallbacks to save quota");
-    wikiResults = await fetchWikipedia(query); // Wikipedia is free, always run
+    wikiResults = await fetchWikipedia(query);
   }
 
-  const [ddg, allorig] = await Promise.all([fetchDuckDuckGo(query), fetchViaAllOrigins(query)]);
-  const mergedSearch = [...serperResults, ...tavilyResults, ...braveResults, ...serpApiResults, ...bingApiResults, ...wikiResults, ...ddg, ...allorig];
+  // Always try free HTML fallbacks with concurrency (per Core Tools: HTTPX supports sync/async + concurrency)
+  const [ddgHtml, allorig] = await Promise.allSettled([fetchDuckDuckGoHtml(query), fetchViaAllOrigins(query)]);
+  const ddgHtmlRes = ddgHtml.status === "fulfilled" ? (ddgHtml.value as any[]) : [];
+  const allorigRes = allorig.status === "fulfilled" ? (allorig.value as any[]) : [];
+
+  const mergedSearch = [...serperResults, ...tavilyResults, ...braveResults, ...serpApiResults, ...bingApiResults, ...wikiResults, ...ddgHtmlRes, ...allorigRes];
   const seen = new Set(); const web = mergedSearch.filter((r: any) => { if (!r.url || seen.has(r.url)) return false; seen.add(r.url); return true; }).slice(0, 12);
   console.log("[Crawl] Tier1 total", web.length, "sources:", [...new Set(web.map((w: any) => w.source))].join(","));
 
-  // ---------- Tier 2: DEEP SCRAPE (balanced rotation) ----------
+  // ---------- Tier 2: DEEP SCRAPE (browser rendering only when necessary - per Strategies For Dynamic Content) ----------
+  // Config-driven: linkedin.com needs browser, others use HTML/parser per fabienvauchelles/scraping-workshop
   const hash = query.split("").reduce((a: number, b: string) => a + b.charCodeAt(0), 0);
   const deepPages: any[] = [];
   const topUrls = web.slice(0, 3).map((w: any) => w.url).filter(Boolean);
@@ -175,112 +267,128 @@ async function crawlEverywhere(query: string) {
   async function deepScrapeScrapeDo(url: string) {
     const key = process.env.SCRAPE_DO_KEY || process.env.SCRAPE_DO_TOKEN;
     if (!key) return null;
-    try {
-      const res = await fetchWithTimeout(`https://api.scrape.do?token=${key}&url=${encodeURIComponent(url)}&render=true`, {}, 10000);
-      const text = await res.text();
-      console.log("[Deep] Scrape.do", url.slice(0, 40), "len", text.length);
-      return text.slice(0, 3500);
-    } catch (e: any) { console.log("[Deep] Scrape.do fail", e.message); return null; }
+    const cfg = getConfigForUrl(url);
+    console.log(`[Deep] Scrape.do config for ${url.slice(0, 30)}: parser=${cfg.parser} priority=${cfg.priority}`);
+    return withRetry(async () => {
+      const res = await fetchWithTimeout(`https://api.scrape.do?token=${key}&url=${encodeURIComponent(url)}&render=${cfg.parser === "browser" ? "true" : "false"}`, {}, 12000);
+      const text = await res.text(); console.log("[Deep] Scrape.do", url.slice(0, 40), "len", text.length); return text.slice(0, 3500);
+    }, "scrape.do", 1).catch(() => null);
   }
   async function deepScrapeFirecrawl(url: string) {
     const key = process.env.FIRECRAWL_API_KEY;
     if (!key) return null;
-    try {
+    const cfg = getConfigForUrl(url);
+    // Render With A Browser Only When Necessary - use waitFor only for browser sites
+    return withRetry(async () => {
       const nodeFetch = (await import("node-fetch")).default;
-      const res: any = await nodeFetch("https://api.firecrawl.dev/v1/scrape", { method: "POST", headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true, waitFor: 1500 }) });
+      const res: any = await nodeFetch("https://api.firecrawl.dev/v1/scrape", {
+        method: "POST", headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true, waitFor: cfg.parser === "browser" ? 2000 : 0 })
+      });
       const data: any = await res.json();
       const md = data.data?.markdown || data.markdown || "";
-      console.log("[Deep] Firecrawl", url.slice(0, 40), "len", md.length);
-      return md.slice(0, 3500);
-    } catch (e: any) { console.log("[Deep] Firecrawl fail", e.message); return null; }
+      console.log("[Deep] Firecrawl", url.slice(0, 40), "len", md.length); return md.slice(0, 3500);
+    }, "firecrawl", 1).catch(() => null);
   }
   async function deepScrapeJina(url: string) {
-    try {
-      const res = await fetchWithTimeout(`https://r.jina.ai/http://${url.replace(/^https?:\/\//, "")}`, { headers: { "User-Agent": UA } }, 8000);
+    return withRetry(async () => {
+      const res = await fetchWithTimeout(`https://r.jina.ai/http://${url.replace(/^https?:\/\//, "")}`, { headers: { "User-Agent": pickUA() } }, 8000);
       const text = await res.text(); console.log("[Deep] Jina", url.slice(0, 40), "len", text.length); return text.slice(0, 3500);
-    } catch (e: any) { console.log("[Deep] Jina fail", e.message); return null; }
+    }, "jina", 1).catch(() => null);
   }
   async function deepScrapeScrapingBee(url: string) {
     const key = process.env.SCRAPINGBEE_API_KEY;
     if (!key) return null;
-    try {
-      const res = await fetchWithTimeout(`https://app.scrapingbee.com/api/v1/?api_key=${key}&url=${encodeURIComponent(url)}&render_js=false`, {}, 10000);
+    return withRetry(async () => {
+      const res = await fetchWithTimeout(`https://app.scrapingbee.com/api/v1/?api_key=${key}&url=${encodeURIComponent(url)}&render_js=${getConfigForUrl(url).parser === "browser" ? "true" : "false"}`, {}, 10000);
       const text = await res.text(); console.log("[Deep] ScrapingBee", url.slice(0, 40), "len", text.length); return text.slice(0, 3500);
-    } catch (e: any) { console.log("[Deep] ScrapingBee fail", e.message); return null; }
+    }, "scrapingbee", 1).catch(() => null);
   }
   async function deepScrapeZenRows(url: string) {
     const key = process.env.ZENROWS_API_KEY;
     if (!key) return null;
-    try {
+    return withRetry(async () => {
       const res = await fetchWithTimeout(`https://api.zenrows.com/v1/?apikey=${key}&url=${encodeURIComponent(url)}&autoparse=false`, {}, 10000);
       const text = await res.text(); console.log("[Deep] ZenRows", url.slice(0, 40), "len", text.length); return text.slice(0, 3500);
-    } catch (e: any) { console.log("[Deep] ZenRows fail", e.message); return null; }
+    }, "zenrows", 1).catch(() => null);
   }
 
+  // Combine Tools: browser to get HTML, then parse with cheerio/BeautifulSoup for easier extraction
   for (let i = 0; i < topUrls.length; i++) {
     const url = topUrls[i];
     let content: string | null = null;
     const choice = (hash + i) % 5;
-    // Rotate 5-way: Firecrawl, Scrape.do, ScrapingBee, ZenRows, Jina - balances all free tiers
     if (choice === 0) content = await deepScrapeFirecrawl(url) || await deepScrapeScrapeDo(url) || await deepScrapeJina(url);
     else if (choice === 1) content = await deepScrapeScrapeDo(url) || await deepScrapeFirecrawl(url) || await deepScrapeJina(url);
     else if (choice === 2) content = await deepScrapeScrapingBee(url) || await deepScrapeJina(url);
     else if (choice === 3) content = await deepScrapeZenRows(url) || await deepScrapeJina(url);
     else content = await deepScrapeJina(url) || await deepScrapeScrapeDo(url) || await deepScrapeFirecrawl(url);
-    if (content) deepPages.push({ url, content: content.slice(0, 2000) });
+    if (content) {
+      // Parse with cheerio/BeautifulSoup for easier extraction (per webscraping.fyi)
+      try {
+        const $ = cheerio.load(content);
+        // If markdown, keep as is; if HTML, extract main text
+        const isHtml = content.includes("<html") || content.includes("<div");
+        const clean = isHtml ? ($("body").text().slice(0, 2000) || content.slice(0, 2000)) : content.slice(0, 2000);
+        deepPages.push({ url, content: clean });
+      } catch { deepPages.push({ url, content: content.slice(0, 2000) }); }
+    }
   }
 
   // ---------- Tier 3: ENRICHMENT ----------
   async function fetchExplorium(q: string) {
     const key = process.env.EXPLORIUM_API_KEY;
     if (!key) return null;
-    try {
+    return withRetry(async () => {
       const nodeFetch = (await import("node-fetch")).default;
       const res: any = await nodeFetch(`https://api.explorium.ai/v1/prospects?query=${encodeURIComponent(q)}`, { headers: { "api_key": key, "Content-Type": "application/json" } });
-      const data: any = await res.json();
-      console.log("[Enrich] Explorium", JSON.stringify(data).slice(0, 300)); return data;
-    } catch (e: any) { console.log("[Enrich] Explorium fail", e.message); return null; }
+      const data: any = await res.json(); console.log("[Enrich] Explorium", JSON.stringify(data).slice(0, 300)); return data;
+    }, "explorium", 0).catch(() => null);
   }
   async function fetchTinyfishEnrich(q: string, snippets: string) {
     const key = process.env.TINYFISH_API_KEY;
     if (!key) return null;
-    try {
+    return withRetry(async () => {
       const nodeFetch = (await import("node-fetch")).default;
-      const res: any = await nodeFetch("https://api.tinyfish.ai/v1/chat/completions", { method: "POST", headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: "tinyfish", messages: [{ role: "user", content: `Enrich prospect "${q}" given snippets:\n${snippets.slice(0, 1500)}\n\nReturn 2-3 concise insights about role/company/industry.` }], max_tokens: 400 }) });
+      const res: any = await nodeFetch("https://api.tinyfish.ai/v1/chat/completions", { method: "POST", headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: "tinyfish", messages: [{ role: "user", content: `Enrich prospect "${q}" given snippets:\n${snippets.slice(0, 1500)}\n\nReturn 2-3 concise insights.` }], max_tokens: 400 }) });
       const data: any = await res.json();
       const text = data.choices?.[0]?.message?.content || data.output || "";
       console.log("[Enrich] Tinyfish", text.slice(0, 200)); return text.slice(0, 800);
-    } catch (e: any) { console.log("[Enrich] Tinyfish fail", e.message); return null; }
+    }, "tinyfish", 0).catch(() => null);
   }
   async function fetchPublicApis() {
-    try {
+    return withRetry(async () => {
       const res = await fetchWithTimeout("https://api.publicapis.org/entries?category=business&https=true", {}, 5000);
       const data: any = await res.json();
       const entries = (data.entries || []).slice(0, 3).map((e: any) => `${e.API}: ${e.Description} (${e.Link})`).join("; ");
       console.log("[Enrich] PublicAPIs", entries.slice(0, 200)); return entries;
-    } catch (e: any) { console.log("[Enrich] PublicAPIs fail", e.message); return null; }
+    }, "publicapis", 0).catch(() => null);
   }
-  // Public APIs repo as discovery source - fetch README via Jina for free API list
   async function fetchPublicApisRepo(q: string) {
-    try {
+    return withRetry(async () => {
       const res = await fetchWithTimeout("https://r.jina.ai/https://raw.githubusercontent.com/public-apis/public-apis/master/README.md", {}, 6000);
       const text = await res.text();
-      // Find relevant categories for this query
       const relevant = text.split("\n").filter((l: string) => l.toLowerCase().includes(q.split(" ")[0].toLowerCase())).slice(0, 3).join(" | ").slice(0, 500);
       console.log("[Enrich] PublicAPIs Repo", relevant.slice(0, 100)); return relevant || null;
-    } catch (e: any) { console.log("[Enrich] Repo fail", e.message); return null; }
+    }, "public-apis-repo", 0).catch(() => null);
   }
 
   const webSnippets = web.map((w: any) => w.snippet).join(" ").slice(0, 1500);
-  const [explorium, tinyfish, publicApis, publicRepo] = await Promise.all([fetchExplorium(query), fetchTinyfishEnrich(query, webSnippets), fetchPublicApis(), fetchPublicApisRepo(query)]);
+  const [explorium, tinyfish, publicApis, publicRepo] = await Promise.allSettled([fetchExplorium(query), fetchTinyfishEnrich(query, webSnippets), fetchPublicApis(), fetchPublicApisRepo(query)]);
+  const enrichVals = {
+    explorium: explorium.status === "fulfilled" ? explorium.value : null,
+    tinyfish: tinyfish.status === "fulfilled" ? tinyfish.value : null,
+    publicApis: [publicApis.status === "fulfilled" ? publicApis.value : null, publicRepo.status === "fulfilled" ? publicRepo.value : null].filter(Boolean).join(" | "),
+  };
 
   const linkedinHit = web.find((r: any) => r.url.includes("linkedin.com/in/")) || null;
   const linkedin = linkedinHit ? { url: linkedinHit.url } : null;
 
   return {
     web, google: web, linkedin, company: { snippets: web.slice(0, 5).map((w: any) => w.snippet).filter(Boolean) },
-    deepPages, enrichment: { explorium, tinyfish, publicApis: [publicApis, publicRepo].filter(Boolean).join(" | "), rawPublicApis: publicApis },
+    deepPages, enrichment: enrichVals,
     rawCount: web.length,
+    health: getHealthMetrics(),
   };
 }
 
