@@ -125,7 +125,22 @@ async function crawlEverywhere(query: string) {
 
   // Serper API (free 2500/month) - if SERPER_API_KEY set, use it. Most reliable on Vercel.
   async function fetchSerper(q: string) {
-    const key = process.env.SERPER_API_KEY;
+    const key = process.env.SERPER_API_KEY || process.env.TAVILY_API_KEY;
+    // Try Tavily if Serper not set
+    if (process.env.TAVILY_API_KEY) {
+      try {
+        const nodeFetch = (await import("node-fetch")).default;
+        const res: any = await nodeFetch("https://api.tavily.com/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ api_key: process.env.TAVILY_API_KEY, query: q, max_results: 8, include_answer: false }),
+        });
+        const data: any = await res.json();
+        const results: any[] = (data.results || []).slice(0, 8).map((r: any) => ({ title: r.title, snippet: r.content?.slice(0, 300) || "", url: r.url, source: "tavily" }));
+        console.log("[Crawl] Tavily found", results.length);
+        if (results.length) return results;
+      } catch (e: any) { console.log("[Crawl] Tavily failed:", e.message); }
+    }
     if (!key) { console.log("[Crawl] Serper skipped - no key"); return []; }
     try {
       const nodeFetch = (await import("node-fetch")).default;
@@ -139,6 +154,25 @@ async function crawlEverywhere(query: string) {
       console.log("[Crawl] Serper found", results.length);
       return results;
     } catch (e: any) { console.log("[Crawl] Serper failed:", e.message); return []; }
+  }
+  async function fetchBingViaJina(q: string) {
+    try {
+      const jinaUrl = `https://r.jina.ai/https://www.bing.com/search?q=${encodeURIComponent(q)}`;
+      const res = await fetchWithTimeout(jinaUrl, { headers: { "User-Agent": UA, "Accept": "text/markdown" } }, 10000);
+      const text = await res.text();
+      console.log("[Crawl] Bing-Jina len", text.length, text.slice(0, 400));
+      if (text.includes("Just a moment") && text.includes("challenges.cloudflare")) return [];
+      const results: any[] = [];
+      const linkRegex = /\[([^\]]{5,150})\]\((https?:\/\/[^\)]+)\)/g;
+      let m;
+      while ((m = linkRegex.exec(text)) && results.length < 8) {
+        const url = m[2];
+        if (url.includes("bing.com/search") || url.includes("microsoft.com") || url.includes("bing.com/aclick")) continue;
+        results.push({ title: m[1].replace(/\*\*/g, "").trim(), snippet: "", url, source: "bing-jina" });
+      }
+      console.log("[Crawl] Bing-Jina found", results.length);
+      return results;
+    } catch (e: any) { console.log("[Crawl] Bing-Jina failed:", e.message); return []; }
   }
   // CorsProxy + Lite DDG - bypasses Cloudflare, more reliable than AllOrigins
   async function fetchViaCorsProxy(q: string) {
@@ -242,8 +276,8 @@ async function crawlEverywhere(query: string) {
     } catch (e: any) { console.log("[Crawl] Jina failed:", e.message); return []; }
   }
 
-  const [ddg, bing, jina, gjina, serper, allorig, corsp] = await Promise.all([fetchDuckDuckGo(query), fetchBing(query), fetchViaJina(query), fetchGoogleViaJina(query), fetchSerper(query), fetchViaAllOrigins(query), fetchViaCorsProxy(query)]);
-  const merged = [...serper, ...corsp, ...allorig, ...ddg, ...bing, ...jina, ...gjina];
+  const [ddg, bing, jina, gjina, serper, allorig, corsp, bingJina] = await Promise.all([fetchDuckDuckGo(query), fetchBing(query), fetchViaJina(query), fetchGoogleViaJina(query), fetchSerper(query), fetchViaAllOrigins(query), fetchViaCorsProxy(query), fetchBingViaJina(query)]);
+  const merged = [...serper, ...bingJina, ...corsp, ...allorig, ...ddg, ...bing, ...jina, ...gjina];
   // Deduplicate by URL
   const seen = new Set();
   const web = merged.filter(r => {
