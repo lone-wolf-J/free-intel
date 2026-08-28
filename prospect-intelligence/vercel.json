@@ -27,7 +27,6 @@
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "buildCommand": "npm run build:vercel",
-  "env": {
-    "GROQ_API_KEY": "@GROQ_API_KEY"
-  }
+  "env": {},
+  "buildEnv": {}
 }
