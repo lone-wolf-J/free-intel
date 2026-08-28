@@ -26,11 +26,11 @@ export async function searchProspectHandler(query: string) {
       aiError = e?.message || String(e);
       console.error("[SearchHandler] AI error:", aiError);
       // Tinyfish fallback as LLM if Groq fails
-      if (process.env.TINYFISH_API_KEY && aiError.includes("Groq")) {
+      if (process.env.TINYFISH_API_KEY && aiError && aiError.includes("Groq")) {
         try {
           console.log("[Fallback] Trying Tinyfish LLM...");
           aiAnalysis = await analyzeWithTinyfish(query, crawlResults);
-        } catch (e2: any) { console.log("[Fallback] Tinyfish also failed", e2.message); }
+        } catch (e2: any) { console.log("[Fallback] Tinyfish also failed", (e2 as any).message); }
       }
     }
   }
