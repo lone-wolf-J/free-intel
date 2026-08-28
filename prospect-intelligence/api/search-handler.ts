@@ -123,8 +123,27 @@ async function crawlEverywhere(query: string) {
     } catch { return null; }
   }
 
-  const [ddg, bing] = await Promise.all([fetchDuckDuckGo(query), fetchBing(query)]);
-  const merged = [...ddg, ...bing];
+  // Also try Jina AI reader as fallback (bypasses Vercel blocks, free)
+  async function fetchViaJina(q: string) {
+    try {
+      const jinaUrl = `https://r.jina.ai/http://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`;
+      const res = await fetchWithTimeout(jinaUrl, { headers: { "User-Agent": UA, "Accept": "text/markdown" } }, 9000);
+      const text = await res.text();
+      const results: any[] = [];
+      // Jina returns markdown with links like [title](url)
+      const linkRegex = /\[([^\]]{5,120})\]\((https?:\/\/[^\)]+)\)/g;
+      let m;
+      while ((m = linkRegex.exec(text)) && results.length < 8) {
+        if (m[2].includes("duckduckgo.com") || m[2].includes("bing.com")) continue;
+        results.push({ title: m[1].trim(), snippet: "", url: m[2], source: "jina" });
+      }
+      console.log("[Crawl] Jina found", results.length);
+      return results;
+    } catch (e: any) { console.log("[Crawl] Jina failed:", e.message); return []; }
+  }
+
+  const [ddg, bing, jina] = await Promise.all([fetchDuckDuckGo(query), fetchBing(query), fetchViaJina(query)]);
+  const merged = [...ddg, ...bing, ...jina];
   // Deduplicate by URL
   const seen = new Set();
   const web = merged.filter(r => {
