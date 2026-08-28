@@ -27,6 +27,5 @@
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "buildCommand": "npm run build:vercel",
-  "env": {},
-  "buildEnv": {}
+  "env": {}
 }
