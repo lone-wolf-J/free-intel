@@ -32,6 +32,7 @@ import {
   AlertCircle,
   CheckCircle,
   Zap,
+  ArrowRight,
 } from "lucide-react";
 import { GlassCard, Panel, GlowRing, TypeWriter, DataStream } from "@/components/ui/primitives";
 
@@ -333,34 +334,109 @@ function CaseDossier({ data, onSave }: { data: CaseData; onSave: () => void }) {
   );
 }
 
+interface Candidate {
+  id: string;
+  name: string;
+  title: string;
+  company: string;
+  location: string;
+  snippet: string;
+  url: string;
+  source: string;
+  confidence: number;
+}
+
 export default function FindThem() {
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [result, setResult] = useState<CaseData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [candidates, setCandidates] = useState<Candidate[] | null>(null);
+  const [candidateQuery, setCandidateQuery] = useState("");
+  const [resolving, setResolving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleSearch = async () => {
-    if (!query.trim()) return;
+  const runSearch = async (finalQuery: string) => {
     setSearching(true);
     setResult(null);
     setError(null);
-
     try {
       const res = await fetch("/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: query.trim() }),
+        body: JSON.stringify({ query: finalQuery }),
       });
-      if (!res.ok) throw new Error(`Search failed (${res.status})`);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Search failed (${res.status})`);
+      }
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setResult(data);
     } catch (err: any) {
-      setError(err.message || "Search failed. Is the backend server running?");
+      const msg = err.message || "Search failed. Is the backend server running?";
+      if (msg.includes("QUOTA") || msg.includes("limit") || msg.includes("exhausted")) {
+        setError("AI quota temporarily exhausted (Groq 8000 tokens/min). Retrying with fallback... Please try again in 30s or try a more specific query (name + company).");
+      } else {
+        setError(msg);
+      }
     } finally {
       setSearching(false);
     }
+  };
+
+  const handleSearch = async () => {
+    const q = query.trim();
+    if (!q) return;
+    setSearching(true);
+    setResult(null);
+    setError(null);
+    setCandidates(null);
+
+    try {
+      // Step 1: Get disambiguation candidates (lightweight, saves deep scrape credits)
+      setResolving(true);
+      const candRes = await fetch("/api/candidates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: q }),
+      });
+      setResolving(false);
+      if (candRes.ok) {
+        const candData = await candRes.json();
+        const cands: Candidate[] = candData.candidates || [];
+        // Only show popup if ambiguous: multiple candidates and top confidence not decisive
+        if (cands.length > 1) {
+          const top = cands[0]?.confidence || 0;
+          const second = cands[1]?.confidence || 0;
+          const isAmbiguous = top < 85 || (top - second) < 20;
+          if (isAmbiguous) {
+            setCandidateQuery(q);
+            setCandidates(cands);
+            setSearching(false);
+            return;
+          }
+        }
+        if (cands.length === 1 && cands[0].confidence >= 85) {
+          // Single high-confidence match - use its name directly
+          await runSearch(cands[0].name + (cands[0].company ? ` ${cands[0].company}` : ""));
+          return;
+        }
+      }
+    } catch (e) {
+      console.log("Candidates failed, falling back to direct search", e);
+      setResolving(false);
+    }
+    // Fallback: direct search
+    await runSearch(q);
+  };
+
+  const handleCandidateSelect = async (c: Candidate) => {
+    // Build refined query with name + company + url to ground the deep crawl
+    const refined = `${c.name}${c.company ? ` ${c.company}` : ""} ${c.url}`.trim();
+    setCandidates(null);
+    setQuery(c.name);
+    await runSearch(refined);
   };
 
   const handleSaveToPipeline = async () => {
@@ -471,6 +547,87 @@ export default function FindThem() {
           </div>
         </motion.div>
       </section>
+
+      {/* Disambiguation Popup - saves scrape credits */}
+      <AnimatePresence>
+        {candidates && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => setCandidates(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-2xl max-h-[80vh] overflow-hidden glass-bright rounded-xl holo-border"
+            >
+              <div className="p-6 border-b border-slate-700/30">
+                <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                  <Users size={18} className="text-cyan" />
+                  Which {candidateQuery} did you mean?
+                </h3>
+                <p className="text-xs text-slate-400 mt-1 font-mono">
+                  Multiple matches found. Pick the right profile to run deep intelligence (saves scrape credits).
+                </p>
+              </div>
+              <div className="overflow-y-auto max-h-[50vh] p-4 space-y-3">
+                {candidates.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => handleCandidateSelect(c)}
+                    className="w-full text-left glass-card p-4 rounded-xl hover:border-cyan/40 hover:bg-cyan/5 transition-all group"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex gap-3 flex-1 min-w-0">
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-cyan/20 to-violet-neon/20 border border-slate-600/30 flex items-center justify-center shrink-0">
+                          <User size={16} className="text-slate-300" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-bold text-slate-100 truncate">{c.name}</div>
+                          <div className="text-xs text-slate-400 truncate">{c.title}{c.company ? ` — ${c.company}` : ""}</div>
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {c.location && <span className="chip border-slate-600/30 text-slate-400 text-[10px]"><MapPin size={8} />{c.location}</span>}
+                            {c.url && <span className="chip border-cyan/20 text-cyan/70 text-[10px] truncate max-w-[180px]"><Globe size={8} />{new URL(c.url).hostname}</span>}
+                          </div>
+                          <div className="text-[11px] text-slate-500 mt-2 line-clamp-2">{c.snippet}</div>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className={`text-xs font-mono font-bold ${c.confidence > 70 ? "text-lime-neon" : c.confidence > 40 ? "text-amber-neon" : "text-slate-500"}`}>{c.confidence}%</div>
+                        <div className="text-[10px] text-slate-600 font-mono uppercase">match</div>
+                        <ArrowRight size={14} className="text-slate-600 group-hover:text-cyan ml-auto mt-2 transition-colors" />
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <div className="p-4 border-t border-slate-700/30 flex gap-2">
+                <button onClick={() => setCandidates(null)} className="btn-ghost flex-1 py-2 text-xs">CANCEL</button>
+                <button
+                  onClick={() => { const q = candidateQuery; setCandidates(null); runSearch(q); }}
+                  className="btn-ghost flex-1 py-2 text-xs border-cyan/30 text-cyan"
+                >
+                  SEARCH ANYWAY — "{candidateQuery}"
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Resolving indicator */}
+      {resolving && (
+        <div className="max-w-4xl mx-auto px-6 pb-4">
+          <div className="glass rounded-xl p-4 flex items-center justify-center gap-3">
+            <span className="h-4 w-4 rounded-full border-2 border-violet-neon/30 border-t-violet-neon animate-spin" />
+            <span className="text-xs font-mono text-slate-400">Finding matching profiles...</span>
+          </div>
+        </div>
+      )}
 
       <section className="max-w-4xl mx-auto px-6 pb-24">
         {error && (

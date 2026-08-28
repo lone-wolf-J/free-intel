@@ -45,8 +45,15 @@ export class GroqProvider extends BaseProvider implements AIProvider {
       console.log("[GroqProvider] Generation successful, usage:", res.usage);
       return text;
     } catch (e: any) {
-      this.recordFailure(e.message);
-      console.warn("[GroqProvider] Generation failed:", e.message);
+      const msg = e.message || String(e);
+      const isRateLimit = msg.includes("429") || msg.toLowerCase().includes("rate") || msg.toLowerCase().includes("quota") || msg.toLowerCase().includes("tpm") || e.status === 429;
+      if (isRateLimit) {
+        this.recordFailure("QUOTA_EXCEEDED");
+        console.warn("[GroqProvider] Rate limit hit, switching provider");
+        throw new Error("QUOTA_EXCEEDED");
+      }
+      this.recordFailure(msg);
+      console.warn("[GroqProvider] Generation failed:", msg);
       throw e;
     }
   }

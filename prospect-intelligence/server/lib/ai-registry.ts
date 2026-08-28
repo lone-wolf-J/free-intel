@@ -52,14 +52,48 @@ export class AIRegistry {
   }
 
   async generateJSON<T>(prompt: string, options?: GenerateOptions): Promise<{ result: T; provider: string }> {
-    const { text, provider } = await this.generate(prompt, options);
-    console.log("[AI Registry] Raw response (first 500 chars):", text.substring(0, 500));
-    
-    // Try to extract JSON from markdown code blocks
+    const available = this.getAvailableProviders().sort((a, b) => this.primaryOrder.indexOf(a.name) - this.primaryOrder.indexOf(b.name));
+    let lastErr: any = null;
+    for (const provider of available) {
+      try {
+        console.log(`[AI Registry] Trying ${provider.name} for JSON...`);
+        const text = await provider.generate(prompt, options);
+        console.log("[AI Registry] Raw response (first 500 chars):", text.substring(0, 500));
+        let parsed = this.parseJsonRobust<T>(text);
+        if (parsed) {
+          this.lastUsedProvider = provider.name;
+          // record success is inside provider
+          return { result: parsed, provider: provider.name };
+        }
+        console.warn(`[AI Registry] ${provider.name} JSON parse failed, trying repair...`);
+        try {
+          const repairPrompt = `Fix this broken JSON and return ONLY valid JSON (no markdown, no explanation). Ensure all strings are properly escaped, no trailing commas, no unescaped newlines:\n\n${text.slice(0, 6000)}`;
+          // Use same provider for repair if possible, else fallback
+          const repairText = await provider.generate(repairPrompt, { temperature: 0, maxTokens: 4000 }).catch(() => text);
+          const repairedParsed = this.parseJsonRobust<T>(repairText);
+          if (repairedParsed) {
+            console.log(`[AI Registry] ${provider.name} repair succeeded`);
+            this.lastUsedProvider = provider.name;
+            return { result: repairedParsed, provider: provider.name };
+          }
+        } catch (e: any) { console.warn(`[AI Registry] ${provider.name} repair failed:`, e.message); }
+        lastErr = new Error(`${provider.name} JSON parse failed`);
+        continue;
+      } catch (e: any) {
+        console.warn(`[AI Registry] ${provider.name} generate failed:`, e.message);
+        lastErr = e;
+        if (e.message === "QUOTA_EXCEEDED") continue;
+        // For other errors, still try next provider
+        continue;
+      }
+    }
+    throw lastErr || new Error("All AI providers exhausted for JSON");
+  }
+
+  private parseJsonRobust<T>(text: string): T | null {
+    // Extract from code blocks first
     const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
     let raw = jsonMatch ? jsonMatch[1].trim() : text.trim();
-    
-    // If still not valid JSON, try to find the first { and last }
     if (!raw.startsWith('{')) {
       const firstBrace = raw.indexOf('{');
       const lastBrace = raw.lastIndexOf('}');
@@ -67,51 +101,53 @@ export class AIRegistry {
         raw = raw.substring(firstBrace, lastBrace + 1);
       }
     }
-    
-    // Clean common JSON issues
-    raw = raw
-      .replace(/,\s*}/g, '}')  // Remove trailing commas before }
-      .replace(/,\s*]/g, ']')  // Remove trailing commas before ]
-      .replace(/([{,]\s*)(\w+)(\s*:)/g, '$1"$2"$3'); // Quote unquoted property names
-    
-    console.log("[AI Registry] Parsed JSON (first 200 chars):", raw.substring(0, 200));
-    
-    try {
-      return { result: JSON.parse(raw), provider };
-    } catch (e: any) {
-      console.error("[AI Registry] JSON parse failed:", e.message);
-      console.error("[AI Registry] Full raw text:", text);
-      // Try one more time: just extract whatever looks like JSON
-      const fallback = this.extractJSONFallback(text);
-      if (fallback) {
-        console.log("[AI Registry] Fallback JSON extraction succeeded");
-        return { result: fallback as T, provider };
-      }
-      throw new Error(`JSON parse failed: ${e.message}`);
+    // Try direct parse
+    try { return JSON.parse(raw) as T; } catch {}
+    // Try with common fixes
+    const fixes = [
+      (s: string) => s.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']'),
+      (s: string) => s.replace(/([{,]\s*)(\w+)(\s*:)/g, '$1"$2"$3'),
+      (s: string) => s.replace(/[\u0000-\u001F]+/g, " ").replace(/\n/g, "\\n").replace(/\r/g, ""),
+      (s: string) => s.replace(/\\n/g, " ").replace(/\t/g, " "),
+      (s: string) => {
+        // Fix unescaped quotes inside values: replace "value with "unescaped" quote" patterns
+        // Simple heuristic: balance quotes
+        return s;
+      },
+    ];
+    for (const fix of fixes) {
+      try {
+        const fixed = fix(raw);
+        return JSON.parse(fixed) as T;
+      } catch {}
     }
+    // Try fallback extraction with line/column repair: remove problematic char at error position
+    try {
+      // Attempt to sanitize by removing control chars and fixing trailing
+      let sanitized = raw.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
+      // Fix common LLM mistake: single quotes around keys/values
+      sanitized = sanitized.replace(/'/g, '"');
+      return JSON.parse(sanitized) as T;
+    } catch {}
+    // Last resort: extract via fallback patterns
+    return this.extractJSONFallback<T>(text);
   }
 
-  private extractJSONFallback(text: string): any {
-    // Try to find any JSON-like structure
+  private extractJSONFallback<T>(text: string): T | null {
     const patterns = [
       /\{[\s\S]*"person"[\s\S]*\}/,
       /\{[\s\S]*"sections"[\s\S]*\}/,
       /\{[\s\S]*"confidenceScore"[\s\S]*\}/,
     ];
-    
     for (const pattern of patterns) {
       const match = text.match(pattern);
       if (match) {
         try {
           let raw = match[0];
-          raw = raw
-            .replace(/,\s*}/g, '}')
-            .replace(/,\s*]/g, ']')
-            .replace(/([{,]\s*)(\w+)(\s*:)/g, '$1"$2"$3');
-          return JSON.parse(raw);
-        } catch {
-          continue;
-        }
+          raw = raw.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']').replace(/([{,]\s*)(\w+)(\s*:)/g, '$1"$2"$3');
+          raw = raw.replace(/[\u0000-\u001F]+/g, " ");
+          return JSON.parse(raw) as T;
+        } catch { continue; }
       }
     }
     return null;
