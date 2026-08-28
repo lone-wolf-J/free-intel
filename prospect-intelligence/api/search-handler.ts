@@ -123,14 +123,39 @@ async function crawlEverywhere(query: string) {
     } catch { return null; }
   }
 
-  // Also try Jina AI reader as fallback (bypasses Vercel blocks, free)
+  // Jina-wrapped fetchers - bypass Vercel IP blocks (free, no key)
+  async function fetchGoogleViaJina(q: string) {
+    try {
+      const jinaUrl = `https://r.jina.ai/https://www.google.com/search?q=${encodeURIComponent(q)}&num=10`;
+      const res = await fetchWithTimeout(jinaUrl, { headers: { "User-Agent": UA, "Accept": "text/markdown", "X-Return-Format": "markdown" } }, 10000);
+      const text = await res.text();
+      console.log("[Crawl] Google-Jina text len", text.length, "snippet", text.slice(0, 600));
+      const results: any[] = [];
+      const linkRegex = /\[([^\]]{5,150})\]\((https?:\/\/[^\)]+)\)/g;
+      let m;
+      while ((m = linkRegex.exec(text)) && results.length < 10) {
+        const url = m[2];
+        if (url.includes("google.com/search") || url.includes("googleusercontent") || url.includes("support.google")) continue;
+        const title = m[1].trim().replace(/\*\*/g, "");
+        // Try to get snippet: next line after link in jina markdown is often description
+        results.push({ title, snippet: "", url, source: "google-jina" });
+      }
+      // Also try to extract snippets from Jina markdown blocks
+      const lines = text.split("\n");
+      for (let i = 0; i < results.length; i++) {
+        const idx = lines.findIndex(l => l.includes(results[i].url));
+        if (idx >= 0 && lines[idx + 1]) results[i].snippet = lines[idx + 1].slice(0, 250);
+      }
+      console.log("[Crawl] Google-Jina found", results.length);
+      return results;
+    } catch (e: any) { console.log("[Crawl] Google-Jina failed:", e.message); return []; }
+  }
   async function fetchViaJina(q: string) {
     try {
       const jinaUrl = `https://r.jina.ai/http://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`;
       const res = await fetchWithTimeout(jinaUrl, { headers: { "User-Agent": UA, "Accept": "text/markdown" } }, 9000);
       const text = await res.text();
       const results: any[] = [];
-      // Jina returns markdown with links like [title](url)
       const linkRegex = /\[([^\]]{5,120})\]\((https?:\/\/[^\)]+)\)/g;
       let m;
       while ((m = linkRegex.exec(text)) && results.length < 8) {
@@ -142,8 +167,8 @@ async function crawlEverywhere(query: string) {
     } catch (e: any) { console.log("[Crawl] Jina failed:", e.message); return []; }
   }
 
-  const [ddg, bing, jina] = await Promise.all([fetchDuckDuckGo(query), fetchBing(query), fetchViaJina(query)]);
-  const merged = [...ddg, ...bing, ...jina];
+  const [ddg, bing, jina, gjina] = await Promise.all([fetchDuckDuckGo(query), fetchBing(query), fetchViaJina(query), fetchGoogleViaJina(query)]);
+  const merged = [...ddg, ...bing, ...jina, ...gjina];
   // Deduplicate by URL
   const seen = new Set();
   const web = merged.filter(r => {
