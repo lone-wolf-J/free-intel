@@ -231,7 +231,7 @@ app.post("/api/auth/login", async (c) => {
         "Set-Cookie": `session=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=86400`,
       },
     });
-  } catch (e: any) { return c.json({ error: "Invalid request", detail: String(e?.message || e).slice(0, 100) }, 400); }
+  } catch { return c.json({ error: "Invalid request" }, 400); }
 });
 
 app.post("/api/auth/logout", async (c) => {
