@@ -1,0 +1,2 @@
+Admin Key: fi_admin_401532
+Pass via: Authorization: Bearer fi_admin_401532 or ?admin_key=fi_admin_401532
