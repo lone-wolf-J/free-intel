@@ -615,20 +615,46 @@ app.get("/api/admin/overview", async (c) => {
 app.post("/api/admin/rescore", async (c) => {
   if (!await requireAdmin(c)) return c.json({ error: "unauthorized" }, 401);
   if (!checkRateLimit("admin-rescore", 1, 300000)) return c.json({ error: "rate_limited" }, 429);
-  const rows = await sql`SELECT id, slug, name, github_url, popularity, forks, free_score, license, category, tags, github_last_push FROM resources WHERE origin = 'github-scan' OR github_url IS NOT NULL LIMIT 500` as any[];
+  const rows = await sql`SELECT id, slug, name, github_url, popularity, forks, free_score, license, category, tags, github_last_push, verification_status, free_types, confidence_score, alt_of, description, origin FROM resources LIMIT 1000` as any[];
   let updated = 0;
   for (const r of rows) {
-    const fakeRepo = {
-      stargazers_count: Number(r.popularity) || 0,
-      forks_count: Number(r.forks) || 0,
-      license: r.license ? { spdx_id: r.license } : null,
-      description: "",
-      topics: parseJson(r.tags, []),
-      pushed_at: r.github_last_push || null,
-      size: 0,
-      open_issues_count: 0,
-    };
-    const newScore = calcFreeScore(fakeRepo);
+    let newScore = 0;
+    if (r.github_url) {
+      const fakeRepo = {
+        stargazers_count: Number(r.popularity) || 0,
+        forks_count: Number(r.forks) || 0,
+        license: r.license ? { spdx_id: r.license } : null,
+        description: "",
+        topics: parseJson(r.tags, []),
+        pushed_at: r.github_last_push || null,
+        size: 0,
+        open_issues_count: 0,
+      };
+      newScore = calcFreeScore(fakeRepo);
+    } else {
+      // Non-GitHub: compute from available metadata
+      if (r.verification_status === "verified") newScore += 25;
+      else if (r.verification_status === "published") newScore += 15;
+      else if (r.verification_status === "classified") newScore += 10;
+      const ft = parseJson(r.free_types, []);
+      if (ft.includes("open_source")) newScore += 20;
+      if (ft.includes("free_tier")) newScore += 15;
+      if (ft.includes("self_hosted")) newScore += 12;
+      if (ft.includes("free_forever")) newScore += 10;
+      if (ft.includes("free_credits")) newScore += 8;
+      if (r.alt_of) newScore += 10;
+      if (r.license && !["NOASSERTION", "UNLICENSED"].includes(r.license)) newScore += 12;
+      if ((r.description || "").length > 100) newScore += 5;
+      if ((r.description || "").length > 300) newScore += 3;
+      const conf = Number(r.confidence_score) || 0;
+      if (conf > 80) newScore += 8;
+      else if (conf > 60) newScore += 5;
+      else if (conf > 40) newScore += 3;
+      const tags = parseJson(r.tags, []);
+      if (tags.length >= 3) newScore += 5;
+      if (tags.length >= 5) newScore += 3;
+      newScore = Math.min(newScore, 100);
+    }
     if (newScore !== Number(r.free_score)) {
       await sql`UPDATE resources SET free_score = ${newScore} WHERE id = ${r.id}`;
       updated++;
