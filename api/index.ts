@@ -4,6 +4,35 @@ import { neon } from "@neondatabase/serverless";
 
 const sql = neon(process.env.POSTGRES_URL!);
 
+// ─── RATE LIMITING (in-memory, per-invocation) ───
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+function checkRateLimit(key: string, maxRequests: number, windowMs: number): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(key);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (entry.count >= maxRequests) return false;
+  entry.count++;
+  return true;
+}
+
+// ─── INPUT VALIDATION HELPERS ───
+function sanitizeString(s: unknown, maxLen: number): string {
+  if (typeof s !== "string") return "";
+  return s.trim().slice(0, maxLen);
+}
+function isValidUrl(u: string): boolean {
+  try { const parsed = new URL(u); return ["http:", "https:"].includes(parsed.protocol); } catch { return false; }
+}
+function isPrivateIp(hostname: string): boolean {
+  if (/^(localhost|127\.0\.0\.1|0\.0\.0\.0|::1|::)$/i.test(hostname)) return true;
+  if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.|fc00:|fe80:)/i.test(hostname)) return true;
+  if (/(?:metadata|169\.254\.169\.254)/i.test(hostname)) return true;
+  return false;
+}
+
 const BAD_CATEGORIES = new Set(["pricing", "directory", "ai-directory", "research", "newsletter", "news", "vendor-blog", "vendor blog", "comparison", "tutorial", "guide", "list", "roundup", "announcement"]);
 const BAD_URL_PATTERNS = [/reddit\.com/i, /arxiv\.org/i, /theguardian\.com/i, /medium\.com/i, /substack\.com/i, /twitter\.com/i, /x\.com/i, /linkedin\.com\/pulse/i, /hackernews\.com/i, /news\.ycombinator\.com/i, /\.pdf$/i];
 const BAD_NAME_PATTERNS = [/highlights/i, /self-promotion/i, /thread/i, /backs down/i, /expands access/i, /commitment to/i, /boom/i, /what will we/i, /comment/i, /show hn/i];
@@ -17,8 +46,6 @@ function isTool(r: any): boolean {
   if (BAD_NAME_PATTERNS.some(p => p.test(name))) return false;
   return true;
 }
-async function unsafeRows(query: string): Promise<any[]> { return (await sql.query(query)) as any[]; }
-const esc = (s: string) => s.replace(/'/g, "''");
 
 function parseJson(v: any, def: any): any {
   if (v == null) return def;
@@ -112,7 +139,27 @@ const TOOLS_DATA: ToolRecord[] = [{"names":["ChatGPT","chat gpt","openai chatgpt
 //  HONO APP
 // ═══════════════════════════════════════════════════════════════
 const app = new Hono();
-app.use("*", cors());
+app.use("*", cors({
+  origin: ["https://free-intel.vercel.app", "http://localhost:5173", "http://127.0.0.1:5173"],
+  allowMethods: ["GET", "POST", "OPTIONS"],
+  allowHeaders: ["Content-Type", "Authorization"],
+  credentials: false,
+}));
+
+// ─── ADMIN AUTH MIDDLEWARE ───
+function requireAdmin(c: any): boolean {
+  const adminKey = process.env.ADMIN_API_KEY;
+  if (!adminKey) return true;
+  const auth = c.req.header("Authorization") || "";
+  const body = c.req.query("admin_key") || "";
+  return auth === `Bearer ${adminKey}` || body === adminKey;
+}
+
+// ─── REQUEST LOGGING (errors only) ───
+app.onError((err, c) => {
+  console.error(`[api] ${c.req.method} ${c.req.path} error:`, String(err?.message || err).slice(0, 200));
+  return c.json({ error: "internal_error", message: "An unexpected error occurred." }, 500);
+});
 
 // ─── Health ───
 app.get("/api/health", async (c) => {
@@ -153,13 +200,15 @@ app.get("/api/daily", async (c) => {
 
 // ─── Radar GitHub Scan ───
 app.post("/api/radar/github-scan", async (c) => {
+  if (!checkRateLimit("gh-scan", 5, 60000)) return c.json({ error: "rate_limited" }, 429);
   const { query } = await c.req.json();
-  if (!query) return c.json({ ok: false, message: "query_required", discovered: 0, errors: [] });
+  const q = sanitizeString(query, 200);
+  if (!q) return c.json({ ok: false, message: "query_required", discovered: 0, errors: [] });
   const token = process.env.GITHUB_TOKEN;
   const headers: Record<string, string> = { Accept: "application/vnd.github+json" };
   if (token) headers.Authorization = `Bearer ${token}`;
   try {
-    const res = await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&sort=stars&per_page=10`, { headers });
+    const res = await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(q)}&sort=stars&per_page=10`, { headers });
     const data = await res.json() as any;
     let discovered = 0;
     const errors: string[] = [];
@@ -172,7 +221,7 @@ app.post("/api/radar/github-scan", async (c) => {
         discovered++;
       } catch (e: any) { errors.push(e.message); }
     }
-    return c.json({ ok: true, message: `Scanned GitHub for "${query}". Discovered ${discovered} repos.`, discovered, errors });
+    return c.json({ ok: true, message: `Scanned GitHub for "${q}". Discovered ${discovered} repos.`, discovered, errors });
   } catch (e: any) {
     return c.json({ ok: false, message: `GitHub API error: ${e.message}`, discovered: 0, errors: [e.message] });
   }
@@ -216,15 +265,17 @@ app.get("/api/alternatives/stats", (c) => {
 
 // ─── Products Resolve ───
 app.post("/api/products/resolve", async (c) => {
+  if (!checkRateLimit("resolve", 15, 60000)) return c.json({ error: "rate_limited" }, 429);
   const { name } = await c.req.json();
-  if (!name) return c.json({ error: "name_required" }, 400);
-  const curated = findTool(name);
+  const cleanName = sanitizeString(name, 80);
+  if (!cleanName) return c.json({ error: "name_required" }, 400);
+  const curated = findTool(cleanName);
   if (curated) {
     const bestAlt = curated.alternatives[0];
     return c.json({
       resolved: true, resolved_via: "alternatives-intel",
       product: {
-        slug: name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        slug: cleanName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
         name: curated.names[0], provider: null, category: curated.category,
         description: `${curated.names[0]} - ${curated.category} tool`,
         website: bestAlt?.url || null, pricing_url: null,
@@ -242,9 +293,9 @@ app.post("/api/products/resolve", async (c) => {
       })),
     });
   }
-  const p = `%${name}%`;
+  const p = `%${cleanName}%`;
   const rows = await sql`SELECT * FROM resources WHERE name ILIKE ${p} OR slug ILIKE ${p} LIMIT 1`;
-  if (!(rows as any[]).length) return c.json({ resolved: false, message: `"${name}" is not in our curated database yet.`, resolution: null, current_price: null, alternatives: [] });
+  if (!(rows as any[]).length) return c.json({ resolved: false, message: `"${cleanName}" is not in our curated database yet.`, resolution: null, current_price: null, alternatives: [] });
   const r = (rows as any[])[0];
   const altRows = await sql`SELECT slug, name, url, description, free_score, verification_status, alt_kind, license FROM resources WHERE alt_of = ${r.name} OR alt_of = ${r.slug} LIMIT 5`;
   const evRows = await sql`SELECT * FROM evidence WHERE resource_id = ${r.id} LIMIT 10`;
@@ -259,12 +310,14 @@ app.post("/api/products/resolve", async (c) => {
 
 // ─── Products Search Alternatives ───
 app.post("/api/products/search-alternatives", async (c) => {
+  if (!checkRateLimit("search-alt", 15, 60000)) return c.json({ error: "rate_limited" }, 429);
   const { tool } = await c.req.json();
-  if (!tool) return c.json({ error: "tool_required" }, 400);
-  const curated = findTool(tool);
+  const cleanTool = sanitizeString(tool, 80);
+  if (!cleanTool) return c.json({ error: "tool_required" }, 400);
+  const curated = findTool(cleanTool);
   if (curated) {
     return c.json({
-      tool, in_seed_database: true,
+      tool: cleanTool, in_seed_database: true,
       results: curated.alternatives.map(a => ({
         name: a.name, slug: a.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
         url: a.url, description: a.description, score: a.score,
@@ -277,11 +330,11 @@ app.post("/api/products/search-alternatives", async (c) => {
       category: curated.category, typical_cost: curated.typical_cost_mo,
     });
   }
-  const fuzzyResults = searchTools(tool);
+  const fuzzyResults = searchTools(cleanTool);
   if (fuzzyResults.length > 0) {
     const first = fuzzyResults[0];
     return c.json({
-      tool, in_seed_database: true, resolved_fuzzy: true, resolved_name: first.names[0],
+      tool: cleanTool, in_seed_database: true, resolved_fuzzy: true, resolved_name: first.names[0],
       results: first.alternatives.map(a => ({
         name: a.name, slug: a.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
         url: a.url, description: a.description, score: a.score,
@@ -293,32 +346,37 @@ app.post("/api/products/search-alternatives", async (c) => {
       sources_checked: ["alternatives-intel", "verified-alternatives", "discovery-engine"],
     });
   }
-  const p = `%${tool}%`;
+  const p = `%${cleanTool}%`;
   const inSeed = await sql`SELECT id FROM resources WHERE name ILIKE ${p} OR alt_of ILIKE ${p} LIMIT 1`;
   const alts = await sql`SELECT slug, name, url, description, free_score, license, self_hostable, verification_status FROM resources WHERE alt_of ILIKE ${p} OR (name ILIKE ${p} AND alt_of IS NOT NULL) ORDER BY free_score DESC LIMIT 10`;
   const fromDb = await sql`SELECT slug, name, url, description, free_score, license, verification_status FROM resources WHERE name ILIKE ${p} OR description ILIKE ${p} ORDER BY free_score DESC LIMIT 5`;
   const results = [...(alts as any[]).map((a: any) => ({ name: a.name, slug: a.slug, url: a.url, description: a.description, score: Number(a.free_score) || 0, source: "discovery-engine", reasoning: `Free alternative. License: ${a.license}.`, key_differences: [] })),
     ...(fromDb as any[]).filter((f: any) => !alts.find((a: any) => a.slug === f.slug)).map((f: any) => ({ name: f.name, slug: f.slug, url: f.url, description: f.description, score: Number(f.free_score) || 0, source: "discovery-engine", reasoning: "Found in database.", key_differences: [] }))];
-  return c.json({ tool, in_seed_database: (inSeed as any[]).length > 0, results: results.slice(0, 10), sources_checked: ["verified-alternatives", "discovery-engine", "github-search"] });
+  return c.json({ tool: cleanTool, in_seed_database: (inSeed as any[]).length > 0, results: results.slice(0, 10), sources_checked: ["verified-alternatives", "discovery-engine", "github-search"] });
 });
 
 // ─── Cost Analyze ───
 app.post("/api/cost/analyze", async (c) => {
+  if (!checkRateLimit("cost", 10, 60000)) return c.json({ error: "rate_limited" }, 429);
   const { tools } = await c.req.json();
   if (!tools?.length) return c.json({ total_monthly_spend_entered: 0, estimated_monthly_saving: 0, estimated_annual_saving: 0, lines_analyzed: 0, lines_awaiting_input: 0, confidence_note: "No tools provided.", analyses: [] });
+  const cleanTools = (Array.isArray(tools) ? tools : []).slice(0, 12).map((t: any, i: number) => ({
+    name: sanitizeString(t?.name || t?.tool, 80),
+    monthly_cost: typeof t?.monthly_cost === "number" ? t.monthly_cost : typeof t?.cost === "number" ? t.cost : 0,
+    line_number: typeof t?.line_number === "number" ? t.line_number : i + 1,
+  }));
   let totalSpend = 0, totalSaving = 0, analyzed = 0;
   const analyses = [];
-  for (const tool of tools) {
-    const name = tool.name || tool.tool;
-    const cost = Number(tool.monthly_cost || tool.cost || 0);
-    totalSpend += cost;
-    const curated = findTool(name);
+  for (const tool of cleanTools) {
+    if (!tool.name) continue;
+    totalSpend += tool.monthly_cost;
+    const curated = findTool(tool.name);
     if (curated && curated.alternatives.length > 0) {
       const bestAlt = curated.alternatives[0];
-      const saving = cost;
+      const saving = tool.monthly_cost;
       totalSaving += saving; analyzed++;
       analyses.push({
-        tool: name, resolved: true, status: "ANALYZED", current_cost: cost, cost_basis: "your entered spend",
+        tool: tool.name, resolved: true, status: "ANALYZED", current_cost: tool.monthly_cost, cost_basis: "your entered spend",
         possible_cost: 0,
         possible_cost_basis: `${bestAlt.type === "open_source" ? "Open source" : bestAlt.type === "free_tier" ? "Free tier" : "Free alternative"}: ${bestAlt.name}`,
         monthly_saving: saving, annual_saving: saving * 12,
@@ -352,17 +410,17 @@ app.post("/api/cost/analyze", async (c) => {
       });
       continue;
     }
-    const p = `%${name}%`;
+    const p = `%${tool.name}%`;
     const rows = await sql`SELECT * FROM resources WHERE name ILIKE ${p} OR slug ILIKE ${p} OR alt_of ILIKE ${p} LIMIT 1`;
     if ((rows as any[]).length) {
       const r = (rows as any[])[0];
       const altRows = await sql`SELECT slug, name, url, description, free_score, license, self_hostable FROM resources WHERE alt_of = ${r.name} OR alt_of = ${r.slug} ORDER BY free_score DESC LIMIT 3`;
       const alt = (altRows as any[])[0];
       if (alt) {
-        const saving = cost;
+        const saving = tool.monthly_cost;
         totalSaving += saving; analyzed++;
         analyses.push({
-          tool: name, resolved: true, status: "ANALYZED", current_cost: cost, cost_basis: "your entered spend",
+          tool: tool.name, resolved: true, status: "ANALYZED", current_cost: tool.monthly_cost, cost_basis: "your entered spend",
           possible_cost: 0, possible_cost_basis: `$0 via ${alt.name} (${alt.license})`,
           monthly_saving: saving, annual_saving: saving * 12,
           line_number: tool.line_number || analyzed, category: r.category || "unknown",
@@ -371,15 +429,15 @@ app.post("/api/cost/analyze", async (c) => {
           replacement: { slug: alt.slug, name: alt.name, url: alt.url, description: alt.description, score: Number(alt.free_score) || 0, relationship: "OPEN-SOURCE ALTERNATIVE", free_score: Number(alt.free_score) || 0, license: alt.license },
           also_considered: (altRows as any[]).slice(1).map((a: any) => ({ name: a.name, slug: a.slug, description: a.description, score: Number(a.free_score) || 0, url: a.url })),
           alternatives: (altRows as any[]).map((a: any) => ({ name: a.name, slug: a.slug, description: a.description, score: Number(a.free_score) || 0, url: a.url, kind: "open_source" })),
-          recommendation: `${alt.name} (OPEN-SOURCE ALTERNATIVE) may replace ${name}. Validate before cancelling.`,
+          recommendation: `${alt.name} (OPEN-SOURCE ALTERNATIVE) may replace ${tool.name}. Validate before cancelling.`,
         });
         continue;
       }
     }
     analyses.push({
-      tool: name, resolved: false, status: "NEEDS_COST_INPUT",
-      message: `No verified free alternative found for "${name}" in our database.`,
-      alternatives: [], current_cost: cost,
+      tool: tool.name, resolved: false, status: "NEEDS_COST_INPUT",
+      message: `No verified free alternative found for "${tool.name}" in our database.`,
+      alternatives: [], current_cost: tool.monthly_cost,
       line_number: tool.line_number || analyzed + 1,
       category: "unknown", difficulty: "unknown",
     });
@@ -400,15 +458,23 @@ app.post("/api/cost/analyze", async (c) => {
 
 // ─── Submissions ───
 app.post("/api/submissions", async (c) => {
+  if (!checkRateLimit("submit", 5, 300000)) return c.json({ error: "rate_limited", message: "Too many submissions. Try again later." }, 429);
   const { url, name, description, why_useful } = await c.req.json();
-  if (!url) return c.json({ error: "valid_url_required" }, 400);
+  const cleanUrl = sanitizeString(url, 2000);
+  if (!cleanUrl || !isValidUrl(cleanUrl)) return c.json({ error: "valid_url_required" }, 400);
+  try { if (isPrivateIp(new URL(cleanUrl).hostname)) return c.json({ error: "invalid_url" }, 400); } catch { return c.json({ error: "valid_url_required" }, 400); }
+  const cleanName = sanitizeString(name, 120);
+  const cleanDesc = sanitizeString(description, 600);
+  const cleanWhy = sanitizeString(why_useful, 600);
   await sql`CREATE TABLE IF NOT EXISTS submissions (id SERIAL PRIMARY KEY, url TEXT NOT NULL, name TEXT, description TEXT, why_useful TEXT, status TEXT DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW())`;
-  const rows = await sql`INSERT INTO submissions (url, name, description, why_useful, status) VALUES (${url}, ${name || ""}, ${description || ""}, ${why_useful || ""}, 'pending') RETURNING id`;
+  const rows = await sql`INSERT INTO submissions (url, name, description, why_useful, status) VALUES (${cleanUrl}, ${cleanName}, ${cleanDesc}, ${cleanWhy}, 'pending') RETURNING id`;
   return c.json({ ok: true, id: (rows as any[])[0]?.id, status: "verification", message: "Submission captured. The engine will independently fetch and verify it." });
 });
 
 // ─── Admin Overview ───
 app.get("/api/admin/overview", async (c) => {
+  if (!requireAdmin(c)) return c.json({ error: "unauthorized" }, 401);
+  if (!checkRateLimit("admin-overview", 30, 60000)) return c.json({ error: "rate_limited" }, 429);
   const statusCounts = await sql`SELECT verification_status as s, COUNT(*)::int as n FROM resources GROUP BY verification_status`;
   const lowConf = await sql`SELECT slug, name, confidence_score, verification_status FROM resources WHERE confidence_score < 40 ORDER BY confidence_score ASC LIMIT 10`;
   const sources = await sql`SELECT * FROM sources ORDER BY tier, name LIMIT 50`;
@@ -418,14 +484,20 @@ app.get("/api/admin/overview", async (c) => {
 });
 
 app.post("/api/admin/submissions/:id", async (c) => {
+  if (!requireAdmin(c)) return c.json({ error: "unauthorized" }, 401);
+  if (!checkRateLimit("admin-sub", 20, 60000)) return c.json({ error: "rate_limited" }, 429);
   const id = Number(c.req.param("id"));
+  if (!Number.isFinite(id) || id <= 0) return c.json({ error: "invalid_id" }, 400);
   const body = await c.req.json();
   await sql`UPDATE submissions SET status = ${body.action === "approve" ? "approved" : "rejected"} WHERE id = ${id}`;
   return c.json({ ok: true });
 });
 
 app.post("/api/admin/resources/:slug", async (c) => {
-  const slug = c.req.param("slug");
+  if (!requireAdmin(c)) return c.json({ error: "unauthorized" }, 401);
+  if (!checkRateLimit("admin-res", 20, 60000)) return c.json({ error: "rate_limited" }, 429);
+  const slug = sanitizeString(c.req.param("slug"), 120);
+  if (!slug) return c.json({ error: "invalid_slug" }, 400);
   const body = await c.req.json();
   if (body.action === "autoverify") {
     await sql`UPDATE resources SET verification_status = 'verified', confidence_score = 80 WHERE slug = ${slug}`;
@@ -436,14 +508,25 @@ app.post("/api/admin/resources/:slug", async (c) => {
 });
 
 app.post("/api/admin/sources/:id/toggle", async (c) => {
+  if (!requireAdmin(c)) return c.json({ error: "unauthorized" }, 401);
+  if (!checkRateLimit("admin-src", 20, 60000)) return c.json({ error: "rate_limited" }, 429);
   const id = Number(c.req.param("id"));
+  if (!Number.isFinite(id) || id <= 0) return c.json({ error: "invalid_id" }, 400);
   await sql`UPDATE sources SET active = CASE WHEN active = 1 THEN 0 ELSE 1 END WHERE id = ${id}`;
   return c.json({ ok: true });
 });
 
 // ─── Resources ───
 app.get("/api/resources", async (c) => {
-  const { q, category, free_type, sort, origin, alt, slug, limit = "50", offset = "0" } = c.req.query();
+  const rawQ = c.req.query("q");
+  const q = rawQ ? sanitizeString(rawQ, 300) : "";
+  const category = c.req.query("category") ? sanitizeString(c.req.query("category"), 100) : "";
+  const free_type = c.req.query("free_type") ? sanitizeString(c.req.query("free_type"), 50) : "";
+  const sort = c.req.query("sort") ? sanitizeString(c.req.query("sort"), 20) : "";
+  const origin = c.req.query("origin") ? sanitizeString(c.req.query("origin"), 50) : "";
+  const alt = c.req.query("alt");
+  const limit = "50";
+  const offset = "0";
   const lim = Math.min(Number(limit) || 50, 200);
   const off = Number(offset) || 0;
   let rows: any[];
@@ -472,23 +555,28 @@ app.get("/api/resources", async (c) => {
 });
 
 app.get("/api/resources/search", async (c) => {
-  const { q, limit = "20" } = c.req.query();
+  if (!checkRateLimit("res-search", 30, 60000)) return c.json({ error: "rate_limited" }, 429);
+  const q = sanitizeString(c.req.query("q"), 300);
+  const lim = Math.min(Number(c.req.query("limit") || 20), 100);
   if (!q) return c.json({ results: [], total: 0 });
   const p = `%${q}%`;
   const rows = await sql`SELECT * FROM resources WHERE name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p} ORDER BY free_score DESC NULLS LAST LIMIT 200` as any[];
-  const filtered = rows.filter(isTool).map(mapResource).slice(0, Number(limit));
+  const filtered = rows.filter(isTool).map(mapResource).slice(0, lim);
   return c.json({ results: filtered, total: filtered.length });
 });
 
 app.post("/api/resources/ai-search", async (c) => {
-  const { q, limit = "20" } = await c.req.json();
-  if (!q) return c.json({ items: [], count: 0, results: [], total: 0, query: q, expanded_terms: [] });
-  const words = q.split(/\s+/).filter((w: string) => w.length > 2);
+  if (!checkRateLimit("ai-search", 10, 60000)) return c.json({ error: "rate_limited" }, 429);
+  const body = await c.req.json();
+  const cleanQ = sanitizeString(body.q, 300);
+  const lim = Math.min(Number(body.limit) || 20, 100);
+  if (!cleanQ) return c.json({ items: [], count: 0, results: [], total: 0, query: "", expanded_terms: [] });
+  const words = cleanQ.split(/\s+/).filter((w: string) => w.length > 2);
   if (words.length === 0) {
-    const p = `%${q}%`;
+    const p = `%${cleanQ}%`;
     const rows = await sql`SELECT * FROM resources WHERE name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p} OR capabilities::text ILIKE ${p} ORDER BY free_score DESC NULLS LAST LIMIT 500` as any[];
-    const filtered = rows.filter(isTool).map(mapResource).slice(0, Number(limit));
-    return c.json({ items: filtered, count: filtered.length, results: filtered, total: filtered.length, query: q, expanded_terms: [q] });
+  const filtered = rows.filter(isTool).map(mapResource).slice(0, lim);
+    return c.json({ items: filtered, count: filtered.length, results: filtered, total: filtered.length, query: cleanQ, expanded_terms: [cleanQ] });
   }
   const wordClauses = words.map((w: string) => {
     const p = `%${w}%`;
@@ -507,15 +595,17 @@ app.post("/api/resources/ai-search", async (c) => {
     const bMatches = words.filter((w: string) => bLower.includes(w)).length;
     if (bMatches !== aMatches) return bMatches - aMatches;
     return (b.free_score || 0) - (a.free_score || 0);
-  }).slice(0, Number(limit));
-  return c.json({ items: scored, count: scored.length, results: scored, total: scored.length, query: q, expanded_terms: words });
+  }).slice(0, lim);
+  return c.json({ items: scored, count: scored.length, results: scored, total: scored.length, query: cleanQ, expanded_terms: words });
 });
 
 // ─── Stacks Generate ───
 app.post("/api/stacks/generate", async (c) => {
+  if (!checkRateLimit("stacks", 10, 60000)) return c.json({ error: "rate_limited" }, 429);
   const { goal } = await c.req.json();
-  if (!goal) return c.json({ project_name: "My Stack", layers: [], total_tools: 0 });
-  const goalLower = goal.toLowerCase();
+  const cleanGoal = sanitizeString(goal, 500);
+  if (!cleanGoal) return c.json({ project_name: "My Stack", layers: [], total_tools: 0 });
+  const goalLower = cleanGoal.toLowerCase();
   const capabilityMap: Record<string, string[]> = {
     "frontend": ["ui", "frontend", "react", "vue", "css", "component", "design", "tailwind", "svelte"],
     "backend": ["api", "server", "backend", "rest", "graphql", "express", "fastapi", "flask"],
@@ -569,7 +659,7 @@ app.post("/api/stacks/generate", async (c) => {
     if (results.length > 0) {
       layers.push({
         layer: cap.charAt(0).toUpperCase() + cap.slice(1), capability: cap,
-        purpose: `For ${cap} functionality in your ${goal} project`,
+        purpose: `For ${cap} functionality in your ${cleanGoal} project`,
         tools: results.slice(0, 4).map((r: any) => ({
           name: r.name, slug: r.slug, url: r.url || r.github_url || "",
           description: r.description || "", score: Number(r.free_score) || 0, source: "database", free: true,
@@ -611,7 +701,7 @@ app.post("/api/stacks/generate", async (c) => {
     }
   }
   return c.json({
-    project_name: goal, description: `Suggested free stack for: ${goal}`,
+    project_name: cleanGoal, description: `Suggested free stack for: ${cleanGoal}`,
     estimated_monthly_cost: "$0 (all free/open-source)",
     setup_complexity: layers.length > 4 ? "Medium" : "Easy",
     layers, tool_replacements: [], total_tools: totalTools,
@@ -621,17 +711,20 @@ app.post("/api/stacks/generate", async (c) => {
 
 // ─── GitHub Intel ───
 app.get("/api/github/intel", async (c) => {
-  const { q, limit = "20" } = c.req.query();
+  if (!checkRateLimit("gh-intel", 20, 60000)) return c.json({ error: "rate_limited" }, 429);
+  const q = sanitizeString(c.req.query("q"), 200);
+  const lim = Math.min(Number(c.req.query("limit") || 20), 50);
   if (!q) return c.json({ results: [], total: 0 });
   const p = `%${q}%`;
-  const rows = await sql`SELECT * FROM resources WHERE (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p}) AND github_url IS NOT NULL ORDER BY popularity DESC NULLS LAST LIMIT ${Number(limit)}` as any[];
+  const rows = await sql`SELECT * FROM resources WHERE (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p}) AND github_url IS NOT NULL ORDER BY popularity DESC NULLS LAST LIMIT ${lim}` as any[];
   return c.json({ results: rows.map(mapResource), total: rows.length });
 });
 
 // ─── Deals ───
 app.get("/api/deals", async (c) => {
+  if (!checkRateLimit("deals", 30, 60000)) return c.json({ error: "rate_limited" }, 429);
   const filterType = c.req.query("type");
-  const searchQuery = c.req.query("q");
+  const searchQuery = c.req.query("q") ? sanitizeString(c.req.query("q"), 200) : null;
 
   // Build deals from alternatives database
   const allTools = getAllTools();
