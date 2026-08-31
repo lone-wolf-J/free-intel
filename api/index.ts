@@ -33,6 +33,14 @@ function isPrivateIp(hostname: string): boolean {
   return false;
 }
 
+const ALLOWED_FETCH_HOSTS = new Set(["api.github.com"]);
+async function safeFetch(url: string, init?: RequestInit): Promise<Response> {
+  const parsed = new URL(url);
+  if (!ALLOWED_FETCH_HOSTS.has(parsed.hostname)) throw new Error("Blocked: fetch to disallowed host");
+  if (isPrivateIp(parsed.hostname)) throw new Error("Blocked: fetch to private IP");
+  return fetch(url, init);
+}
+
 const BAD_CATEGORIES = new Set(["pricing", "directory", "ai-directory", "research", "newsletter", "news", "vendor-blog", "vendor blog", "comparison", "tutorial", "guide", "list", "roundup", "announcement"]);
 const BAD_URL_PATTERNS = [/reddit\.com/i, /arxiv\.org/i, /theguardian\.com/i, /medium\.com/i, /substack\.com/i, /twitter\.com/i, /x\.com/i, /linkedin\.com\/pulse/i, /hackernews\.com/i, /news\.ycombinator\.com/i, /\.pdf$/i];
 const BAD_NAME_PATTERNS = [/highlights/i, /self-promotion/i, /thread/i, /backs down/i, /expands access/i, /commitment to/i, /boom/i, /what will we/i, /comment/i, /show hn/i];
@@ -208,7 +216,7 @@ app.post("/api/radar/github-scan", async (c) => {
   const headers: Record<string, string> = { Accept: "application/vnd.github+json" };
   if (token) headers.Authorization = `Bearer ${token}`;
   try {
-    const res = await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(q)}&sort=stars&per_page=10`, { headers });
+    const res = await safeFetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(q)}&sort=stars&per_page=10`, { headers });
     const data = await res.json() as any;
     let discovered = 0;
     const errors: string[] = [];
