@@ -612,6 +612,65 @@ app.get("/api/admin/overview", async (c) => {
   return c.json({ status_counts: statusCounts, low_confidence: lowConf, sources, submissions, duplicates: [], recent_scans: recentScans, crawl_queue: [], recent_task_errors: [], db_time: new Date().toISOString() });
 });
 
+app.post("/api/admin/rescore", async (c) => {
+  if (!await requireAdmin(c)) return c.json({ error: "unauthorized" }, 401);
+  if (!checkRateLimit("admin-rescore", 1, 300000)) return c.json({ error: "rate_limited" }, 429);
+  const rows = await sql`SELECT id, slug, name, github_url, popularity, forks, free_score, license, category, tags, github_last_push FROM resources WHERE origin = 'github-scan' OR github_url IS NOT NULL LIMIT 500` as any[];
+  let updated = 0;
+  for (const r of rows) {
+    const fakeRepo = {
+      stargazers_count: Number(r.popularity) || 0,
+      forks_count: Number(r.forks) || 0,
+      license: r.license ? { spdx_id: r.license } : null,
+      description: "",
+      topics: parseJson(r.tags, []),
+      pushed_at: r.github_last_push || null,
+      size: 0,
+      open_issues_count: 0,
+    };
+    const newScore = calcFreeScore(fakeRepo);
+    if (newScore !== Number(r.free_score)) {
+      await sql`UPDATE resources SET free_score = ${newScore} WHERE id = ${r.id}`;
+      updated++;
+    }
+  }
+  return c.json({ ok: true, total: rows.length, updated, message: `Re-scored ${rows.length} resources, ${updated} scores changed` });
+});
+
+app.post("/api/admin/dedup", async (c) => {
+  if (!await requireAdmin(c)) return c.json({ error: "unauthorized" }, 401);
+  if (!checkRateLimit("admin-dedup", 1, 300000)) return c.json({ error: "rate_limited" }, 429);
+  const allRows = await sql`SELECT id, slug, name, url, github_url, category, free_score, verification_status, created_at FROM resources ORDER BY created_at ASC` as any[];
+  const groups = new Map<string, any[]>();
+  for (const row of allRows) {
+    const key = (row.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+    if (!key || key.length < 2) continue;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(row);
+  }
+  let mergeCount = 0;
+  let groupCount = 0;
+  for (const [key, members] of groups) {
+    if (members.length <= 1) continue;
+    members.sort((a: any, b: any) => {
+      if (a.verification_status === "verified" && b.verification_status !== "verified") return -1;
+      if (b.verification_status === "verified" && a.verification_status !== "verified") return 1;
+      return (Number(b.free_score) || 0) - (Number(a.free_score) || 0);
+    });
+    const keep = members[0];
+    for (const dup of members.slice(1)) {
+      await sql`UPDATE resources SET alt_of = ${keep.name} WHERE alt_of = ${dup.name}`;
+      await sql`UPDATE resources SET alt_of = ${keep.name} WHERE alt_of = ${dup.slug}`;
+      await sql`UPDATE evidence SET resource_id = ${keep.id} WHERE resource_id = ${dup.id}`;
+      await sql`UPDATE events SET resource_id = ${keep.id} WHERE resource_id = ${dup.id}`;
+      await sql`DELETE FROM resources WHERE id = ${dup.id}`;
+      mergeCount++;
+    }
+    groupCount++;
+  }
+  return c.json({ ok: true, groups: groupCount, merged: mergeCount, message: `Merged ${mergeCount} duplicates across ${groupCount} groups` });
+});
+
 app.post("/api/admin/submissions/:id", async (c) => {
   if (!await requireAdmin(c)) return c.json({ error: "unauthorized" }, 401);
   if (!checkRateLimit("admin-sub", 20, 60000)) return c.json({ error: "rate_limited" }, 429);
