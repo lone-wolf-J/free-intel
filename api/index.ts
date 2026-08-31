@@ -828,101 +828,149 @@ app.post("/api/stacks/generate", async (c) => {
   const cleanGoal = sanitizeString(goal, 500);
   if (!cleanGoal) return c.json({ project_name: "My Stack", layers: [], total_tools: 0 });
   const goalLower = cleanGoal.toLowerCase();
+  // Step 1: Parse goal into intent keywords (ignore generic words)
+  const STOP_WORDS = new Set(["free", "tool", "build", "create", "make", "need", "want", "replace", "with", "that", "this", "from", "your", "project", "website", "platform", "system", "online", "stack", "best", "alternative", "alternatives", "for", "using", "use", "without", "paid", "like", "similar", "some", "all", "and", "the", "any", "open", "source", "self", "hosted"]);
+  const intentWords = goalLower.split(/[\s\-_\/]+/).filter((w: string) => w.length > 2 && !STOP_WORDS.has(w));
+
+  // Step 2: Define specific category searches per goal intent
+  // Each entry: [search_term, description_suffix, max_results]
+  const GOAL_RECIPES: Record<string, [string, string, number][]> = {
+    "ai_directory": [["ai tools directory", "tool discovery & listing", 3], ["ai aggregator", "multi-provider aggregation", 2], ["open source ai", "core AI backbone", 2]],
+    "ai_agents": [["ai agent framework", "agent orchestration", 3], ["mcp server", "tool integration", 2], ["rag pipeline", "knowledge retrieval", 2]],
+    "chatbot": [["chatbot framework", "conversational AI", 3], ["llm api", "model inference", 2], ["vector database", "context storage", 2]],
+    "code_assistant": [["code assistant", "AI code completion", 3], ["code generation", "auto-generation", 2], ["code review", "quality analysis", 2]],
+    "image": [["image generation", "image creation", 3], ["stable diffusion", "diffusion model", 2], ["image editing", "post-processing", 2]],
+    "voice": [["text to speech", "TTS synthesis", 3], ["speech to text", "transcription", 2], ["voice cloning", "voice synthesis", 2]],
+    "data": [["data pipeline", "ETL & processing", 3], ["data scraping", "web scraping", 2], ["data visualization", "dashboards", 2]],
+    "security": [["security scanning", "vulnerability detection", 3], ["secret management", "credential storage", 2], ["authentication", "auth & access", 2]],
+    "frontend": [["ui component", "UI building blocks", 3], ["css framework", "styling", 2], ["frontend framework", "SPA framework", 2]],
+    "backend": [["api framework", "REST/GraphQL APIs", 3], ["database", "data storage", 2], ["caching", "performance layer", 2]],
+    "devops": [["ci/cd", "continuous delivery", 3], ["container", "Docker/K8s", 2], ["monitoring", "observability", 2]],
+    "automation": [["workflow automation", "task orchestration", 3], ["n8n", "visual automation", 2], ["cron scheduler", "job scheduling", 2]],
+    "email": [["email service", "transactional email", 3], ["newsletter", "email marketing", 2], ["smtp", "email delivery", 2]],
+    "search": [["search engine", "full-text search", 3], ["vector search", "semantic search", 2], ["elasticsearch", "search infrastructure", 2]],
+    "storage": [["file storage", "object storage", 3], ["image hosting", "media delivery", 2], ["cdn", "content delivery", 2]],
+    "payment": [["payment processing", "billing", 3], ["invoice", "invoicing", 2], ["subscription", "recurring billing", 2]],
+    "crm": [["crm", "customer management", 3], ["lead management", "sales pipeline", 2], ["email marketing", "outreach", 2]],
+    "ecommerce": [["ecommerce platform", "online store", 3], ["product catalog", "inventory", 2], ["checkout", "payment flow", 2]],
+    "analytics": [["analytics dashboard", "data visualization", 3], ["metrics", "KPI tracking", 2], ["logging", "event tracking", 2]],
+    "monitoring": [["monitoring", "uptime & alerts", 3], ["log aggregation", "centralized logging", 2], ["apm", "performance monitoring", 2]],
+  };
+
+  // Step 3: Find matching recipe — try exact match first, then partial
+  let recipe: [string, string, number][] | null = null;
+  for (const [key, val] of Object.entries(GOAL_RECIPES)) {
+    if (goalLower.includes(key) || key.split("_").some(kw => goalLower.includes(kw))) {
+      recipe = val;
+      break;
+    }
+  }
+  // Fallback: detect capabilities from goal words
   const capabilityMap: Record<string, string[]> = {
-    "frontend": ["ui", "frontend", "react", "vue", "css", "component", "design", "tailwind", "svelte"],
-    "backend": ["api", "server", "backend", "rest", "graphql", "express", "fastapi", "flask"],
-    "database": ["database", "sql", "postgres", "mongo", "redis", "sqlite", "orm", "db"],
-    "auth": ["auth", "authentication", "login", "sso", "oauth", "jwt", "session"],
-    "ai": ["llm", "ai", "gpt", "chat", "agent", "inference", "embedding", "mcp", "rag"],
+    "frontend": ["ui", "frontend", "react", "vue", "css", "component", "design", "tailwind"],
+    "backend": ["api", "server", "backend", "rest", "graphql", "express", "fastapi"],
+    "database": ["database", "sql", "postgres", "mongo", "redis", "sqlite", "orm"],
+    "auth": ["auth", "login", "sso", "oauth", "jwt", "session"],
+    "ai": ["llm", "gpt", "chat", "inference", "embedding", "mcp", "rag"],
     "voice": ["voice", "tts", "stt", "speech", "audio", "whisper"],
     "vision": ["vision", "image", "ocr", "diffusion", "stable-diffusion"],
-    "hosting": ["hosting", "deploy", "vercel", "docker", "kubernetes", "serverless", "cloud"],
-    "monitoring": ["monitor", "observ", "log", "trace", "alert", "analytics"],
-    "email": ["email", "smtp", "newsletter", "mail", "sendgrid", "ses"],
-    "search": ["search", "elasticsearch", "meilisearch", "typesense"],
-    "payment": ["payment", "stripe", "billing", "invoice", "checkout"],
-    "storage": ["storage", "file", "s3", "upload", "image-hosting"],
-    "automation": ["workflow", "automat", "pipeline", "ci/cd", "zapier", "n8n"],
-    "crm": ["crm", "customer", "sales", "lead", "hubspot"],
-    "project": ["project", "task", "kanban", "todo", "jira", "linear"],
-    "chat": ["chat", "messaging", "slack", "team", "communication", "real-time"],
-    "ecommerce": ["ecommerce", "shop", "store", "cart", "product", "commerce"],
-    "analytics": ["analytics", "dashboard", "report", "metric", "tracking"],
-    "security": ["security", "encrypt", "vault", "secret", "firewall"],
-    "data": ["data", "etl", "pipeline", "processing", "scraping", "crawler"],
+    "hosting": ["hosting", "deploy", "vercel", "docker", "kubernetes", "serverless"],
+    "monitoring": ["monitor", "observ", "log", "trace", "alert"],
+    "email": ["email", "smtp", "newsletter", "sendgrid"],
+    "search": ["search", "elasticsearch", "meilisearch"],
+    "payment": ["payment", "stripe", "billing", "checkout"],
+    "storage": ["storage", "file", "s3", "upload"],
+    "automation": ["workflow", "automat", "pipeline", "ci/cd", "n8n"],
+    "data": ["data", "etl", "scraping", "crawler"],
   };
-  const detectedCaps: string[] = [];
-  for (const [cap, keywords] of Object.entries(capabilityMap)) {
-    if (keywords.some(kw => goalLower.includes(kw))) detectedCaps.push(cap);
+
+  if (!recipe) {
+    const detectedCaps: string[] = [];
+    for (const [cap, keywords] of Object.entries(capabilityMap)) {
+      if (intentWords.some(kw => keywords.some(k => k.includes(kw) || kw.includes(k)))) detectedCaps.push(cap);
+    }
+    if (detectedCaps.length === 0) detectedCaps.push("ai", "backend", "frontend", "database");
+    recipe = detectedCaps.slice(0, 4).map(cap => {
+      const kws = capabilityMap[cap] || [cap];
+      return [kws[0], `${cap} functionality`, 3];
+    });
   }
-  if (detectedCaps.length === 0) detectedCaps.push("ai", "backend", "frontend", "database");
-  // Extract meaningful words from the goal for targeted search
-  const goalWords = goalLower.split(/\s+/).filter((w: string) => w.length > 3 && !["free", "tool", "build", "create", "make", "need", "want", "replace", "with", "that", "this", "from", "your", "project", "website", "platform", "system", "online"].includes(w));
+
+  // Step 4: Execute recipe — search with specific terms, collect per-layer
   const layers: any[] = [];
   const usedSlugs = new Set<string>();
   let totalTools = 0;
-  for (const cap of detectedCaps.slice(0, 6)) {
-    const keywords = capabilityMap[cap] || [cap];
-    const searchTerms = [...keywords.slice(0, 2), ...goalWords.slice(0, 2)];
+  const EXCLUDED_CATS = new Set(["pricing", "directory", "ai-directory", "research", "newsletter", "news", "comparison", "tutorial", "guide", "list", "roundup", "announcement"]);
+
+  for (const [searchTerm, layerDesc, maxTools] of recipe!) {
     const results: any[] = [];
-    for (const term of searchTerms) {
-      if (results.length >= 4) break;
-      const p = `%${escapeLike(term)}%`;
-      const rows = await sql`SELECT slug, name, description, url, github_url, free_score, category, tags, license, self_hostable, popularity, provider, free_types, resource_type
+    const p = `%${escapeLike(searchTerm)}%`;
+    // Try exact phrase match first
+    const rows = await sql`SELECT slug, name, description, url, github_url, free_score, category, tags, license, self_hostable, popularity, provider, free_types, resource_type
+      FROM resources
+      WHERE (tags::text ILIKE ${p} OR name ILIKE ${p} OR description ILIKE ${p})
+      AND free_score >= 45
+      AND resource_type != 'article'
+      AND url NOT LIKE '%reddit.com%' AND url NOT LIKE '%arxiv.org%' AND url NOT LIKE '%theguardian%' AND url NOT LIKE '%medium.com%' AND url NOT LIKE '%substack.com%'
+      ORDER BY free_score DESC, popularity DESC NULLS LAST
+      LIMIT ${maxTools + 8}` as any[];
+    for (const r of (rows as any[])) {
+      if (usedSlugs.has(r.slug) || EXCLUDED_CATS.has(r.category) || !isTool(r)) continue;
+      results.push(r); usedSlugs.add(r.slug);
+      if (results.length >= maxTools) break;
+    }
+    // Fallback: if not enough results, try the first word of the search term
+    if (results.length < 2) {
+      const fallbackWord = searchTerm.split(" ")[0];
+      const fp = `%${escapeLike(fallbackWord)}%`;
+      const frows = await sql`SELECT slug, name, description, url, github_url, free_score, category, tags, license, self_hostable, popularity, provider, free_types, resource_type
         FROM resources
-        WHERE (tags::text ILIKE ${p} OR capabilities::text ILIKE ${p} OR name ILIKE ${p} OR description ILIKE ${p})
-        AND free_score >= 40
+        WHERE (tags::text ILIKE ${fp} OR name ILIKE ${fp} OR description ILIKE ${fp})
+        AND free_score >= 45
         AND resource_type != 'article'
-        AND category NOT IN ('pricing', 'directory', 'ai-directory', 'research', 'newsletter', 'news', 'comparison', 'tutorial', 'guide', 'list', 'roundup', 'announcement')
         AND url NOT LIKE '%reddit.com%' AND url NOT LIKE '%arxiv.org%' AND url NOT LIKE '%theguardian%' AND url NOT LIKE '%medium.com%' AND url NOT LIKE '%substack.com%'
         ORDER BY free_score DESC, popularity DESC NULLS LAST
-        LIMIT 6`;
-      for (const r of (rows as any[])) {
-        if (!usedSlugs.has(r.slug) && isTool(r)) { results.push(r); usedSlugs.add(r.slug); }
+        LIMIT ${maxTools + 8}` as any[];
+      for (const r of (frows as any[])) {
+        if (usedSlugs.has(r.slug) || EXCLUDED_CATS.has(r.category) || !isTool(r)) continue;
+        results.push(r); usedSlugs.add(r.slug);
+        if (results.length >= maxTools) break;
       }
     }
     if (results.length > 0) {
+      const capName = searchTerm.split(" ").slice(0, 2).join(" ");
       layers.push({
-        layer: cap.charAt(0).toUpperCase() + cap.slice(1), capability: cap,
-        purpose: `For ${cap} functionality in your ${cleanGoal} project`,
-        tools: results.slice(0, 4).map((r: any) => ({
+        layer: capName.charAt(0).toUpperCase() + capName.slice(1), capability: capName,
+        purpose: layerDesc + ` for ${cleanGoal}`,
+        tools: results.slice(0, maxTools).map((r: any) => ({
           name: r.name, slug: r.slug, url: r.url || r.github_url || "",
           description: r.description || "", score: Number(r.free_score) || 0, source: "database", free: true,
           open_source: (r.free_types || []).includes("open_source"),
           self_hostable: r.self_hostable === "yes", license: r.license || "Unknown", stars: Number(r.popularity) || 0,
         })),
       });
-      totalTools += Math.min(results.length, 4);
+      totalTools += Math.min(results.length, maxTools);
     }
   }
-  if (layers.length < 2) {
-    const goalWords = goalLower.split(/\s+/).filter((w: string) => w.length > 3);
-    for (const word of goalWords.slice(0, 2)) {
-      const p = `%${escapeLike(word)}%`;
-      const rows = await sql`SELECT slug, name, description, url, github_url, free_score, category, tags, license, self_hostable, popularity, provider, free_types, resource_type
-        FROM resources
-        WHERE (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p})
-        AND free_score >= 40
-        AND resource_type != 'article'
-        AND category NOT IN ('pricing', 'directory', 'ai-directory', 'research', 'newsletter', 'news', 'comparison', 'tutorial', 'guide', 'list', 'roundup', 'announcement')
-        AND url NOT LIKE '%reddit.com%' AND url NOT LIKE '%arxiv.org%' AND url NOT LIKE '%theguardian%' AND url NOT LIKE '%medium.com%' AND url NOT LIKE '%substack.com%'
-        ORDER BY free_score DESC
-        LIMIT 8`;
-      const results = (rows as any[]).filter((r: any) => !usedSlugs.has(r.slug) && isTool(r));
-      if (results.length > 0 && !layers.find(l => l.capability === word)) {
-        layers.push({
-          layer: word.charAt(0).toUpperCase() + word.slice(1), capability: word,
-          purpose: `For ${word} in your project`,
-          tools: results.slice(0, 3).map((r: any) => ({
-            name: r.name, slug: r.slug, url: r.url || r.github_url || "",
-            description: r.description || "", score: Number(r.free_score) || 0, source: "database", free: true,
-            open_source: (r.free_types || []).includes("open_source"),
-            self_hostable: r.self_hostable === "yes", license: r.license || "Unknown",
-          })),
-        });
-        results.forEach((r: any) => usedSlugs.add(r.slug));
-        totalTools += Math.min(results.length, 3);
-      }
+  // Fallback if nothing found
+  if (layers.length === 0) {
+    const fbRows = await sql`SELECT slug, name, description, url, github_url, free_score, category, tags, license, self_hostable, popularity, provider, free_types, resource_type
+      FROM resources WHERE free_score >= 60 AND resource_type != 'article'
+      AND category NOT IN ('pricing', 'directory', 'ai-directory', 'research', 'newsletter', 'news')
+      ORDER BY free_score DESC, popularity DESC NULLS LAST LIMIT 6` as any[];
+    const fbTools = (fbRows as any[]).filter((r: any) => isTool(r)).slice(0, 4);
+    if (fbTools.length > 0) {
+      layers.push({
+        layer: "Suggested", capability: "general",
+        purpose: `Top free tools for ${cleanGoal}`,
+        tools: fbTools.map((r: any) => ({
+          name: r.name, slug: r.slug, url: r.url || r.github_url || "",
+          description: r.description || "", score: Number(r.free_score) || 0, source: "database", free: true,
+          open_source: (r.free_types || []).includes("open_source"),
+          self_hostable: r.self_hostable === "yes", license: r.license || "Unknown", stars: Number(r.popularity) || 0,
+        })),
+      });
+      totalTools = fbTools.length;
     }
   }
   return c.json({
