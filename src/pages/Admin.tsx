@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { CheckCircle2, XCircle, RefreshCw, Hourglass, Database, Radio, GitMerge, Play } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { CheckCircle2, XCircle, RefreshCw, Hourglass, Database, Radio, GitMerge, Play, LogOut } from "lucide-react";
 import { api } from "@/lib/api";
 import { Panel, SectionTitle, Spinner } from "@/components/ui/primitives";
 import { sfx } from "@/lib/sound";
@@ -10,11 +10,25 @@ export default function Admin() {
   const [busy, setBusy] = useState("");
   const [toast, setToast] = useState("");
   const [scanning, setScanning] = useState(false);
+  const [authed, setAuthed] = useState<boolean | null>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetch("/api/auth/me").then(r => r.json()).then((d: any) => {
+      if (!d.authenticated) navigate("/admin/login");
+      else setAuthed(true);
+    }).catch(() => navigate("/admin/login"));
+  }, [navigate]);
 
   const load = useCallback(() => {
     api.adminOverview().then(setData).catch(() => {});
   }, []);
-  useEffect(load, [load]);
+  useEffect(() => { if (authed) load(); }, [authed, load]);
+
+  const logout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    navigate("/admin/login");
+  };
 
   const runScan = async (_kind: string = "batch") => {
     setScanning(true);
@@ -49,6 +63,7 @@ export default function Admin() {
     }
   };
 
+  if (authed === null) return <Spinner label="Checking authentication" />;
   if (!data) return <Spinner label="Loading operations console" />;
 
   const statusMap: Record<string, number> = {};
@@ -71,6 +86,7 @@ export default function Admin() {
               <Play size={12} /> {scanning ? "CRAWLING…" : "RUN CRAWL BATCH"}
             </button>
             <button onClick={load} className="btn-ghost"><RefreshCw size={12} /> REFRESH</button>
+            <button onClick={logout} className="btn-ghost text-red-400 hover:text-red-300"><LogOut size={12} /> LOGOUT</button>
           </div>
         }
       />

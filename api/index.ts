@@ -1,8 +1,51 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { neon } from "@neondatabase/serverless";
+import bcrypt from "bcryptjs";
 
 const sql = neon(process.env.POSTGRES_URL!);
+
+// ─── JWT HELPERS (Web Crypto) ───
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-dev-secret-change-me");
+function base64url(data: ArrayBuffer | Uint8Array | string): string {
+  const bytes = typeof data === "string" ? new TextEncoder().encode(data) : new Uint8Array(data);
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function base64urlDecode(s: string): Uint8Array {
+  const padded = s.replace(/-/g, "+").replace(/_/g, "/");
+  const binary = atob(padded);
+  return Uint8Array.from(binary, c => c.charCodeAt(0));
+}
+async function signJwt(payload: Record<string, any>, expiresInSec: number): Promise<string> {
+  const header = base64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const p = { ...payload, iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + expiresInSec };
+  const body = base64url(JSON.stringify(p));
+  const data = new TextEncoder().encode(`${header}.${body}`);
+  const key = await crypto.subtle.importKey("raw", JWT_SECRET, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, data);
+  return `${header}.${body}.${base64url(sig)}`;
+}
+async function verifyJwt(token: string): Promise<Record<string, any> | null> {
+  try {
+    const [header, body, sig] = token.split(".");
+    const data = new TextEncoder().encode(`${header}.${body}`);
+    const key = await crypto.subtle.importKey("raw", JWT_SECRET, { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+    const sigBytes = base64urlDecode(sig);
+    const valid = await crypto.subtle.verify("HMAC", key, sigBytes, data);
+    if (!valid) return null;
+    const payload = JSON.parse(new TextDecoder().decode(base64urlDecode(body)));
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
+    return payload;
+  } catch { return null; }
+}
+function parseCookie(cookieHeader: string | undefined, name: string): string | null {
+  if (!cookieHeader) return null;
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+function escapeLike(s: string): string {
+  return s.replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
 
 // ─── RATE LIMITING (in-memory, per-invocation) ───
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -155,13 +198,55 @@ app.use("*", cors({
 }));
 
 // ─── ADMIN AUTH MIDDLEWARE ───
-function requireAdmin(c: any): boolean {
-  const adminKey = process.env.ADMIN_API_KEY;
-  if (!adminKey) return true;
-  const auth = c.req.header("Authorization") || "";
-  const body = c.req.query("admin_key") || "";
-  return auth === `Bearer ${adminKey}` || body === adminKey;
+async function requireAdmin(c: any): Promise<boolean> {
+  const token = parseCookie(c.req.header("Cookie"), "session");
+  if (!token) return false;
+  const payload = await verifyJwt(token);
+  return payload?.role === "admin";
 }
+
+// ─── AUTH ENDPOINTS ───
+app.post("/api/auth/login", async (c) => {
+  if (!checkRateLimit("auth-login", 5, 60000)) return c.json({ error: "rate_limited" }, 429);
+  try {
+    const { username, password } = await c.req.json();
+    const cleanUser = sanitizeString(username, 50);
+    const cleanPass = sanitizeString(password, 128);
+    if (!cleanUser || !cleanPass) return c.json({ error: "Username and password required" }, 400);
+
+    const rows = await sql`SELECT id, username, password_hash FROM admin_users WHERE username = ${cleanUser}` as any[];
+    if (!(rows as any[]).length) return c.json({ error: "Invalid credentials" }, 401);
+
+    const user = (rows as any[])[0];
+    const valid = await bcrypt.compare(cleanPass, user.password_hash);
+    if (!valid) return c.json({ error: "Invalid credentials" }, 401);
+
+    await sql`UPDATE admin_users SET last_login = NOW() WHERE id = ${user.id}`;
+
+    const token = await signJwt({ sub: user.id, username: user.username, role: "admin" }, 86400);
+    return c.json({ ok: true, username: user.username }, {
+      headers: {
+        "Set-Cookie": `session=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=86400`,
+      },
+    });
+  } catch { return c.json({ error: "Invalid request" }, 400); }
+});
+
+app.post("/api/auth/logout", async (c) => {
+  return c.json({ ok: true }, {
+    headers: {
+      "Set-Cookie": "session=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0",
+    },
+  });
+});
+
+app.get("/api/auth/me", async (c) => {
+  const token = parseCookie(c.req.header("Cookie"), "session");
+  if (!token) return c.json({ authenticated: false });
+  const payload = await verifyJwt(token);
+  if (!payload || payload.role !== "admin") return c.json({ authenticated: false });
+  return c.json({ authenticated: true, username: payload.username });
+});
 
 // ─── REQUEST LOGGING (errors only) ───
 app.onError((err, c) => {
@@ -301,7 +386,7 @@ app.post("/api/products/resolve", async (c) => {
       })),
     });
   }
-  const p = `%${cleanName}%`;
+  const p = `%${escapeLike(cleanName)}%`;
   const rows = await sql`SELECT * FROM resources WHERE name ILIKE ${p} OR slug ILIKE ${p} LIMIT 1`;
   if (!(rows as any[]).length) return c.json({ resolved: false, message: `"${cleanName}" is not in our curated database yet.`, resolution: null, current_price: null, alternatives: [] });
   const r = (rows as any[])[0];
@@ -354,7 +439,7 @@ app.post("/api/products/search-alternatives", async (c) => {
       sources_checked: ["alternatives-intel", "verified-alternatives", "discovery-engine"],
     });
   }
-  const p = `%${cleanTool}%`;
+  const p = `%${escapeLike(cleanTool)}%`;
   const inSeed = await sql`SELECT id FROM resources WHERE name ILIKE ${p} OR alt_of ILIKE ${p} LIMIT 1`;
   const alts = await sql`SELECT slug, name, url, description, free_score, license, self_hostable, verification_status FROM resources WHERE alt_of ILIKE ${p} OR (name ILIKE ${p} AND alt_of IS NOT NULL) ORDER BY free_score DESC LIMIT 10`;
   const fromDb = await sql`SELECT slug, name, url, description, free_score, license, verification_status FROM resources WHERE name ILIKE ${p} OR description ILIKE ${p} ORDER BY free_score DESC LIMIT 5`;
@@ -418,7 +503,7 @@ app.post("/api/cost/analyze", async (c) => {
       });
       continue;
     }
-    const p = `%${tool.name}%`;
+    const p = `%${escapeLike(tool.name)}%`;
     const rows = await sql`SELECT * FROM resources WHERE name ILIKE ${p} OR slug ILIKE ${p} OR alt_of ILIKE ${p} LIMIT 1`;
     if ((rows as any[]).length) {
       const r = (rows as any[])[0];
@@ -481,7 +566,7 @@ app.post("/api/submissions", async (c) => {
 
 // ─── Admin Overview ───
 app.get("/api/admin/overview", async (c) => {
-  if (!requireAdmin(c)) return c.json({ error: "unauthorized" }, 401);
+  if (!await requireAdmin(c)) return c.json({ error: "unauthorized" }, 401);
   if (!checkRateLimit("admin-overview", 30, 60000)) return c.json({ error: "rate_limited" }, 429);
   const statusCounts = await sql`SELECT verification_status as s, COUNT(*)::int as n FROM resources GROUP BY verification_status`;
   const lowConf = await sql`SELECT slug, name, confidence_score, verification_status FROM resources WHERE confidence_score < 40 ORDER BY confidence_score ASC LIMIT 10`;
@@ -492,7 +577,7 @@ app.get("/api/admin/overview", async (c) => {
 });
 
 app.post("/api/admin/submissions/:id", async (c) => {
-  if (!requireAdmin(c)) return c.json({ error: "unauthorized" }, 401);
+  if (!await requireAdmin(c)) return c.json({ error: "unauthorized" }, 401);
   if (!checkRateLimit("admin-sub", 20, 60000)) return c.json({ error: "rate_limited" }, 429);
   const id = Number(c.req.param("id"));
   if (!Number.isFinite(id) || id <= 0) return c.json({ error: "invalid_id" }, 400);
@@ -502,7 +587,7 @@ app.post("/api/admin/submissions/:id", async (c) => {
 });
 
 app.post("/api/admin/resources/:slug", async (c) => {
-  if (!requireAdmin(c)) return c.json({ error: "unauthorized" }, 401);
+  if (!await requireAdmin(c)) return c.json({ error: "unauthorized" }, 401);
   if (!checkRateLimit("admin-res", 20, 60000)) return c.json({ error: "rate_limited" }, 429);
   const slug = sanitizeString(c.req.param("slug"), 120);
   if (!slug) return c.json({ error: "invalid_slug" }, 400);
@@ -516,7 +601,7 @@ app.post("/api/admin/resources/:slug", async (c) => {
 });
 
 app.post("/api/admin/sources/:id/toggle", async (c) => {
-  if (!requireAdmin(c)) return c.json({ error: "unauthorized" }, 401);
+  if (!await requireAdmin(c)) return c.json({ error: "unauthorized" }, 401);
   if (!checkRateLimit("admin-src", 20, 60000)) return c.json({ error: "rate_limited" }, 429);
   const id = Number(c.req.param("id"));
   if (!Number.isFinite(id) || id <= 0) return c.json({ error: "invalid_id" }, 400);
@@ -541,14 +626,14 @@ app.get("/api/resources", async (c) => {
   if (alt === "only") {
     rows = await sql`SELECT * FROM resources WHERE alt_of IS NOT NULL ORDER BY free_score DESC NULLS LAST LIMIT 500` as any[];
   } else if (q) {
-    const p = `%${q}%`;
+    const p = `%${escapeLike(q)}%`;
     rows = await sql`SELECT * FROM resources WHERE name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p} LIMIT 500` as any[];
   } else if (category && category !== "all") {
     rows = await sql`SELECT * FROM resources WHERE category = ${category} LIMIT 500` as any[];
   } else if (origin) {
     rows = await sql`SELECT * FROM resources WHERE origin = ${origin} LIMIT 500` as any[];
   } else if (free_type && free_type !== "all") {
-    const ftp = `%${free_type}%`;
+    const ftp = `%${escapeLike(free_type)}%`;
     rows = await sql`SELECT * FROM resources WHERE free_types::text ILIKE ${ftp} LIMIT 500` as any[];
   } else {
     rows = await sql`SELECT * FROM resources ORDER BY free_score DESC NULLS LAST LIMIT 500` as any[];
@@ -567,7 +652,7 @@ app.get("/api/resources/search", async (c) => {
   const q = sanitizeString(c.req.query("q"), 300);
   const lim = Math.min(Number(c.req.query("limit") || 20), 100);
   if (!q) return c.json({ results: [], total: 0 });
-  const p = `%${q}%`;
+  const p = `%${escapeLike(q)}%`;
   const rows = await sql`SELECT * FROM resources WHERE name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p} ORDER BY free_score DESC NULLS LAST LIMIT 200` as any[];
   const filtered = rows.filter(isTool).map(mapResource).slice(0, lim);
   return c.json({ results: filtered, total: filtered.length });
@@ -581,13 +666,13 @@ app.post("/api/resources/ai-search", async (c) => {
   if (!cleanQ) return c.json({ items: [], count: 0, results: [], total: 0, query: "", expanded_terms: [] });
   const words = cleanQ.split(/\s+/).filter((w: string) => w.length > 2);
   if (words.length === 0) {
-    const p = `%${cleanQ}%`;
+    const p = `%${escapeLike(cleanQ)}%`;
     const rows = await sql`SELECT * FROM resources WHERE name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p} OR capabilities::text ILIKE ${p} ORDER BY free_score DESC NULLS LAST LIMIT 500` as any[];
   const filtered = rows.filter(isTool).map(mapResource).slice(0, lim);
     return c.json({ items: filtered, count: filtered.length, results: filtered, total: filtered.length, query: cleanQ, expanded_terms: [cleanQ] });
   }
   const wordClauses = words.map((w: string) => {
-    const p = `%${w}%`;
+    const p = `%${escapeLike(w)}%`;
     return sql`(name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p} OR capabilities::text ILIKE ${p})`;
   });
   let whereClause = wordClauses[0];
@@ -650,7 +735,7 @@ app.post("/api/stacks/generate", async (c) => {
     const searchTerms = keywords.slice(0, 3);
     const results: any[] = [];
     for (const term of searchTerms) {
-      const p = `%${term}%`;
+      const p = `%${escapeLike(term)}%`;
       const rows = await sql`SELECT slug, name, description, url, github_url, free_score, category, tags, license, self_hostable, popularity, provider, free_types, resource_type
         FROM resources
         WHERE (tags::text ILIKE ${p} OR capabilities::text ILIKE ${p} OR category ILIKE ${p} OR description ILIKE ${p})
@@ -681,7 +766,7 @@ app.post("/api/stacks/generate", async (c) => {
   if (layers.length < 2) {
     const goalWords = goalLower.split(/\s+/).filter((w: string) => w.length > 3);
     for (const word of goalWords.slice(0, 2)) {
-      const p = `%${word}%`;
+      const p = `%${escapeLike(word)}%`;
       const rows = await sql`SELECT slug, name, description, url, github_url, free_score, category, tags, license, self_hostable, popularity, provider, free_types, resource_type
         FROM resources
         WHERE (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p})
@@ -723,7 +808,7 @@ app.get("/api/github/intel", async (c) => {
   const q = sanitizeString(c.req.query("q"), 200);
   const lim = Math.min(Number(c.req.query("limit") || 20), 50);
   if (!q) return c.json({ results: [], total: 0 });
-  const p = `%${q}%`;
+  const p = `%${escapeLike(q)}%`;
   const rows = await sql`SELECT * FROM resources WHERE (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p}) AND github_url IS NOT NULL ORDER BY popularity DESC NULLS LAST LIMIT ${lim}` as any[];
   return c.json({ results: rows.map(mapResource), total: rows.length });
 });
@@ -820,6 +905,7 @@ app.get("/api/deals", async (c) => {
 
 // ─── Scans ───
 app.post("/api/scans/run", async (c) => {
+  if (!await requireAdmin(c)) return c.json({ error: "unauthorized" }, 401);
   return c.json({ ok: true, action: "batch", processed: 0, discovered: 0, verified: 0, expired: 0, errors: [], message: "Scan triggered. Background processing handles new discoveries." });
 });
 

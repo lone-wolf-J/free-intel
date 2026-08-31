@@ -198,6 +198,7 @@ export interface AlternativeSearchResult {
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     ...init
   });
   if (!res.ok) {

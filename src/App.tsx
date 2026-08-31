@@ -13,6 +13,7 @@ import GithubIntel from "@/pages/GithubIntel";
 import Deals from "@/pages/Deals";
 import Submit from "@/pages/Submit";
 import Admin from "@/pages/Admin";
+import AdminLogin from "@/pages/AdminLogin";
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
@@ -41,7 +42,8 @@ const TITLES: Record<string, string> = {
   "/github-intel": "GitHub Intelligence — Free Intel",
   "/deals": "Deals & Promotions — Free Intel",
   "/submit": "Submit a Discovery — Free Intel",
-  "/admin": "Operations Console — Free Intel"
+  "/admin": "Operations Console — Free Intel",
+  "/admin/login": "Admin Login — Free Intel"
 };
 
 function RouteEffects() {
@@ -73,6 +75,7 @@ export default function App() {
             <Route path="/deals" element={<Deals />} />
             <Route path="/submit" element={<Submit />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="*" element={
               <div className="max-w-7xl mx-auto px-6 py-32 text-center">
                 <div className="font-mono text-6xl font-bold grad-text mb-4">404</div>
