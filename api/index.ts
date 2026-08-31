@@ -87,17 +87,40 @@ async function safeFetch(url: string, init?: RequestInit): Promise<Response> {
 }
 
 const BAD_CATEGORIES = new Set(["pricing", "directory", "ai-directory", "research", "newsletter", "news", "vendor-blog", "vendor blog", "comparison", "tutorial", "guide", "list", "roundup", "announcement"]);
-const BAD_URL_PATTERNS = [/reddit\.com/i, /arxiv\.org/i, /theguardian\.com/i, /medium\.com/i, /substack\.com/i, /twitter\.com/i, /x\.com/i, /linkedin\.com\/pulse/i, /hackernews\.com/i, /news\.ycombinator\.com/i, /\.pdf$/i];
-const BAD_NAME_PATTERNS = [/highlights/i, /self-promotion/i, /thread/i, /backs down/i, /expands access/i, /commitment to/i, /boom/i, /what will we/i, /comment/i, /show hn/i];
+const BAD_URL_PATTERNS = [/reddit\.com/i, /arxiv\.org/i, /theguardian\.com/i, /medium\.com/i, /substack\.com/i, /twitter\.com/i, /x\.com/i, /linkedin\.com\/pulse/i, /hackernews\.com/i, /news\.ycombinator\.com/i, /\.pdf$/i, /\/blog\/\d+$/i, /\/tag\//i, /\/category\//i, /\/page\/\d+$/i];
+const BAD_NAME_PATTERNS = [/highlights/i, /self-promotion/i, /thread/i, /backs down/i, /expands access/i, /commitment to/i, /boom/i, /what will we/i, /comment/i, /show hn/i, /^careers$/i, /^blog$/i, /^pricing$/i, /^docs?$/i, /^trust center$/i, /^model permissions$/i, /^changelog$/i, /^status$/i, /^terms/i, /^privacy policy$/i, /^security$/i, /^help$/i, /^contact$/i, /^about$/i, /^here$/i, /^chose any model$/i, /^model migration$/i, /^service tiers$/i, /^tool use$/i, /^getting started$/i, /^quickstart$/i, /^installation$/i, /^readme$/i, /^license$/i, /^contributing$/i, /^code of conduct$/i];
+const NON_TOOL_TITLE_PATTERNS = [/^best (tv|phone|laptop|software|apps|tools) /i, /^how to (create|make|build|use) /i, /\bfree (ai )?(hot|girl|boy|porn|sex)/i, /\bstreaming\b/i, /\btorrent\b/i, /\bcrack\b/i, /\bpirat/i, /^top \d+ /i, /\bdeals?\b.*\bbest\b/i];
 function isTool(r: any): boolean {
   if (r.resource_type === "article") return false;
   const cat = (r.category || "").toLowerCase();
   if (BAD_CATEGORIES.has(cat)) return false;
   const url = (r.url || "").toLowerCase();
   if (BAD_URL_PATTERNS.some(p => p.test(url))) return false;
-  const name = (r.name || "").toLowerCase();
+  const name = (r.name || "").toLowerCase().trim();
   if (BAD_NAME_PATTERNS.some(p => p.test(name))) return false;
+  if (NON_TOOL_TITLE_PATTERNS.some(p => p.test(r.name || ""))) return false;
+  if (name.length < 2 || name.length > 120) return false;
   return true;
+}
+
+function dedupByName(rows: any[]): any[] {
+  const seen = new Map<string, any>();
+  for (const r of rows) {
+    const key = (r.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+    if (!key) continue;
+    const existing = seen.get(key);
+    if (!existing) {
+      seen.set(key, r);
+    } else {
+      // Keep the one with higher free_score or verified status
+      const curScore = Number(r.free_score) || 0;
+      const exScore = Number(existing.free_score) || 0;
+      if (curScore > exScore || (r.verification_status === "verified" && existing.verification_status !== "verified")) {
+        seen.set(key, r);
+      }
+    }
+  }
+  return [...seen.values()];
 }
 
 function parseJson(v: any, def: any): any {
@@ -310,8 +333,19 @@ app.post("/api/radar/github-scan", async (c) => {
     for (const repo of (data.items || []).slice(0, 10)) {
       try {
         const slug = `${repo.full_name}`.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-        await sql`INSERT INTO resources (slug, name, description, url, github_url, resource_type, category, free_score, popularity, forks, origin, verification_status, created_at)
-          VALUES (${slug}, ${repo.name}, ${repo.description || ""}, ${repo.html_url}, ${repo.html_url}, 'repo', ${guessCategory(repo.description || repo.topics?.join(" ") || "")}, ${calcFreeScore(repo)}, ${repo.stargazers_count}, ${repo.forks_count}, 'github-scan', 'discovered', NOW())
+        const nameLower = (repo.name || "").toLowerCase();
+        const repoUrl = (repo.html_url || "").toLowerCase().replace(/\/+$/, "");
+        // Dedup: check if a resource with same name or URL already exists
+        const existing = await sql`SELECT id, slug FROM resources WHERE name ILIKE ${nameLower} OR url ILIKE ${repoUrl} OR github_url ILIKE ${repoUrl} LIMIT 1`;
+        if ((existing as any[]).length > 0) {
+          // Merge: update popularity/forks on existing entry
+          const ex = (existing as any[])[0];
+          await sql`UPDATE resources SET popularity = ${repo.stargazers_count}, forks = ${repo.forks_count}, github_last_push = ${repo.pushed_at || null}, free_score = GREATEST(free_score, ${calcFreeScore(repo)}) WHERE id = ${ex.id}`;
+          discovered++;
+          continue;
+        }
+        await sql`INSERT INTO resources (slug, name, description, url, github_url, resource_type, category, free_score, popularity, forks, origin, verification_status, github_last_push, created_at)
+          VALUES (${slug}, ${repo.name}, ${repo.description || ""}, ${repo.html_url}, ${repo.html_url}, 'repo', ${guessCategory(repo.description || repo.topics?.join(" ") || "")}, ${calcFreeScore(repo)}, ${repo.stargazers_count}, ${repo.forks_count}, 'github-scan', 'discovered', ${repo.pushed_at || null}, NOW())
           ON CONFLICT (slug) DO UPDATE SET popularity = ${repo.stargazers_count}, forks = ${repo.forks_count}`;
         discovered++;
       } catch (e: any) { errors.push(e.message); }
@@ -641,7 +675,8 @@ app.get("/api/resources", async (c) => {
     rows = await sql`SELECT * FROM resources ORDER BY free_score DESC NULLS LAST LIMIT 500` as any[];
   }
   const filtered = rows.filter(isTool);
-  const mapped = filtered.map(mapResource);
+  const deduped = dedupByName(filtered);
+  const mapped = deduped.map(mapResource);
   const sorted = sort === "score" ? mapped.sort((a: any, b: any) => (b.free_score || 0) - (a.free_score || 0))
     : sort === "name" ? mapped.sort((a: any, b: any) => (a.name || "").localeCompare(b.name || ""))
     : mapped;
@@ -657,7 +692,7 @@ app.get("/api/resources/search", async (c) => {
   const p = `%${escapeLike(q)}%`;
   const rows = await sql`SELECT * FROM resources WHERE name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p} ORDER BY free_score DESC NULLS LAST LIMIT 200` as any[];
   const filtered = rows.filter(isTool).map(mapResource).slice(0, lim);
-  return c.json({ results: filtered, total: filtered.length });
+  return c.json({ results: dedupByName(filtered), total: filtered.length });
 });
 
 app.post("/api/resources/ai-search", async (c) => {
@@ -670,7 +705,7 @@ app.post("/api/resources/ai-search", async (c) => {
   if (words.length === 0) {
     const p = `%${escapeLike(cleanQ)}%`;
     const rows = await sql`SELECT * FROM resources WHERE name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p} OR capabilities::text ILIKE ${p} ORDER BY free_score DESC NULLS LAST LIMIT 500` as any[];
-  const filtered = rows.filter(isTool).map(mapResource).slice(0, lim);
+  const filtered = dedupByName(rows.filter(isTool).map(mapResource)).slice(0, lim);
     return c.json({ items: filtered, count: filtered.length, results: filtered, total: filtered.length, query: cleanQ, expanded_terms: [cleanQ] });
   }
   const wordClauses = words.map((w: string) => {
@@ -682,7 +717,7 @@ app.post("/api/resources/ai-search", async (c) => {
     whereClause = sql`${whereClause} OR ${wordClauses[i]}`;
   }
   const rows = await sql`SELECT * FROM resources WHERE ${whereClause} ORDER BY free_score DESC NULLS LAST LIMIT 500` as any[];
-  const filtered = rows.filter(isTool).map(mapResource);
+  const filtered = dedupByName(rows.filter(isTool).map(mapResource));
   const scored = filtered.sort((a: any, b: any) => {
     const aLower = `${a.name} ${a.description}`.toLowerCase();
     const bLower = `${b.name} ${b.description}`.toLowerCase();
@@ -828,6 +863,7 @@ app.get("/api/deals", async (c) => {
   for (const tool of allTools) {
     for (const alt of tool.alternatives) {
       const dealType = alt.type === "free_tier" ? "free_tier" : alt.type === "open_source" ? "open_source" : alt.type === "freemium" ? "free_credits" : "free_tier";
+      const hasRealCost = tool.typical_cost_mo > 0 && tool.typical_cost_note && tool.typical_cost_note.trim().length > 0;
       deals.push({
         name: alt.name,
         slug: alt.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
@@ -837,7 +873,9 @@ app.get("/api/deals", async (c) => {
         deal_type: dealType,
         deal_detail: alt.key_differences?.join(". ") || alt.description,
         free_until: null,
-        value_usd_month: tool.typical_cost_mo,
+        value_usd_month: hasRealCost ? tool.typical_cost_mo : 0,
+        cost_note: hasRealCost ? tool.typical_cost_note : null,
+        parent_tool: tool.names[0],
         score: alt.score,
         verified: true,
         source: alt.type === "open_source" ? "github" : "alternatives-intel",
@@ -885,6 +923,7 @@ app.get("/api/deals", async (c) => {
     limited_promotion: deals.filter((d: any) => d.deal_type === "limited_promotion").length,
     open_source: deals.filter((d: any) => d.deal_type === "open_source").length,
     free_credits: deals.filter((d: any) => d.deal_type === "free_credits").length,
+    total_value_month: deals.reduce((a: number, d: any) => a + ((d as any).value_usd_month || 0), 0),
   };
 
   // Live source counts
@@ -925,6 +964,11 @@ function mapResource(r: any) {
     source_urls: parseJson(r.source_urls, []),
     free_score_components: parseJson(r.free_score_components, {}),
     plans_json: parseJson(r.plans_json, null),
+    last_verified: r.last_verified || null,
+    free_allowance: r.free_allowance || null,
+    free_limits: r.free_limits || null,
+    card_required: r.card_required || "unknown",
+    price_last_checked: r.price_last_checked || null,
   };
 }
 
@@ -956,24 +1000,33 @@ function guessCategory(text: string): string {
 }
 
 function calcFreeScore(repo: any): number {
-  let score = 30;
+  let score = 0;
   const topics: string[] = (repo.topics || []).map((t: string) => t.toLowerCase());
   const desc = (repo.description || "").toLowerCase();
   const allText = [...topics, desc].join(" ");
-  if (repo.license?.spdx_id && !["NOASSERTION", "UNLICENSED", "SEE LICENSE IN LICENSE"].includes(repo.license.spdx_id)) score += 12;
-  if (repo.stargazers_count > 10000) score += 8;
-  else if (repo.stargazers_count > 1000) score += 5;
-  if (repo.forks_count > 500) score += 5;
-  else if (repo.forks_count > 50) score += 3;
-  if (allText.includes("free")) score += 5;
-  if (allText.includes("self-host") || allText.includes("selfhost")) score += 5;
-  if (allText.includes("local") || allText.includes("privacy")) score += 3;
+  if (repo.license?.spdx_id && !["NOASSERTION", "UNLICENSED", "SEE LICENSE IN LICENSE"].includes(repo.license.spdx_id)) score += 15;
+  if (repo.stargazers_count > 50000) score += 15;
+  else if (repo.stargazers_count > 10000) score += 12;
+  else if (repo.stargazers_count > 1000) score += 8;
+  else if (repo.stargazers_count > 100) score += 4;
+  if (repo.forks_count > 1000) score += 10;
+  else if (repo.forks_count > 100) score += 6;
+  else if (repo.forks_count > 10) score += 3;
+  if (allText.includes("free")) score += 8;
+  if (allText.includes("self-host") || allText.includes("selfhost")) score += 7;
+  if (allText.includes("local") || allText.includes("privacy")) score += 5;
+  if (allText.includes("open source") || allText.includes("opensource") || allText.includes("oss")) score += 5;
+  if (repo.open_issues_count > 0 && repo.open_issues_count < 100) score += 3;
+  if (repo.topics?.length >= 3) score += 3;
   if (repo.pushed_at) {
     const pushed = new Date(repo.pushed_at);
     const daysSince = (Date.now() - pushed.getTime()) / 86400000;
-    if (daysSince < 30) score += 5;
-    else if (daysSince < 90) score += 3;
+    if (daysSince < 7) score += 12;
+    else if (daysSince < 30) score += 8;
+    else if (daysSince < 90) score += 5;
+    else if (daysSince < 180) score += 2;
   }
+  if (repo.size && repo.size > 100) score += 2;
   return Math.min(score, 100);
 }
 

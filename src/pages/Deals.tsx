@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Clock, Flame, RefreshCw, ArrowRight, Globe, Github, MessageCircle, Search } from "lucide-react";
+import { Clock, Flame, RefreshCw, ArrowRight, Globe, Github, MessageCircle, Search, SlidersHorizontal } from "lucide-react";
 import { Panel, SectionTitle, Spinner } from "@/components/ui/primitives";
 import { sfx } from "@/lib/sound";
 
@@ -14,6 +14,8 @@ interface Deal {
   deal_detail: string;
   free_until: string | null;
   value_usd_month: number;
+  cost_note: string | null;
+  parent_tool: string | null;
   score: number;
   verified: boolean;
   source: string;
@@ -28,6 +30,7 @@ interface DealsResponse {
     limited_promotion: number;
     open_source: number;
     free_credits: number;
+    total_value_month: number;
   };
   live_sources: {
     hackernews: number;
@@ -50,6 +53,7 @@ export default function Deals() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [sort, setSort] = useState("score");
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   const fetchDeals = useCallback(async () => {
@@ -75,7 +79,12 @@ export default function Deals() {
   const stats = data?.stats || { total: 0, free_tier: 0, limited_promotion: 0, open_source: 0, free_credits: 0 };
   const live = data?.live_sources || { hackernews: 0, reddit: 0, producthunt: 0, github: 0, directories: 0 };
 
-  const filtered = filter === "all" ? deals : deals.filter((d) => d.deal_type === filter);
+  const filtered = (filter === "all" ? deals : deals.filter((d) => d.deal_type === filter)).sort((a, b) => {
+    if (sort === "score") return b.score - a.score;
+    if (sort === "name") return a.name.localeCompare(b.name);
+    if (sort === "value") return ((b as any).value_usd_month || 0) - ((a as any).value_usd_month || 0);
+    return 0;
+  });
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-12">
@@ -143,7 +152,7 @@ export default function Deals() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-1.5 mb-6">
+      <div className="flex flex-wrap items-center gap-1.5 mb-6">
         <button
           onClick={() => setFilter("all")}
           className={`chip cursor-pointer transition-colors ${
@@ -166,6 +175,17 @@ export default function Deals() {
             </button>
           );
         })}
+        <div className="ml-auto">
+          <select
+            value={sort} onChange={(e) => { setSort(e.target.value); sfx.click(); }}
+            aria-label="Sort deals"
+            className="bg-panel border border-slate-700 rounded px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-slate-300 outline-none focus:border-cyan cursor-pointer"
+          >
+            <option value="score">SORT: SCORE</option>
+            <option value="name">SORT: NAME</option>
+            <option value="value">SORT: COMPETITIVE VALUE</option>
+          </select>
+        </div>
       </div>
 
       {loading ? (
@@ -199,22 +219,23 @@ export default function Deals() {
               const count = stats[cat.key as keyof typeof stats] || 0;
               const catDeals = deals.filter((d) => d.deal_type === cat.key);
               const avgScore = catDeals.reduce((a, b) => a + b.score, 0) / (count || 1);
-              const totalValue = catDeals.reduce((a, b) => a + ((b as any).value_usd_month || 0), 0);
               return (
                 <div key={cat.key} className="text-center p-3 bg-void/40 rounded border border-slate-800">
                   <div className="text-lg">{cat.icon}</div>
                   <div className="font-mono text-xs text-slate-300 mt-1">{count}</div>
                   <div className="font-mono text-[9px] text-slate-600">{cat.label}</div>
                   {count > 0 && (
-                    <>
-                      <div className="font-mono text-[9px] text-cyan mt-1">AVG SCORE: {Math.round(avgScore)}</div>
-                      <div className="font-mono text-[9px] text-lime-neon mt-0.5">${totalValue}/mo VALUE</div>
-                    </>
+                    <div className="font-mono text-[9px] text-cyan mt-1">AVG SCORE: {Math.round(avgScore)}</div>
                   )}
                 </div>
               );
             })}
           </div>
+          {((stats as any).total_value_month || 0) > 0 && (
+            <div className="mt-3 text-center font-mono text-[10px] text-lime-neon">
+              TOTAL COMPETITIVE VALUE: ${(stats as any).total_value_month}/mo (from verified pricing sources)
+            </div>
+          )}
         </Panel>
       )}
     </div>
@@ -282,8 +303,10 @@ function DealCard({ deal }: { deal: Deal }) {
             </div>
             <span className="font-mono text-[9px] text-slate-600">{deal.score}</span>
           </div>
-          {(deal as any).value_usd_month > 0 && (
-            <span className="font-mono text-[9px] text-lime-neon">${(deal as any).value_usd_month}/mo</span>
+          {(deal as any).value_usd_month > 0 && (deal as any).cost_note && (
+            <span className="font-mono text-[9px] text-lime-neon" title={`Competing paid product: ${(deal as any).cost_note}`}>
+              vs. {(deal as any).parent_tool}: {(deal as any).cost_note}
+            </span>
           )}
         </div>
 

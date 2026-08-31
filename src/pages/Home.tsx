@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, Zap, Layers, Calculator, TerminalSquare, AlertTriangle } from "lucide-react";
+import { ArrowRight, Zap, Layers, Calculator, TerminalSquare, AlertTriangle, Filter } from "lucide-react";
 import { api, type RadarEvent, type RadarStatus, type Resource } from "@/lib/api";
 import { sfx } from "@/lib/sound";
 import { Counter, TypeWriter, Panel, SectionTitle } from "@/components/ui/primitives";
@@ -275,6 +275,21 @@ export default function Home() {
           </div>
         </section>
       )}
+
+      {/* PHILOSOPHY STRIP */}
+      <section className="mb-10">
+        <Panel className="p-6 md:p-8 overflow-hidden relative">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="mono-label mb-2">BROWSE & FILTER</div>
+              <p className="text-sm text-slate-400">Filter by category, classification, sort by score or recency.</p>
+            </div>
+            <Link to="/discover" className="btn-neon" onClick={() => sfx.click()}>
+              <Filter size={13} className="mr-1" /> OPEN DISCOVER <ArrowRight size={13} />
+            </Link>
+          </div>
+        </Panel>
+      </section>
 
       {/* PHILOSOPHY STRIP */}
       <section className="mb-10">
