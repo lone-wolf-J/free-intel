@@ -4,24 +4,6 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "installCommand": "npm install",
-  "crons": [
-    {
-      "path": "/api/cron/refresh?type=hn",
-      "schedule": "0 */4 * * *"
-    },
-    {
-      "path": "/api/cron/refresh?type=openrouter",
-      "schedule": "0 */6 * * *"
-    },
-    {
-      "path": "/api/cron/refresh?type=huggingface",
-      "schedule": "30 */12 * * *"
-    },
-    {
-      "path": "/api/cron/refresh?type=rss",
-      "schedule": "0 */6 * * *"
-    }
-  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.ts" },
     { "source": "/((?!assets/|.*\\..*).*)", "destination": "/index.html" }
