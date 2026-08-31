@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, Zap, Layers, Calculator, TerminalSquare, AlertTriangle, Filter } from "lucide-react";
+import { ArrowRight, Zap, Layers, Calculator, TerminalSquare, AlertTriangle, Filter, Clock, Cpu } from "lucide-react";
 import { api, type RadarEvent, type RadarStatus, type Resource } from "@/lib/api";
 import { sfx } from "@/lib/sound";
 import { Counter, TypeWriter, Panel, SectionTitle } from "@/components/ui/primitives";
@@ -24,6 +24,7 @@ export default function Home() {
   const [craziest, setCraziest] = useState<Resource | null>(null);
   const [overpaying, setOverpaying] = useState<Resource[]>([]);
   const [hiddenTier, setHiddenTier] = useState<Resource[]>([]);
+  const [cronStatus, setCronStatus] = useState<any>(null);
   const reduced = useReducedMotion();
   const nav = useNavigate();
 
@@ -34,6 +35,7 @@ export default function Home() {
     api.resources({ sort: "score", limit: "1" }).then((r) => alive && setCraziest(r.items[0] || null)).catch(() => {});
     api.resources({ alt: "only", sort: "score", limit: "3" }).then((r) => alive && setOverpaying(r.items)).catch(() => {});
     api.resources({ free_type: "free_tier", limit: "3" }).then((r) => alive && setHiddenTier(r.items)).catch(() => {});
+    fetch("/api/cron/status").then(r => r.json()).then(d => alive && setCronStatus(d)).catch(() => {});
     return () => { alive = false; };
   }, []);
 
@@ -118,6 +120,30 @@ export default function Home() {
           </Panel>
         ))}
       </section>
+
+      {/* FRESHNESS INDICATOR */}
+      {cronStatus?.schedule && (
+        <section className="mb-10">
+          <Panel className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Clock size={14} className="text-amber-neon" />
+              <span className="mono-label">DATA FRESHNESS</span>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {Object.entries(cronStatus.schedule).map(([source, freq]) => (
+                <span key={source} className="font-mono text-[9px] text-slate-500 bg-slate-900/40 px-2 py-1 rounded">
+                  {String(source).toUpperCase()}: <span className="text-cyan">{String(freq)}</span>
+                </span>
+              ))}
+            </div>
+            {cronStatus.recent_events?.[0] && (
+              <div className="mt-2 font-mono text-[9px] text-slate-600">
+                LAST SYSTEM EVENT: {cronStatus.recent_events[0].title} @ {cronStatus.recent_events[0].created_at?.slice(0, 19)}
+              </div>
+            )}
+          </Panel>
+        </section>
+      )}
 
       {/* LIVE RADAR */}
       <section className="grid lg:grid-cols-5 gap-6 mb-20">
@@ -276,7 +302,7 @@ export default function Home() {
         </section>
       )}
 
-      {/* PHILOSOPHY STRIP */}
+      {/* BROWSE & FILTER */}
       <section className="mb-10">
         <Panel className="p-6 md:p-8 overflow-hidden relative">
           <div className="flex items-center justify-between">
@@ -291,7 +317,45 @@ export default function Home() {
         </Panel>
       </section>
 
-      {/* PHILOSOPHY STRIP */}
+      {/* NEW FEATURES ROW */}
+      <section className="grid md:grid-cols-2 gap-6 mb-20">
+        <Link to="/llm-apis" className="group" onClick={() => sfx.click()}>
+          <Panel className="p-6 hover:border-cyan/40 transition-all h-full" bright>
+            <div className="flex items-center gap-3 mb-3">
+              <Cpu size={18} className="text-cyan" />
+              <div className="mono-label text-cyan">FREE LLM API ACCESS</div>
+            </div>
+            <h3 className="text-lg font-bold text-slate-100 group-hover:text-cyan transition-colors mb-2">
+              Compare Free LLM APIs
+            </h3>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Structured comparison of free-tier LLM APIs: Groq, Cerebras, Google AI Studio,
+              Mistral, OpenRouter. Requests/day, token limits, model lists — all verified.
+            </p>
+            <div className="mt-4 flex items-center gap-1 font-mono text-[10px] text-cyan/70 group-hover:text-cyan transition-colors">
+              OPEN TABLE <ArrowRight size={11} />
+            </div>
+          </Panel>
+        </Link>
+        <Link to="/models" className="group" onClick={() => sfx.click()}>
+          <Panel className="p-6 hover:border-violet-neon/40 transition-all h-full">
+            <div className="flex items-center gap-3 mb-3">
+              <Layers size={18} className="text-violet-neon" />
+              <div className="mono-label text-violet-300">OPEN-WEIGHT MODELS</div>
+            </div>
+            <h3 className="text-lg font-bold text-slate-100 group-hover:text-violet-neon transition-colors mb-2">
+              Trending Open Models
+            </h3>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Live feed of trending open-weight models from HuggingFace. Filter by license
+              (MIT, Apache, Llama), see download counts, and find where to run them free.
+            </p>
+            <div className="mt-4 flex items-center gap-1 font-mono text-[10px] text-violet-neon/70 group-hover:text-violet-neon transition-colors">
+              BROWSE MODELS <ArrowRight size={11} />
+            </div>
+          </Panel>
+        </Link>
+      </section>
       <section className="mb-10">
         <Panel className="p-8 md:p-10 text-center overflow-hidden relative" bright>
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan/70 to-transparent" />

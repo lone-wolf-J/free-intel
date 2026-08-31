@@ -5,6 +5,8 @@ import Footer from "@/components/layout/Footer";
 import BackgroundFX from "@/components/fx/BackgroundFX";
 import Home from "@/pages/Home";
 import Discover from "@/pages/Discover";
+import LLMApis from "@/pages/LLMApis";
+import OpenWeightModels from "@/pages/OpenWeightModels";
 import Radar from "@/pages/Radar";
 import ResourceDetail from "@/pages/ResourceDetail";
 import Stacks from "@/pages/Stacks";
@@ -36,6 +38,8 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 const TITLES: Record<string, string> = {
   "/": "Free Intel — Stop Paying For What You Can Get For Free",
   "/discover": "Discover Free Resources — Free Intel",
+  "/llm-apis": "Free LLM API Comparison — Free Intel",
+  "/models": "Open-Weight Model Tracker — Free Intel",
   "/radar": "Free Radar — Live Discoveries — Free Intel",
   "/stacks": "Free Stack Builder — Free Intel",
   "/save-money": "Cost Reduction Engine — Free Intel",
@@ -67,6 +71,8 @@ export default function App() {
             <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/discover" element={<Discover />} />
+            <Route path="/llm-apis" element={<LLMApis />} />
+            <Route path="/models" element={<OpenWeightModels />} />
             <Route path="/radar" element={<Radar />} />
             <Route path="/resource/:slug" element={<ResourceDetail />} />
             <Route path="/stacks" element={<Stacks />} />

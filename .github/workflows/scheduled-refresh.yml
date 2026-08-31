@@ -1,0 +1,46 @@
+name: Scheduled Refresh
+on:
+  schedule:
+    - cron: '0 */4 * * *'   # Every 4 hours: HN, RSS
+    - cron: '0 */6 * * *'   # Every 6 hours: OpenRouter, HuggingFace
+    - cron: '0 6 * * *'     # Daily 06:00 UTC: GitHub scan
+  workflow_dispatch:
+    inputs:
+      type:
+        description: 'Refresh type'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - openrouter
+          - huggingface
+          - hn
+          - github-scan
+          - rss
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine refresh type
+        id: type
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            HOUR=$(date -u +\%H)
+            if [ $((HOUR % 4)) -eq 0 ] && [ $((HOUR % 6)) -ne 0 ]; then
+              echo "type=hn" >> $GITHUB_OUTPUT
+            elif [ $((HOUR % 6)) -eq 0 ]; then
+              echo "type=openrouter" >> $GITHUB_OUTPUT
+            else
+              echo "type=all" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "type=${{ github.event.inputs.type || 'all' }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Trigger Vercel Cron
+        run: |
+          curl -s -X GET \
+            "https://free-intel.vercel.app/api/cron/refresh?type=${{ steps.type.outputs.type }}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" || true

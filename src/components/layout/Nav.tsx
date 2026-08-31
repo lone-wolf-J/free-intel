@@ -6,10 +6,11 @@ import { isSoundEnabled, setSoundEnabled, sfx, loadSoundPref } from "@/lib/sound
 
 const LINKS = [
   { to: "/discover", label: "DISCOVER" },
-  { to: "/radar", label: "FREE RADAR" },
+  { to: "/llm-apis", label: "FREE LLM APIS" },
+  { to: "/models", label: "MODELS" },
+  { to: "/radar", label: "RADAR" },
   { to: "/stacks", label: "STACKS" },
-  { to: "/save-money", label: "SAVE MONEY" },
-  { to: "/github-intel", label: "GITHUB INTEL" },
+  { to: "/save-money", label: "SAVE $$$$" },
   { to: "/deals", label: "DEALS" },
   { to: "/submit", label: "SUBMIT" }
 ];

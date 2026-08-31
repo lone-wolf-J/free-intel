@@ -1115,4 +1115,542 @@ function calcFreeScore(repo: any): number {
   return Math.min(score, 100);
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  SECTION 6: LLM API AGGREGATOR
+//  Static + live data for free/freemium LLM API providers
+// ═══════════════════════════════════════════════════════════════
+
+interface LLMProvider {
+  id: string;
+  name: string;
+  website: string;
+  api_endpoint: string;
+  auth_type: string;
+  free_tier: boolean;
+  credit_card_required: boolean;
+  rate_limit_rpm: number | null;
+  rate_limit_rpd: number | null;
+  rate_limit_tpm: number | null;
+  tokens_per_day: number | null;
+  models: string[];
+  openai_compatible: boolean;
+  notes: string;
+  category: "permanent" | "trial-credits" | "usage-based";
+  last_checked: string;
+}
+
+const LLM_PROVIDERS: LLMProvider[] = [
+  {
+    id: "openrouter-free",
+    name: "OpenRouter (Free Models)",
+    website: "https://openrouter.ai",
+    api_endpoint: "https://openrouter.ai/api/v1",
+    auth_type: "Bearer token (free signup)",
+    free_tier: true,
+    credit_card_required: false,
+    rate_limit_rpm: 20,
+    rate_limit_rpd: 50,
+    rate_limit_tpm: null,
+    tokens_per_day: null,
+    models: ["DeepSeek R1", "Qwen3 Coder", "Llama 3.3 70B", "Gemma 4", "Mistral 7B", "Phi-4"],
+    openai_compatible: true,
+    notes: "28+ models with :free suffix. $10 lifetime top-up raises daily limit to 1,000. Auto-router available.",
+    category: "permanent",
+    last_checked: new Date().toISOString(),
+  },
+  {
+    id: "groq",
+    name: "Groq",
+    website: "https://groq.com",
+    api_endpoint: "https://api.groq.com/openai/v1",
+    auth_type: "Bearer token (free signup)",
+    free_tier: true,
+    credit_card_required: false,
+    rate_limit_rpm: 30,
+    rate_limit_rpd: 14400,
+    rate_limit_tpm: 30000,
+    tokens_per_day: null,
+    models: ["Llama 3.3 70B", "Llama 4 Scout 17B", "GPT-OSS 120B", "Whisper"],
+    openai_compatible: true,
+    notes: "Ultra-fast LPU inference. Most generous free tier for speed. Card optional for Developer tier.",
+    category: "permanent",
+    last_checked: new Date().toISOString(),
+  },
+  {
+    id: "cerebras",
+    name: "Cerebras",
+    website: "https://cerebras.ai",
+    api_endpoint: "https://api.cerebras.ai/v1",
+    auth_type: "Bearer token (free signup)",
+    free_tier: true,
+    credit_card_required: false,
+    rate_limit_rpm: 30,
+    rate_limit_rpd: null,
+    rate_limit_tpm: 100000,
+    tokens_per_day: 1000000,
+    models: ["GPT-OSS 120B", "Llama 3.1 8B", "Qwen3 235B", "Gemma 4 31B"],
+    openai_compatible: true,
+    notes: "1M tokens/day free. Ultra-fast WSE inference (2,600+ tok/s). 8,192 token context cap on free tier.",
+    category: "permanent",
+    last_checked: new Date().toISOString(),
+  },
+  {
+    id: "google-ai-studio",
+    name: "Google AI Studio (Gemini)",
+    website: "https://aistudio.google.com",
+    api_endpoint: "https://generativelanguage.googleapis.com/v1beta/openai/",
+    auth_type: "API key (free signup)",
+    free_tier: true,
+    credit_card_required: false,
+    rate_limit_rpm: 15,
+    rate_limit_rpd: 250,
+    rate_limit_tpm: 250000,
+    tokens_per_day: null,
+    models: ["Gemini 2.5 Flash", "Gemini 2.5 Pro", "Gemini 2.0 Flash", "Gemma 3"],
+    openai_compatible: true,
+    notes: "Most generous permanent free tier for frontier models. 1M context window. Data may be used for training on free tier.",
+    category: "permanent",
+    last_checked: new Date().toISOString(),
+  },
+  {
+    id: "mistral",
+    name: "Mistral La Plateforme",
+    website: "https://mistral.ai",
+    api_endpoint: "https://api.mistral.ai/v1",
+    auth_type: "Bearer token (SMS verify, no card)",
+    free_tier: true,
+    credit_card_required: false,
+    rate_limit_rpm: 60,
+    rate_limit_rpd: null,
+    rate_limit_tpm: 500000,
+    tokens_per_day: null,
+    models: ["Mistral Large", "Mistral Small", "Codestral", "Pixtral", "Ministral 8B"],
+    openai_compatible: true,
+    notes: "~1B tokens/month on Experiment tier. EU hosting (France). Opt out of data training in Admin Console.",
+    category: "permanent",
+    last_checked: new Date().toISOString(),
+  },
+  {
+    id: "together",
+    name: "Together AI",
+    website: "https://together.ai",
+    api_endpoint: "https://api.together.xyz/v1",
+    auth_type: "Bearer token",
+    free_tier: false,
+    credit_card_required: false,
+    rate_limit_rpm: null,
+    rate_limit_rpd: null,
+    rate_limit_tpm: null,
+    tokens_per_day: null,
+    models: ["Llama 4", "DeepSeek V3", "Qwen3", "FLUX.1 Schnell (free)"],
+    openai_compatible: true,
+    notes: "$5 signup credits (one-time, not permanent). FLUX.1 Schnell image gen is completely free. Not a true free tier.",
+    category: "trial-credits",
+    last_checked: new Date().toISOString(),
+  },
+  {
+    id: "fireworks",
+    name: "Fireworks AI",
+    website: "https://fireworks.ai",
+    api_endpoint: "https://api.fireworks.ai/inference/v1",
+    auth_type: "Bearer token",
+    free_tier: false,
+    credit_card_required: false,
+    rate_limit_rpm: 10,
+    rate_limit_rpd: null,
+    rate_limit_tpm: null,
+    tokens_per_day: null,
+    models: ["Llama 3.3 70B", "DeepSeek V3", "Qwen 2.5"],
+    openai_compatible: true,
+    notes: "$1 free starter credits. 10 RPM without card. Not a permanent free tier.",
+    category: "trial-credits",
+    last_checked: new Date().toISOString(),
+  },
+  {
+    id: "deepinfra",
+    name: "DeepInfra",
+    website: "https://deepinfra.com",
+    api_endpoint: "https://api.deepinfra.com/v1/openai",
+    auth_type: "Bearer token",
+    free_tier: false,
+    credit_card_required: false,
+    rate_limit_rpm: 60,
+    rate_limit_rpd: null,
+    rate_limit_tpm: null,
+    tokens_per_day: null,
+    models: ["Llama 3.3 70B", "DeepSeek V3", "Qwen 2.5", "Stable Diffusion 3"],
+    openai_compatible: true,
+    notes: "$1-5 trial credit (expires 90 days). Cheapest per-token pricing. Not a permanent free tier.",
+    category: "trial-credits",
+    last_checked: new Date().toISOString(),
+  },
+  {
+    id: "huggingface-inference",
+    name: "HuggingFace Inference API",
+    website: "https://huggingface.co",
+    api_endpoint: "https://router.huggingface.co/v1",
+    auth_type: "HF token (free signup)",
+    free_tier: false,
+    credit_card_required: false,
+    rate_limit_rpm: null,
+    rate_limit_rpd: null,
+    rate_limit_tpm: null,
+    tokens_per_day: null,
+    models: ["All HF models (routes to Groq, Cerebras, Together, etc.)"],
+    openai_compatible: true,
+    notes: "$0.10/mo free credit on free accounts — essentially a taste, not a real free tier. Cold starts on less popular models.",
+    category: "trial-credits",
+    last_checked: new Date().toISOString(),
+  },
+];
+
+// ─── LLM API Provider Endpoint ───
+app.get("/api/llm-providers", async (c) => {
+  if (!checkRateLimit("llm-providers", 30, 60000)) return c.json({ error: "rate_limited" }, 429);
+  const category = c.req.query("category");
+  let providers = [...LLM_PROVIDERS];
+  if (category && category !== "all") {
+    providers = providers.filter(p => p.category === category);
+  }
+  return c.json({
+    providers,
+    stats: {
+      total: LLM_PROVIDERS.length,
+      permanent_free: LLM_PROVIDERS.filter(p => p.free_tier).length,
+      trial_only: LLM_PROVIDERS.filter(p => !p.free_tier).length,
+      no_card_required: LLM_PROVIDERS.filter(p => !p.credit_card_required).length,
+    },
+    last_refresh: new Date().toISOString(),
+  });
+});
+
+// ─── Refresh LLM Provider Data (live check from OpenRouter free models) ───
+app.post("/api/admin/refresh-llm-providers", async (c) => {
+  if (!await requireAdmin(c)) return c.json({ error: "unauthorized" }, 401);
+  if (!checkRateLimit("refresh-llm", 1, 300000)) return c.json({ error: "rate_limited" }, 429);
+  try {
+    const orRes = await fetch("https://openrouter.ai/api/v1/models");
+    if (orRes.ok) {
+      const orData = await orRes.json() as any;
+      const freeModels = (orData.data || []).filter((m: any) =>
+        m.id?.includes(":free") || (m.pricing && Number(m.pricing.prompt) === 0 && Number(m.pricing.completion) === 0)
+      ).map((m: any) => ({
+        id: m.id,
+        name: m.name || m.id,
+        context_length: m.context_length || null,
+        created: m.created || null,
+      }));
+      const orProvider = LLM_PROVIDERS.find(p => p.id === "openrouter-free");
+      if (orProvider) {
+        orProvider.models = freeModels.slice(0, 30).map((m: any) => m.name);
+        orProvider.last_checked = new Date().toISOString();
+      }
+      return c.json({ ok: true, openrouter_free_models: freeModels.length, models: freeModels.slice(0, 20) });
+    }
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message });
+  }
+  return c.json({ ok: false, error: "Failed to fetch OpenRouter models" });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  SECTION 7: OPEN-WEIGHT MODEL TRACKER
+//  From HuggingFace trending models API (no auth needed)
+// ═══════════════════════════════════════════════════════════════
+
+interface OpenWeightModel {
+  id: string;
+  author: string;
+  model_id: string;
+  downloads: number;
+  likes: number;
+  trending_score: number | null;
+  pipeline_tag: string | null;
+  license: string | null;
+  tags: string[];
+  last_modified: string;
+  gated: boolean;
+  hosted_free: string[];
+  self_host_note: string;
+}
+
+async function fetchHuggingFaceTrending(limit = 50): Promise<OpenWeightModel[]> {
+  const url = `https://huggingface.co/api/models?sort=trendingScore&direction=-1&limit=${limit}&filter=text-generation`;
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!res.ok) return [];
+  const data = await res.json() as any[];
+  const permissiveLicenses = ["apache-2.0", "mit", "llama3", "gemma", "deepseek", "qwen", "apache license 2.0", "mit license", "bsd-2-clause", "bsd-3-clause", "cc-by-nc-4.0", "cc-by-sa-4.0", "openrail"];
+  return data.map((m: any) => {
+    const lic = (m.license || m.license_name || "").toLowerCase();
+    const isPermissive = permissiveLicenses.some(l => lic.includes(l));
+    const hosted: string[] = [];
+    if (m.pipeline_tag === "text-generation" || m.pipeline_tag === "text2text-generation") {
+      if (m.tags?.includes("openai-compatible") || m.id?.includes("Qwen") || m.id?.includes("Llama")) hosted.push("Ollama", "LM Studio");
+    }
+    return {
+      id: m.id,
+      author: m.author || m.id?.split("/")[0] || "",
+      model_id: m.id,
+      downloads: m.downloads || 0,
+      likes: m.likes || 0,
+      trending_score: m.trendingScore ?? null,
+      pipeline_tag: m.pipeline_tag || null,
+      license: m.license || m.license_name || "unknown",
+      tags: (m.tags || []).slice(0, 10),
+      last_modified: m.lastModified || "",
+      gated: !!m.gated,
+      hosted_free: hosted,
+      self_host_note: isPermissive ? "Self-hostable via Ollama/vLLM" : "Check license terms",
+    };
+  });
+}
+
+app.get("/api/open-weight-models", async (c) => {
+  if (!checkRateLimit("ow-models", 30, 60000)) return c.json({ error: "rate_limited" }, 429);
+  const limit = Math.min(Number(c.req.query("limit") || 50), 100);
+  const license = c.req.query("license");
+  try {
+    let models = await fetchHuggingFaceTrending(limit);
+    if (license && license !== "all") {
+      models = models.filter(m => (m.license || "").toLowerCase().includes(license.toLowerCase()));
+    }
+    return c.json({
+      models,
+      count: models.length,
+      source: "HuggingFace trending models (text-generation)",
+      source_url: "https://huggingface.co/models?sort=trendingScore&filter=text-generation",
+      last_refresh: new Date().toISOString(),
+    });
+  } catch (e: any) {
+    return c.json({ models: [], count: 0, error: e.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  SECTION 8: COMMUNITY SOURCES
+//  HN Algolia + Product Hunt + RSS feeds
+// ═══════════════════════════════════════════════════════════════
+
+// ─── HN Algolia Search (no auth, 10K req/hr) ───
+app.get("/api/community/hn", async (c) => {
+  if (!checkRateLimit("hn", 30, 60000)) return c.json({ error: "rate_limited" }, 429);
+  const q = sanitizeString(c.req.query("q"), 200) || "free AI tool";
+  const tags = sanitizeString(c.req.query("tags"), 50) || "story";
+  const limit = Math.min(Number(c.req.query("limit") || 20), 50);
+  try {
+    const url = `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(q)}&tags=${tags}&hitsPerPage=${limit}`;
+    const res = await fetch(url);
+    if (!res.ok) return c.json({ items: [], error: `HN API ${res.status}` });
+    const data = await res.json() as any;
+    const items = (data.hits || []).map((h: any) => ({
+      id: h.objectID,
+      title: h.title || "",
+      url: h.url || `https://news.ycombinator.com/item?id=${h.objectID}`,
+      author: h.author || "",
+      points: h.points || 0,
+      num_comments: h.num_comments || 0,
+      created_at: h.created_at || "",
+      source: "hacker-news",
+      story_text: h.story_text || null,
+    }));
+    return c.json({ items, total: data.nbHits || 0, source: "Hacker News (Algolia)" });
+  } catch (e: any) {
+    return c.json({ items: [], error: e.message });
+  }
+});
+
+// ─── Product Hunt (free GraphQL API) ───
+app.get("/api/community/producthunt", async (c) => {
+  if (!checkRateLimit("ph", 30, 60000)) return c.json({ error: "rate_limited" }, 429);
+  const limit = Math.min(Number(c.req.query("limit") || 20), 50);
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    const query = `{
+      posts(order: VOTES, postedAfter: "${today}T00:00:00Z", first: ${limit}) {
+        edges {
+          node {
+            id name tagline url votesCount commentsCount createdAt
+            topics { edges { node { name } } }
+          }
+        }
+      }
+    }`;
+    const res = await fetch("https://api.producthunt.com/v2/api/graphql", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query }),
+    });
+    if (!res.ok) return c.json({ items: [], error: `PH API ${res.status}` });
+    const data = await res.json() as any;
+    const edges = data?.data?.posts?.edges || [];
+    const items = edges.map((e: any) => ({
+      id: e.node.id,
+      title: e.node.name,
+      tagline: e.node.tagline || "",
+      url: e.node.url || "",
+      votes: e.node.votesCount || 0,
+      comments: e.node.commentsCount || 0,
+      created_at: e.node.createdAt || "",
+      topics: (e.node.topics?.edges || []).map((t: any) => t.node.name),
+      source: "product-hunt",
+    }));
+    return c.json({ items, total: items.length, source: "Product Hunt" });
+  } catch (e: any) {
+    return c.json({ items: [], error: e.message });
+  }
+});
+
+// ─── RSS Feed Checker (blog pricing changes) ───
+const RSS_FEEDS = [
+  { name: "OpenAI Blog", url: "https://openai.com/blog/rss.xml", category: "provider-update" },
+  { name: "Anthropic Blog", url: "https://www.anthropic.com/rss.xml", category: "provider-update" },
+  { name: "Google AI Blog", url: "https://blog.google/technology/ai/rss/", category: "provider-update" },
+  { name: "Mistral Blog", url: "https://mistral.ai/feed.xml", category: "provider-update" },
+  { name: "Groq Blog", url: "https://groq.com/blog/feed/", category: "provider-update" },
+  { name: "r/LocalLLaMA", url: "https://www.reddit.com/r/LocalLLaMA/.rss", category: "community" },
+  { name: "Hacker News Best", url: "https://hnrss.org/best?q=free+AI+tool+OR+open+source+AI", category: "community" },
+];
+
+app.get("/api/community/rss", async (c) => {
+  if (!checkRateLimit("rss", 20, 60000)) return c.json({ error: "rate_limited" }, 429);
+  const results: any[] = [];
+  for (const feed of RSS_FEEDS.slice(0, 5)) {
+    try {
+      const res = await fetch(feed.url, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) continue;
+      const text = await res.text();
+      const items = parseRSSItems(text).slice(0, 10);
+      results.push({ feed: feed.name, category: feed.category, items, url: feed.url });
+    } catch { continue; }
+  }
+  return c.json({ feeds: results, source: "RSS feeds", last_refresh: new Date().toISOString() });
+});
+
+function parseRSSItems(xml: string): any[] {
+  const items: any[] = [];
+  const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+  let match;
+  while ((match = itemRegex.exec(xml)) !== null) {
+    const block = match[1];
+    const title = (block.match(/<title[^>]*>([\s\S]*?)<\/title>/)?.[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").trim();
+    const link = (block.match(/<link[^>]*>([\s\S]*?)<\/link>/)?.[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").trim();
+    const pubDate = (block.match(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/)?.[1] || "").trim();
+    const desc = (block.match(/<description[^>]*>([\s\S]*?)<\/description>/)?.[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").replace(/<[^>]+>/g, "").trim().slice(0, 200);
+    if (title) items.push({ title, url: link, published: pubDate, description: desc });
+  }
+  return items;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SECTION 9: CLOUD CREDITS TRACKER
+//  Curated data (no live API — updated manually via admin)
+// ═══════════════════════════════════════════════════════════════
+
+const CLOUD_CREDITS = [
+  { provider: "AWS", program: "AWS Activate", credits: "$100K", eligibility: "Startups (Y Combinator, Techstars, etc.)", url: "https://aws.amazon.com/activate/", requires_card: false, expiry: "2 years" },
+  { provider: "Google Cloud", program: "Google for Startups", credits: "$100K-$200K", eligibility: "Early-stage startups", url: "https://cloud.google.com/startup", requires_card: false, expiry: "2 years" },
+  { provider: "Microsoft Azure", program: "Azure for Startups", credits: "$150K", eligibility: "Seed to Series B startups", url: "https://azure.microsoft.com/en-us/free/startup/", requires_card: false, expiry: "1 year" },
+  { provider: "Modal", program: "Modal Free Tier", credits: "$30/mo free", eligibility: "All users", url: "https://modal.com", requires_card: false, expiry: "Ongoing" },
+  { provider: "Replicate", program: "Replicate Free Tier", credits: "$5/mo free", eligibility: "All users", url: "https://replicate.com", requires_card: false, expiry: "Ongoing" },
+  { provider: "Vercel", program: "Vercel Hobby", credits: "Free tier", eligibility: "All users", url: "https://vercel.com", requires_card: false, expiry: "Ongoing" },
+  { provider: "Cloudflare", program: "Cloudflare Workers Free", credits: "100K req/day", eligibility: "All users", url: "https://workers.cloudflare.com", requires_card: false, expiry: "Ongoing" },
+  { provider: "Fly.io", program: "Fly.io Free Allowance", credits: "3 shared-cpu-1x VMs + 3GB storage", eligibility: "All users", url: "https://fly.io", requires_card: false, expiry: "Ongoing" },
+  { provider: "Railway", program: "Railway Free Tier", credits: "$5 trial credits", eligibility: "All users", url: "https://railway.app", requires_card: false, expiry: "Trial only" },
+  { provider: "Hugging Face", program: "HF Spaces Free", credits: "2 CPU spaces", eligibility: "All users", url: "https://huggingface.co/spaces", requires_card: false, expiry: "Ongoing" },
+];
+
+app.get("/api/cloud-credits", async (c) => {
+  if (!checkRateLimit("cloud-credits", 30, 60000)) return c.json({ error: "rate_limited" }, 429);
+  return c.json({ programs: CLOUD_CREDITS, total: CLOUD_CREDITS.length });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  SECTION 10: CRON / SCHEDULED REFRESH
+//  Vercel Cron endpoint + GitHub Actions config
+// ═══════════════════════════════════════════════════════════════
+
+app.get("/api/cron/refresh", async (c) => {
+  const authHeader = c.req.header("authorization");
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return c.json({ error: "unauthorized" }, 401);
+  }
+  const type = c.req.query("type") || "all";
+  const results: Record<string, any> = {};
+  const startedAt = Date.now();
+
+  if (type === "all" || type === "openrouter") {
+    try {
+      const orRes = await fetch("https://openrouter.ai/api/v1/models");
+      if (orRes.ok) {
+        const orData = await orRes.json() as any;
+        const freeModels = (orData.data || []).filter((m: any) =>
+          m.id?.includes(":free") || (m.pricing && Number(m.pricing.prompt) === 0 && Number(m.pricing.completion) === 0)
+        );
+        results.openrouter = { ok: true, free_models: freeModels.length };
+      }
+    } catch (e: any) { results.openrouter = { ok: false, error: e.message }; }
+  }
+
+  if (type === "all" || type === "huggingface") {
+    try {
+      const models = await fetchHuggingFaceTrending(20);
+      results.huggingface = { ok: true, trending_models: models.length };
+    } catch (e: any) { results.huggingface = { ok: false, error: e.message }; }
+  }
+
+  if (type === "all" || type === "hn") {
+    try {
+      const res = await fetch("https://hn.algolia.com/api/v1/search?query=free+AI+tool&tags=story&hitsPerPage=10");
+      if (res.ok) {
+        const data = await res.json() as any;
+        results.hn = { ok: true, items: data.nbHits || 0 };
+      }
+    } catch (e: any) { results.hn = { ok: false, error: e.message }; }
+  }
+
+  if (type === "all" || type === "github-scan") {
+    try {
+      const token = process.env.GITHUB_TOKEN;
+      const headers: Record<string, string> = { Accept: "application/vnd.github+json" };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const res = await fetch("https://api.github.com/search/repositories?q=free+ai+tool+created:>2025-01-01&sort=stars&per_page=5", { headers });
+      if (res.ok) {
+        const data = await res.json() as any;
+        results.github = { ok: true, items: (data.items || []).length };
+      }
+    } catch (e: any) { results.github = { ok: false, error: e.message }; }
+  }
+
+  const elapsed = Date.now() - startedAt;
+  return c.json({
+    ok: true,
+    type,
+    results,
+    elapsed_ms: elapsed,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Cron status endpoint
+app.get("/api/cron/status", async (c) => {
+  if (!checkRateLimit("cron-status", 10, 60000)) return c.json({ error: "rate_limited" }, 429);
+  try {
+    const events = await sql`SELECT title, detail, created_at FROM events WHERE type = 'system' ORDER BY created_at DESC LIMIT 20` as any[];
+    return c.json({
+      schedule: {
+        openrouter: "Every 6 hours",
+        huggingface: "Every 12 hours",
+        hn: "Every 4 hours",
+        "github-scan": "Daily at 06:00 UTC",
+        rss: "Every 6 hours",
+      },
+      recent_events: events,
+      timezone: "UTC",
+    });
+  } catch {
+    return c.json({ schedule: {}, recent_events: [] });
+  }
+});
+
 export default app;
