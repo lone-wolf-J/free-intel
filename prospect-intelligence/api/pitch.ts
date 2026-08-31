@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import { aiRegistry } from "../server/lib/ai-registry.js";
+import { validateTone, checkRateLimit } from "./_security.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -16,9 +17,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
+  if (!checkRateLimit(req, "pitch")) return res.status(429).json({ error: "Too many requests" });
+  const ct = req.headers["content-type"] || "";
+  if (!ct.includes("application/json")) return res.status(400).json({ error: "Content-Type must be application/json" });
 
   try {
-    const { tone, notes } = req.body;
+    const tone = validateTone(req.body?.tone || "professional");
+    const notes = typeof req.body?.notes === "string" ? req.body.notes.slice(0, 1000) : "";
+    if (req.body?.customFields && !Array.isArray(req.body.customFields)) {
+      return res.status(400).json({ error: "Invalid customFields" });
+    }
 
     const prompt = `Generate a personalized sales/outreach pitch.
 

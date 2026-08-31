@@ -1,5 +1,6 @@
 import { aiRegistry } from "../server/lib/ai-registry.js";
 import * as cheerio from "cheerio";
+import { isUrlAllowed, sanitizeForPrompt, validateQuery } from "./_security.js";
 
 // Simple in-memory cache (persists for warm Vercel functions, ~7-day logical TTL via timestamp check)
 const cache = new Map<string, { data: any; ts: number }>();
@@ -60,6 +61,8 @@ function getConfigForUrl(url: string) {
 }
 
 export async function searchProspectHandler(query: string) {
+  // Input validation at handler level (defense in depth)
+  query = validateQuery(query);
   const normalized = query.toLowerCase().trim();
   const cached = cache.get(normalized);
   if (cached && Date.now() - cached.ts < CACHE_TTL) {
@@ -265,20 +268,23 @@ async function crawlEverywhere(query: string) {
   const topUrls = web.slice(0, 3).map((w: any) => w.url).filter(Boolean);
 
   async function deepScrapeScrapeDo(url: string) {
+    if (!isUrlAllowed(url)) { console.log("[Deep] Scrape.do blocked SSRF", url.slice(0, 60)); return null; }
     const key = process.env.SCRAPE_DO_KEY || process.env.SCRAPE_DO_TOKEN;
     if (!key) return null;
     const cfg = getConfigForUrl(url);
     console.log(`[Deep] Scrape.do config for ${url.slice(0, 30)}: parser=${cfg.parser} priority=${cfg.priority}`);
     return withRetry(async () => {
       const res = await fetchWithTimeout(`https://api.scrape.do?token=${key}&url=${encodeURIComponent(url)}&render=${cfg.parser === "browser" ? "true" : "false"}`, {}, 12000);
-      const text = await res.text(); console.log("[Deep] Scrape.do", url.slice(0, 40), "len", text.length); return text.slice(0, 3500);
+      const text = await res.text();
+      if (text.length > 50000) { console.log("[Deep] Scrape.do oversized"); return text.slice(0, 3500); }
+      console.log("[Deep] Scrape.do", url.slice(0, 40), "len", text.length); return text.slice(0, 3500);
     }, "scrape.do", 1).catch(() => null);
   }
   async function deepScrapeFirecrawl(url: string) {
+    if (!isUrlAllowed(url)) { console.log("[Deep] Firecrawl blocked SSRF", url.slice(0, 60)); return null; }
     const key = process.env.FIRECRAWL_API_KEY;
     if (!key) return null;
     const cfg = getConfigForUrl(url);
-    // Render With A Browser Only When Necessary - use waitFor only for browser sites
     return withRetry(async () => {
       const nodeFetch = (await import("node-fetch")).default;
       const res: any = await nodeFetch("https://api.firecrawl.dev/v1/scrape", {
@@ -287,29 +293,37 @@ async function crawlEverywhere(query: string) {
       });
       const data: any = await res.json();
       const md = data.data?.markdown || data.markdown || "";
+      if (md.length > 50000) { console.log("[Deep] Firecrawl oversized"); return md.slice(0, 3500); }
       console.log("[Deep] Firecrawl", url.slice(0, 40), "len", md.length); return md.slice(0, 3500);
     }, "firecrawl", 1).catch(() => null);
   }
   async function deepScrapeJina(url: string) {
+    if (!isUrlAllowed(url)) { console.log("[Deep] Jina blocked SSRF", url.slice(0, 60)); return null; }
     return withRetry(async () => {
       const res = await fetchWithTimeout(`https://r.jina.ai/http://${url.replace(/^https?:\/\//, "")}`, { headers: { "User-Agent": pickUA() } }, 8000);
-      const text = await res.text(); console.log("[Deep] Jina", url.slice(0, 40), "len", text.length); return text.slice(0, 3500);
+      const text = await res.text();
+      if (text.length > 50000) { console.log("[Deep] Jina oversized"); return text.slice(0, 3500); }
+      console.log("[Deep] Jina", url.slice(0, 40), "len", text.length); return text.slice(0, 3500);
     }, "jina", 1).catch(() => null);
   }
   async function deepScrapeScrapingBee(url: string) {
+    if (!isUrlAllowed(url)) { console.log("[Deep] ScrapingBee blocked SSRF", url.slice(0, 60)); return null; }
     const key = process.env.SCRAPINGBEE_API_KEY;
     if (!key) return null;
     return withRetry(async () => {
       const res = await fetchWithTimeout(`https://app.scrapingbee.com/api/v1/?api_key=${key}&url=${encodeURIComponent(url)}&render_js=${getConfigForUrl(url).parser === "browser" ? "true" : "false"}`, {}, 10000);
-      const text = await res.text(); console.log("[Deep] ScrapingBee", url.slice(0, 40), "len", text.length); return text.slice(0, 3500);
+      const text = await res.text(); if (text.length > 50000) return text.slice(0, 3500);
+      console.log("[Deep] ScrapingBee", url.slice(0, 40), "len", text.length); return text.slice(0, 3500);
     }, "scrapingbee", 1).catch(() => null);
   }
   async function deepScrapeZenRows(url: string) {
+    if (!isUrlAllowed(url)) { console.log("[Deep] ZenRows blocked SSRF", url.slice(0, 60)); return null; }
     const key = process.env.ZENROWS_API_KEY;
     if (!key) return null;
     return withRetry(async () => {
       const res = await fetchWithTimeout(`https://api.zenrows.com/v1/?apikey=${key}&url=${encodeURIComponent(url)}&autoparse=false`, {}, 10000);
-      const text = await res.text(); console.log("[Deep] ZenRows", url.slice(0, 40), "len", text.length); return text.slice(0, 3500);
+      const text = await res.text(); if (text.length > 50000) return text.slice(0, 3500);
+      console.log("[Deep] ZenRows", url.slice(0, 40), "len", text.length); return text.slice(0, 3500);
     }, "zenrows", 1).catch(() => null);
   }
 

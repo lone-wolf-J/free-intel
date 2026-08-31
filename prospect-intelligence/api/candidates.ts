@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import dotenv from "dotenv";
 dotenv.config();
+import { validateQuery, checkRateLimit } from "./_security.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -8,9 +9,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  if (!checkRateLimit(req, "candidates")) return res.status(429).json({ error: "Too many requests" });
+  const ct = req.headers["content-type"] || "";
+  if (!ct.includes("application/json")) return res.status(400).json({ error: "Content-Type must be application/json" });
 
-  const { query } = req.body || {};
-  if (!query || typeof query !== "string") return res.status(400).json({ error: "Query is required" });
+  let query: string;
+  try {
+    query = validateQuery(req.body?.query);
+  } catch (e: any) {
+    return res.status(400).json({ error: e.message });
+  }
 
   try {
     const { searchProspectHandler } = await import("./search-handler.js");

@@ -1,0 +1,1249 @@
+ACT AS A SENIOR APPLICATION SECURITY ENGINEER, RED TEAMER, AND CODE REVIEWER.
+
+Perform a COMPLETE security audit and remediation of this ENTIRE codebase.
+
+APPLICATION STATUS:
+- The application is already deployed.
+- Production hosting is Vercel.
+- Treat the production deployment as potentially exposed to the public internet.
+- The codebase may contain frontend, backend/API routes, serverless functions, edge functions, database access, authentication, file handling, third-party APIs, webhooks, cron jobs, and external integrations.
+
+PRIMARY OBJECTIVE:
+
+Find and FIX security vulnerabilities throughout the entire application.
+
+DO NOT ONLY REVIEW THE FILES I SPECIFICALLY MENTION.
+
+DO NOT ASSUME THAT VIBE-CODED CODE IS SAFE.
+
+DO NOT SKIP FILES.
+
+DO NOT STOP AFTER FINDING THE FIRST FEW ISSUES.
+
+Inspect the entire repository, including:
+
+- frontend
+- backend
+- API routes
+- serverless functions
+- edge functions
+- middleware
+- authentication
+- authorization
+- database code
+- migrations
+- ORM configuration
+- database policies
+- environment configuration
+- Vercel configuration
+- cron jobs
+- webhooks
+- file uploads
+- storage integrations
+- third-party APIs
+- scraping/crawling code
+- admin functionality
+- hidden/internal routes
+- development utilities
+- scripts
+- build configuration
+- package configuration
+- Docker files if present
+- CI/CD configuration
+- tests
+- configuration files
+- generated configuration where security-relevant
+
+DO NOT expose or print discovered secrets in your final report.
+
+Redact secrets as:
+
+sk_live_****
+OPENAI_****
+DATABASE_URL=****
+etc.
+
+==================================================
+PHASE 0 — UNDERSTAND THE APPLICATION
+==================================================
+
+Before changing code:
+
+1. Identify the framework and runtime.
+2. Identify frontend framework.
+3. Identify backend/API architecture.
+4. Identify authentication mechanism.
+5. Identify database(s).
+6. Identify storage systems.
+7. Identify external APIs/services.
+8. Identify all Vercel serverless/edge functions.
+9. Identify middleware.
+10. Identify public and protected routes.
+11. Identify admin routes.
+12. Identify webhooks.
+13. Identify cron/background jobs.
+14. Identify file upload/download functionality.
+15. Identify all environment variables.
+16. Identify how secrets are currently handled.
+17. Identify how database access is performed.
+18. Identify all trust boundaries.
+
+Create an initial architecture/security attack-surface map before making changes.
+
+==================================================
+PHASE 1 — SECRETS AND CREDENTIALS
+==================================================
+
+Perform a complete secrets audit.
+
+Search the ENTIRE repository for:
+
+API keys
+tokens
+passwords
+secrets
+private keys
+JWT secrets
+OAuth credentials
+database URLs
+connection strings
+service-role keys
+admin keys
+cloud credentials
+webhook secrets
+encryption keys
+signing keys
+access tokens
+refresh tokens
+session secrets
+
+Search for terms including but not limited to:
+
+key
+secret
+token
+password
+passwd
+credential
+authorization
+bearer
+private_key
+api_key
+apikey
+client_secret
+access_token
+refresh_token
+DATABASE_URL
+DIRECT_URL
+OPENAI
+ANTHROPIC
+GEMINI
+GOOGLE
+GROQ
+OPENROUTER
+STRIPE
+SUPABASE
+FIREBASE
+AWS
+AZURE
+VERCEL
+NEON
+CLOUDFLARE
+GITHUB
+RESEND
+SENDGRID
+TWILIO
+SLACK
+DISCORD
+
+Also detect actual secret formats using entropy/pattern detection rather than relying only on keyword searches.
+
+Check:
+
+- source code
+- JSON
+- YAML
+- TOML
+- config files
+- shell scripts
+- SQL
+- logs
+- test fixtures
+- documentation
+- examples
+- frontend bundles/configuration
+- Git history if available
+
+IMPORTANT:
+
+Do not merely move secrets into .env.
+
+Determine whether each secret is:
+
+PUBLIC
+SERVER-ONLY
+SENSITIVE
+HIGHLY SENSITIVE
+
+Any secret exposed to browser/client-side code must be treated as compromised.
+
+Verify:
+
+- .env is ignored
+- .env.local is ignored
+- production secrets are stored in Vercel Environment Variables
+- secrets are not embedded in frontend builds
+- NEXT_PUBLIC_ / VITE_ variables contain ONLY intentionally public values
+- server-only credentials are never imported into client components
+- server-only modules are not bundled into frontend code
+
+Create/update:
+
+.env.example
+
+with placeholders only.
+
+NEVER put real credentials in .env.example.
+
+IMPORTANT:
+
+DO NOT automatically rotate production keys.
+
+Instead produce:
+
+CRITICAL — ROTATE IMMEDIATELY
+HIGH — ROTATE
+MEDIUM — REVIEW
+
+with the credential type and location, but REDACT the actual secret.
+
+If credentials appear in Git history, treat them as potentially compromised even if the current file has been cleaned.
+
+==================================================
+PHASE 2 — AUTHENTICATION
+==================================================
+
+Audit authentication end-to-end.
+
+Identify the exact authentication architecture.
+
+Check:
+
+- login
+- logout
+- signup
+- password reset
+- email verification
+- OAuth
+- session creation
+- session refresh
+- JWT validation
+- token expiration
+- refresh-token rotation
+- session invalidation
+- account deletion
+- password changes
+
+Verify authentication is enforced SERVER-SIDE.
+
+Never trust:
+
+- frontend route guards
+- hidden buttons
+- React state
+- localStorage flags
+- client-side role checks
+- URL obscurity
+
+Test direct requests to protected endpoints.
+
+Examples:
+
+GET /api/admin
+GET /api/users
+GET /api/profile
+GET /api/resources
+POST /api/...
+DELETE /api/...
+
+Verify unauthenticated requests receive 401/403.
+
+Do not rely solely on redirects.
+
+==================================================
+PHASE 3 — AUTHORIZATION / IDOR
+==================================================
+
+This is a CRITICAL audit.
+
+For EVERY endpoint that accepts:
+
+- user ID
+- account ID
+- organization ID
+- resource ID
+- job ID
+- document ID
+- application ID
+- project ID
+- database record ID
+- URL parameter
+- query parameter
+
+check for insecure direct object references.
+
+Test conceptually:
+
+User A requests:
+
+/api/resource/123
+
+Then attempt to change:
+
+123 → 124 → 125
+
+Verify User A cannot access User B's resources.
+
+Never rely on:
+
+- hidden IDs
+- UUIDs alone
+- frontend filtering
+- obscurity
+
+Authorization must be checked against the authenticated user's identity server-side.
+
+==================================================
+PHASE 4 — ROLE AND PRIVILEGE ESCALATION
+==================================================
+
+Identify roles such as:
+
+admin
+user
+manager
+moderator
+owner
+editor
+viewer
+
+Verify every privileged operation performs a server-side role/permission check.
+
+Test:
+
+normal user → admin endpoint
+viewer → editor endpoint
+user → another organization
+user → admin API
+unauthenticated → privileged API
+
+Look specifically for:
+
+isAdmin === true
+role === "admin"
+user.role
+localStorage role
+client-side permissions
+
+If the decision is made only in the frontend, FIX IT.
+
+==================================================
+PHASE 5 — INPUT VALIDATION
+==================================================
+
+Find EVERY input source:
+
+- forms
+- search
+- query parameters
+- path parameters
+- JSON bodies
+- URL parameters
+- headers
+- cookies
+- file uploads
+- webhook payloads
+- imported files
+- admin forms
+- API requests
+
+Implement server-side validation.
+
+Use schema validation where appropriate.
+
+Reject:
+
+- unexpected types
+- excessive lengths
+- malformed URLs
+- malformed emails
+- unexpected fields
+- oversized payloads
+- invalid enum values
+- invalid IDs
+
+Use allowlists wherever possible.
+
+Do not rely on frontend validation.
+
+==================================================
+PHASE 6 — XSS
+==================================================
+
+Search for:
+
+innerHTML
+dangerouslySetInnerHTML
+HTML rendering
+Markdown rendering
+rich text
+user-generated content
+URL-based HTML
+SVG injection
+iframe embedding
+
+Determine whether untrusted content can execute JavaScript.
+
+Sanitize HTML where rendering is required.
+
+Use safe rendering by default.
+
+Check:
+
+- stored XSS
+- reflected XSS
+- DOM XSS
+- markdown XSS
+- URL/javascript injection
+
+Do NOT simply strip characters globally.
+
+Use context-appropriate output encoding/sanitization.
+
+==================================================
+PHASE 7 — SQL / DATABASE INJECTION
+==================================================
+
+Inspect every database query.
+
+Reject patterns involving:
+
+string concatenation
+template literals containing user input
+dynamic SQL
+raw SQL without parameterization
+
+Use:
+
+parameterized queries
+prepared statements
+safe ORM APIs
+
+Check:
+
+SELECT
+INSERT
+UPDATE
+DELETE
+ORDER BY
+WHERE
+LIKE
+LIMIT
+OFFSET
+dynamic table/column selection
+
+Do not assume ORM usage automatically makes all queries safe.
+
+==================================================
+PHASE 8 — DATABASE SECURITY / RLS
+==================================================
+
+Determine the database technology.
+
+If PostgreSQL/Supabase/Neon:
+
+Audit EVERY table.
+
+For each table determine:
+
+- ownership
+- public accessibility
+- authenticated accessibility
+- service-role accessibility
+- INSERT policy
+- SELECT policy
+- UPDATE policy
+- DELETE policy
+
+If Supabase is used:
+
+Verify RLS is enabled on every user-sensitive table.
+
+Do NOT blindly apply:
+
+auth.uid() = user_id
+
+if the application's actual authorization model is different.
+
+Create policies based on the actual data model.
+
+If Neon/Postgres is used:
+
+Remember that Neon itself does not provide Supabase-style auth.uid() RLS semantics automatically.
+
+Audit database permissions and application-layer authorization separately.
+
+Check whether DATABASE_URL or privileged credentials are ever exposed to the browser.
+
+If Firebase/Firestore:
+
+audit security rules.
+
+If another database is used:
+
+audit the equivalent access-control model.
+
+==================================================
+PHASE 9 — API SECURITY
+==================================================
+
+Enumerate EVERY API endpoint.
+
+For each endpoint document:
+
+METHOD
+PATH
+AUTH REQUIRED
+ROLE REQUIRED
+INPUT
+OUTPUT
+RATE LIMIT
+DATA ACCESS
+EXTERNAL SERVICES
+
+Check:
+
+- authentication
+- authorization
+- input validation
+- rate limiting
+- response leakage
+- error leakage
+- CORS
+- HTTP method handling
+- content-type validation
+- payload limits
+
+Pay particular attention to:
+
+admin APIs
+debug APIs
+internal APIs
+search APIs
+scraping APIs
+proxy endpoints
+database endpoints
+file endpoints
+
+==================================================
+PHASE 10 — SSRF
+==================================================
+
+CRITICAL for this application if it accepts URLs or performs web scraping.
+
+Find any functionality that accepts a user-supplied URL.
+
+Examples:
+
+url
+website
+webhook
+image URL
+scrape URL
+import URL
+fetch URL
+proxy URL
+
+Protect against SSRF.
+
+Block access to:
+
+127.0.0.1
+localhost
+0.0.0.0
+private IPv4 ranges
+private IPv6 ranges
+link-local addresses
+cloud metadata endpoints
+internal hostnames
+Vercel internal infrastructure
+database hosts where inappropriate
+
+Validate BOTH:
+
+- hostname before request
+- resolved IP before request
+
+Protect against DNS rebinding.
+
+Do not blindly trust URL schemes.
+
+Allow only:
+
+http
+https
+
+where appropriate.
+
+==================================================
+PHASE 11 — OPEN REDIRECTS
+==================================================
+
+Search for redirects based on user-controlled parameters.
+
+Examples:
+
+next
+redirect
+returnUrl
+callback
+continue
+url
+
+Ensure attackers cannot redirect users to arbitrary malicious domains.
+
+==================================================
+PHASE 12 — CORS
+==================================================
+
+Audit CORS configuration.
+
+Never use:
+
+Access-Control-Allow-Origin: *
+
+for authenticated APIs unless there is a legitimate reason.
+
+Check:
+
+credentials
+origins
+methods
+headers
+
+Use explicit allowlists for trusted origins.
+
+==================================================
+PHASE 13 — CSRF
+==================================================
+
+Determine whether cookie-based authentication is used.
+
+If yes:
+
+protect state-changing operations against CSRF.
+
+Check:
+
+SameSite
+Secure
+HttpOnly
+Origin
+Referer
+CSRF tokens where required
+
+GET requests must not perform destructive state changes.
+
+==================================================
+PHASE 14 — COOKIES AND SESSIONS
+==================================================
+
+Audit every authentication/session cookie.
+
+Verify appropriate:
+
+HttpOnly
+Secure
+SameSite
+Path
+Domain
+expiration
+
+Check for session fixation.
+
+Check logout actually invalidates sessions where required.
+
+Do not store authentication tokens in localStorage unless there is a documented, unavoidable reason.
+
+==================================================
+PHASE 15 — FILE UPLOAD SECURITY
+==================================================
+
+Find every upload feature.
+
+Check:
+
+- maximum file size
+- allowed extensions
+- MIME validation
+- magic-byte validation
+- filename sanitization
+- path traversal
+- executable files
+- SVG attacks
+- HTML uploads
+- archive bombs
+- decompression bombs
+- malicious PDFs/documents
+- storage permissions
+- public/private access
+
+Never trust the client-provided MIME type.
+
+Never use user filenames directly as filesystem paths.
+
+==================================================
+PHASE 16 — PATH TRAVERSAL
+==================================================
+
+Search for filesystem operations involving user input:
+
+read
+write
+delete
+download
+upload
+rename
+path.join
+fs
+filesystem APIs
+
+Block:
+
+../
+..\\
+absolute paths
+encoded traversal
+double encoding
+
+Use safe path resolution and enforce an allowed root directory.
+
+==================================================
+PHASE 17 — COMMAND INJECTION
+==================================================
+
+Search for:
+
+exec
+execSync
+spawn
+spawnSync
+shell
+child_process
+system calls
+
+Determine whether user-controlled data reaches shell commands.
+
+Never construct shell commands by concatenating user input.
+
+Use argument arrays and strict allowlists.
+
+==================================================
+PHASE 18 — TEMPLATE / CODE INJECTION
+==================================================
+
+Search for:
+
+eval
+Function()
+dynamic imports
+template engines
+expression evaluation
+serialized executable code
+
+Remove or safely constrain dangerous execution paths.
+
+==================================================
+PHASE 19 — WEBHOOK SECURITY
+==================================================
+
+Find all webhook endpoints.
+
+For each:
+
+- verify signature
+- validate timestamp/replay protection
+- validate content type
+- validate payload schema
+- prevent duplicate processing
+- authenticate sender
+- avoid trusting arbitrary webhook fields
+
+Check Stripe, GitHub, payment, email, automation, and other webhooks separately.
+
+Never accept:
+
+POST /webhook
+
+as trusted simply because it is a hidden URL.
+
+==================================================
+PHASE 20 — RATE LIMITING / ABUSE
+==================================================
+
+Identify expensive endpoints.
+
+Especially:
+
+- login
+- signup
+- password reset
+- search
+- scraping
+- AI generation
+- email sending
+- file uploads
+- expensive API calls
+- admin operations
+- public submissions
+
+Implement rate limiting appropriate for Vercel/serverless architecture.
+
+Do not rely solely on in-memory rate limits because serverless instances are ephemeral.
+
+Use an appropriate free/low-cost distributed mechanism if necessary.
+
+If a full distributed rate limiter is not available, implement the safest practical architecture and clearly document the limitation.
+
+Also add:
+
+- request body limits
+- pagination limits
+- maximum query depth where relevant
+- timeout protection
+
+==================================================
+PHASE 21 — AI / LLM SECURITY
+==================================================
+
+Because this application uses AI:
+
+Audit for:
+
+- prompt injection
+- indirect prompt injection
+- malicious webpage content
+- tool injection
+- excessive agent permissions
+- secret leakage into prompts
+- system prompt exposure
+- unsafe tool execution
+- untrusted retrieved content
+- arbitrary URL fetching
+- data exfiltration
+- cross-user context leakage
+
+Treat all web content as UNTRUSTED DATA.
+
+A webpage must never be allowed to override system/developer instructions.
+
+Separate:
+
+SYSTEM INSTRUCTIONS
+USER INPUT
+RETRIEVED WEB CONTENT
+TOOL OUTPUT
+
+Do not concatenate them into one trusted instruction stream.
+
+If an agent can execute tools, apply least privilege.
+
+==================================================
+PHASE 22 — WEB SCRAPING SECURITY
+==================================================
+
+If the application scrapes websites:
+
+Audit:
+
+- SSRF
+- malicious redirects
+- malicious HTML
+- prompt injection
+- oversized pages
+- infinite pages
+- crawler traps
+- zip bombs
+- decompression attacks
+- excessive recursion
+- excessive crawl depth
+- rate limiting
+- timeouts
+- memory consumption
+
+Do not allow a user to provide:
+
+http://localhost
+http://169.254.169.254
+private network URLs
+internal services
+
+and make the server fetch them.
+
+Set:
+
+maximum response size
+maximum page count
+maximum crawl depth
+request timeout
+redirect limit
+
+Treat scraped content as untrusted.
+
+==================================================
+PHASE 23 — SECURITY HEADERS
+==================================================
+
+Audit production HTTP headers.
+
+Implement where appropriate:
+
+Content-Security-Policy
+Strict-Transport-Security
+X-Content-Type-Options
+Referrer-Policy
+Permissions-Policy
+Frame-Ancestors / X-Frame-Options
+Cross-Origin-Opener-Policy
+Cross-Origin-Resource-Policy where appropriate
+
+Do not blindly copy a generic CSP.
+
+Build a CSP compatible with the actual application.
+
+Avoid:
+
+unsafe-eval
+
+unless genuinely required.
+
+Minimize:
+
+unsafe-inline
+
+where practical.
+
+==================================================
+PHASE 24 — CLICKJACKING
+==================================================
+
+Prevent unauthorized framing.
+
+Use:
+
+frame-ancestors
+
+or an appropriate X-Frame-Options policy.
+
+Check whether any legitimate iframe integrations require exceptions.
+
+==================================================
+PHASE 25 — INFORMATION DISCLOSURE
+==================================================
+
+Search for:
+
+console.log
+debug output
+stack traces
+database errors
+API keys
+filesystem paths
+environment variables
+internal hostnames
+SQL queries
+request headers
+
+Ensure production errors do not reveal sensitive implementation details.
+
+Return safe errors to users.
+
+Log detailed errors server-side only.
+
+==================================================
+PHASE 26 — VERCEL SECURITY
+==================================================
+
+Audit:
+
+vercel.json
+middleware
+rewrites
+redirects
+headers
+functions
+edge functions
+cron jobs
+environment variables
+build configuration
+
+Check:
+
+- secrets are stored in Vercel environment variables
+- production/preview/development environments are separated appropriately
+- preview deployments do not expose production secrets unnecessarily
+- sensitive API routes aren't unintentionally exposed
+- cron endpoints cannot be freely triggered
+- rewrites cannot bypass authentication
+- server-only code isn't bundled into frontend
+- source maps do not expose sensitive information
+- deployment configuration doesn't expose internal endpoints
+
+If Vercel cron jobs exist, verify that the endpoint cannot simply be invoked by an anonymous user.
+
+==================================================
+PHASE 27 — DEPENDENCY / SUPPLY CHAIN SECURITY
+==================================================
+
+Run available dependency security checks.
+
+Use the package manager actually used by the project.
+
+For Node:
+
+npm audit
+
+or the appropriate equivalent.
+
+Also inspect:
+
+package.json
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+Check:
+
+- critical vulnerabilities
+- high vulnerabilities
+- abandoned packages
+- suspicious packages
+- unnecessary dependencies
+- dependency confusion risks
+- postinstall scripts
+- excessive permissions
+
+Do NOT blindly upgrade every dependency to latest.
+
+First determine compatibility.
+
+Upgrade safely.
+
+Run tests/build after upgrades.
+
+Remove unused dependencies.
+
+Do not install security tools that are not available or cannot run; report that clearly.
+
+==================================================
+PHASE 28 — AUTHORIZED SECURITY TESTING
+==================================================
+
+After remediation, perform non-destructive security tests against the LOCAL APPLICATION.
+
+Do not launch destructive attacks against production.
+
+Test:
+
+- unauthenticated API access
+- unauthorized resource access
+- IDOR
+- role escalation
+- malformed JSON
+- oversized input
+- XSS payload handling
+- SQL injection handling
+- SSRF protections
+- path traversal
+- open redirects
+- CORS
+- CSRF where applicable
+- invalid webhook signatures
+- rate limiting
+- expired sessions
+- invalid tokens
+
+Use safe test payloads.
+
+Do not delete production data.
+
+Do not modify production accounts.
+
+==================================================
+PHASE 29 — BUILD / DEPLOYMENT VALIDATION
+==================================================
+
+After fixes:
+
+Run:
+
+- type checking
+- linting
+- unit tests
+- integration tests
+- build
+- relevant security tests
+
+Then verify the application still functions.
+
+Do not sacrifice functionality unnecessarily.
+
+==================================================
+PHASE 30 — SECURITY REPORT
+==================================================
+
+Create:
+
+SECURITY_AUDIT.md
+
+The report must contain:
+
+1. Executive summary
+
+2. Application architecture / attack surface
+
+3. Critical findings
+
+4. High findings
+
+5. Medium findings
+
+6. Low findings
+
+7. Informational findings
+
+8. Secrets discovered
+   - REDACT actual values
+   - identify location
+   - identify whether rotation is required
+
+9. Authentication findings
+
+10. Authorization findings
+
+11. Database findings
+
+12. API findings
+
+13. SSRF findings
+
+14. XSS findings
+
+15. CSRF findings
+
+16. File-upload findings
+
+17. Dependency findings
+
+18. Vercel configuration findings
+
+19. Security-header findings
+
+20. AI/LLM security findings
+
+21. Scraping/crawler security findings
+
+22. Remediation performed
+
+23. Remaining risks
+
+24. Manual actions required from the application owner
+
+25. Security test results
+
+For every vulnerability include:
+
+Severity
+Location
+Problem
+Attack scenario
+Impact
+Fix applied
+Validation performed
+
+Do NOT include actual credentials/secrets.
+
+==================================================
+FINAL ACCEPTANCE CRITERIA
+==================================================
+
+The work is NOT complete merely because the build succeeds.
+
+The application must:
+
+- contain no hardcoded production secrets
+- have server-side authentication
+- have server-side authorization
+- prevent IDOR
+- protect privileged routes
+- validate inputs server-side
+- prevent SQL injection
+- prevent XSS
+- protect against SSRF
+- protect file uploads
+- protect webhooks
+- have appropriate rate limiting
+- use secure cookies/session handling
+- have appropriate security headers
+- protect Vercel/serverless functions
+- have secure database permissions/RLS where applicable
+- have no known critical dependency vulnerabilities that can reasonably be fixed
+- prevent production error leakage
+- protect AI/tool execution against untrusted web content
+- preserve existing functionality
+
+IMPORTANT OPERATING RULES:
+
+1. DO NOT SKIP FILES.
+2. DO NOT ONLY SCAN src/.
+3. DO NOT assume frontend protection is security.
+4. DO NOT assume UUIDs provide authorization.
+5. DO NOT assume an ORM automatically prevents every injection.
+6. DO NOT assume environment variables are automatically server-only.
+7. DO NOT automatically rotate production credentials.
+8. DO NOT expose secrets in your report.
+9. DO NOT make destructive production tests.
+10. DO NOT disable security controls simply to make tests pass.
+11. DO NOT replace real authentication with mock authentication.
+12. DO NOT use mock security results.
+13. DO NOT claim something is secure merely because no obvious vulnerability was found.
+14. If you cannot verify something, mark it "NOT VERIFIED."
+15. Distinguish between:
+    FIXED
+    NOT FIXED
+    NOT VERIFIED
+    MANUAL ACTION REQUIRED
+
+MOST IMPORTANT:
+
+Do the work, don't just tell me what I should do.
+
+Inspect the complete codebase.
+Create the security report.
+Fix vulnerabilities that can safely be fixed in code.
+Run the application and tests.
+Validate the fixes.
+Then provide a concise final summary containing:
+
+- Critical issues found
+- Critical issues fixed
+- Keys requiring rotation
+- Authentication status
+- Authorization/IDOR status
+- Database/RLS status
+- SSRF status
+- XSS status
+- Dependency status
+- Vercel configuration status
+- Remaining risks
+- Manual actions I must perform
