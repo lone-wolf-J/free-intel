@@ -746,6 +746,13 @@ app.get("/api/resources", async (c) => {
   let rows: any[];
   if (alt === "only") {
     rows = await sql`SELECT * FROM resources WHERE alt_of IS NOT NULL ORDER BY free_score DESC NULLS LAST LIMIT 500` as any[];
+  } else if (q && category && category !== "all") {
+    const p = `%${escapeLike(q)}%`;
+    rows = await sql`SELECT * FROM resources WHERE (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p}) AND category = ${category} LIMIT 500` as any[];
+  } else if (q && free_type && free_type !== "all") {
+    const p = `%${escapeLike(q)}%`;
+    const ftp = `%${escapeLike(free_type)}%`;
+    rows = await sql`SELECT * FROM resources WHERE (name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p}) AND free_types::text ILIKE ${ftp} LIMIT 500` as any[];
   } else if (q) {
     const p = `%${escapeLike(q)}%`;
     rows = await sql`SELECT * FROM resources WHERE name ILIKE ${p} OR description ILIKE ${p} OR tags::text ILIKE ${p} LIMIT 500` as any[];
@@ -849,24 +856,27 @@ app.post("/api/stacks/generate", async (c) => {
     if (keywords.some(kw => goalLower.includes(kw))) detectedCaps.push(cap);
   }
   if (detectedCaps.length === 0) detectedCaps.push("ai", "backend", "frontend", "database");
+  // Extract meaningful words from the goal for targeted search
+  const goalWords = goalLower.split(/\s+/).filter((w: string) => w.length > 3 && !["free", "tool", "build", "create", "make", "need", "want", "replace", "with", "that", "this", "from", "your", "project", "website", "platform", "system", "online"].includes(w));
   const layers: any[] = [];
   const usedSlugs = new Set<string>();
   let totalTools = 0;
   for (const cap of detectedCaps.slice(0, 6)) {
     const keywords = capabilityMap[cap] || [cap];
-    const searchTerms = keywords.slice(0, 3);
+    const searchTerms = [...keywords.slice(0, 2), ...goalWords.slice(0, 2)];
     const results: any[] = [];
     for (const term of searchTerms) {
+      if (results.length >= 4) break;
       const p = `%${escapeLike(term)}%`;
       const rows = await sql`SELECT slug, name, description, url, github_url, free_score, category, tags, license, self_hostable, popularity, provider, free_types, resource_type
         FROM resources
-        WHERE (tags::text ILIKE ${p} OR capabilities::text ILIKE ${p} OR category ILIKE ${p} OR description ILIKE ${p})
+        WHERE (tags::text ILIKE ${p} OR capabilities::text ILIKE ${p} OR name ILIKE ${p} OR description ILIKE ${p})
         AND free_score >= 40
         AND resource_type != 'article'
         AND category NOT IN ('pricing', 'directory', 'ai-directory', 'research', 'newsletter', 'news', 'comparison', 'tutorial', 'guide', 'list', 'roundup', 'announcement')
         AND url NOT LIKE '%reddit.com%' AND url NOT LIKE '%arxiv.org%' AND url NOT LIKE '%theguardian%' AND url NOT LIKE '%medium.com%' AND url NOT LIKE '%substack.com%'
         ORDER BY free_score DESC, popularity DESC NULLS LAST
-        LIMIT 8`;
+        LIMIT 6`;
       for (const r of (rows as any[])) {
         if (!usedSlugs.has(r.slug) && isTool(r)) { results.push(r); usedSlugs.add(r.slug); }
       }
@@ -939,6 +949,7 @@ app.get("/api/github/intel", async (c) => {
 app.get("/api/deals", async (c) => {
   if (!checkRateLimit("deals", 30, 60000)) return c.json({ error: "rate_limited" }, 429);
   const filterType = c.req.query("type");
+  const filterCategory = c.req.query("category") ? sanitizeString(c.req.query("category"), 100) : null;
   const searchQuery = c.req.query("q") ? sanitizeString(c.req.query("q"), 200) : null;
 
   // Build deals from alternatives database
@@ -946,6 +957,7 @@ app.get("/api/deals", async (c) => {
   let deals: any[] = [];
 
   for (const tool of allTools) {
+    if (filterCategory && filterCategory !== "all" && tool.category.toLowerCase() !== filterCategory.toLowerCase()) continue;
     for (const alt of tool.alternatives) {
       const dealType = alt.type === "free_tier" ? "free_tier" : alt.type === "open_source" ? "open_source" : alt.type === "freemium" ? "free_credits" : "free_tier";
       const hasRealCost = tool.typical_cost_mo > 0 && tool.typical_cost_note && tool.typical_cost_note.trim().length > 0;
@@ -1231,6 +1243,114 @@ const LLM_PROVIDERS: LLMProvider[] = [
     last_checked: new Date().toISOString(),
   },
   {
+    id: "sambanova",
+    name: "SambaNova",
+    website: "https://sambanova.ai",
+    api_endpoint: "https://api.sambanova.ai/v1",
+    auth_type: "Bearer token (free signup)",
+    free_tier: true,
+    credit_card_required: false,
+    rate_limit_rpm: 10,
+    rate_limit_rpd: null,
+    rate_limit_tpm: null,
+    tokens_per_day: null,
+    models: ["Llama 3.3 70B", "DeepSeek R1", "Qwen3 235B", "Meta-Llama 3.1 405B"],
+    openai_compatible: true,
+    notes: "Free API access to large models. Fast inference on SN40L chips. No daily token cap published.",
+    category: "permanent",
+    last_checked: new Date().toISOString(),
+  },
+  {
+    id: "deepseek",
+    name: "DeepSeek",
+    website: "https://platform.deepseek.com",
+    api_endpoint: "https://api.deepseek.com/v1",
+    auth_type: "Bearer token (free signup)",
+    free_tier: true,
+    credit_card_required: false,
+    rate_limit_rpm: 10,
+    rate_limit_rpd: null,
+    rate_limit_tpm: null,
+    tokens_per_day: null,
+    models: ["DeepSeek V3", "DeepSeek R1", "DeepSeek Coder V2"],
+    openai_compatible: true,
+    notes: "Free tier with $0.10 credit on signup. Extremely cheap per-token pricing. Chinese company, data may be processed in China.",
+    category: "trial-credits",
+    last_checked: new Date().toISOString(),
+  },
+  {
+    id: "siliconflow",
+    name: "SiliconFlow",
+    website: "https://siliconflow.cn",
+    api_endpoint: "https://api.siliconflow.cn/v1",
+    auth_type: "Bearer token (free signup)",
+    free_tier: true,
+    credit_card_required: false,
+    rate_limit_rpm: 20,
+    rate_limit_rpd: null,
+    rate_limit_tpm: null,
+    tokens_per_day: null,
+    models: ["Qwen2.5 72B", "DeepSeek V3", "GLM-4", "Llama 3.3 70B"],
+    openai_compatible: true,
+    notes: "Chinese cloud AI platform. Free tier with generous limits. Multiple open-weight models hosted.",
+    category: "permanent",
+    last_checked: new Date().toISOString(),
+  },
+  {
+    id: "novita",
+    name: "Novita AI",
+    website: "https://novita.ai",
+    api_endpoint: "https://api.novita.ai/v3/openai",
+    auth_type: "Bearer token (free signup)",
+    free_tier: true,
+    credit_card_required: false,
+    rate_limit_rpm: 10,
+    rate_limit_rpd: null,
+    rate_limit_tpm: null,
+    tokens_per_day: null,
+    models: ["Llama 3.3 70B", "DeepSeek V3", "Qwen 2.5"],
+    openai_compatible: true,
+    notes: "Free trial credits on signup. GPU cloud + inference API. Affordable per-token pricing after credits.",
+    category: "trial-credits",
+    last_checked: new Date().toISOString(),
+  },
+  {
+    id: "cloudflare-workers-ai",
+    name: "Cloudflare Workers AI",
+    website: "https://workers.cloudflare.com",
+    api_endpoint: "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run",
+    auth_type: "API token (free signup)",
+    free_tier: true,
+    credit_card_required: false,
+    rate_limit_rpm: null,
+    rate_limit_rpd: null,
+    rate_limit_tpm: null,
+    tokens_per_day: null,
+    models: ["Llama 3 8B", "Llama 3 70B", "Mistral 7B", "Phi-2", "Gemma 2B", "Stable Diffusion"],
+    openai_compatible: false,
+    notes: "10,000 neurons/day free (neurons = inference units). Edge-deployed models. Not OpenAI-compatible API format.",
+    category: "permanent",
+    last_checked: new Date().toISOString(),
+  },
+  {
+    id: "huggingface-free-inference",
+    name: "HuggingFace Serverless Inference",
+    website: "https://huggingface.co",
+    api_endpoint: "https://api-inference.huggingface.co/models/",
+    auth_type: "HF token (free signup)",
+    free_tier: true,
+    credit_card_required: false,
+    rate_limit_rpm: null,
+    rate_limit_rpd: null,
+    rate_limit_tpm: null,
+    tokens_per_day: null,
+    models: ["All HF models (routes to Groq, Cerebras, Together, etc.)"],
+    openai_compatible: false,
+    notes: "Free rate-limited access to hosted models. Routes to partner backends. Cold starts on less popular models.",
+    category: "permanent",
+    last_checked: new Date().toISOString(),
+  },
+  {
     id: "together",
     name: "Together AI",
     website: "https://together.ai",
@@ -1285,21 +1405,183 @@ const LLM_PROVIDERS: LLMProvider[] = [
     last_checked: new Date().toISOString(),
   },
   {
-    id: "huggingface-inference",
-    name: "HuggingFace Inference API",
-    website: "https://huggingface.co",
-    api_endpoint: "https://router.huggingface.co/v1",
-    auth_type: "HF token (free signup)",
-    free_tier: false,
+    id: "zhipu-bigmodel",
+    name: "Zhipu AI (BigModel)",
+    website: "https://open.bigmodel.cn",
+    api_endpoint: "https://open.bigmodel.cn/api/paas/v4",
+    auth_type: "Bearer token (free signup)",
+    free_tier: true,
+    credit_card_required: false,
+    rate_limit_rpm: 10,
+    rate_limit_rpd: null,
+    rate_limit_tpm: null,
+    tokens_per_day: null,
+    models: ["GLM-4", "GLM-4-Flash", "GLM-4V", "CogVideoX"],
+    openai_compatible: true,
+    notes: "Chinese AI lab. GLM-4-Flash is free. Full GLM-4 has free quota on signup. WeChat/phone verification required.",
+    category: "permanent",
+    last_checked: new Date().toISOString(),
+  },
+  {
+    id: "moonshot-kimi",
+    name: "Moonshot AI (Kimi)",
+    website: "https://platform.moonshot.cn",
+    api_endpoint: "https://api.moonshot.cn/v1",
+    auth_type: "Bearer token (free signup)",
+    free_tier: true,
+    credit_card_required: false,
+    rate_limit_rpm: 10,
+    rate_limit_rpd: null,
+    rate_limit_tpm: null,
+    tokens_per_day: null,
+    models: ["Moonshot v1 8K", "Moonshot v1 32K", "Moonshot v1 128K"],
+    openai_compatible: true,
+    notes: "Chinese AI company. Free tier with limited tokens on signup. Long-context specialty (128K).",
+    category: "trial-credits",
+    last_checked: new Date().toISOString(),
+  },
+  {
+    id: "baichuan",
+    name: "Baichuan Intelligent",
+    website: "https://platform.baichuan-ai.com",
+    api_endpoint: "https://api.baichuan-ai.com/v1",
+    auth_type: "Bearer token (free signup)",
+    free_tier: true,
+    credit_card_required: false,
+    rate_limit_rpm: 10,
+    rate_limit_rpd: null,
+    rate_limit_tpm: null,
+    tokens_per_day: null,
+    models: ["Baichuan 4", "Baichuan 3 Turbo", "Baichuan 2 Turbo"],
+    openai_compatible: true,
+    notes: "Chinese AI company. Free tokens on signup. Strong Chinese language performance.",
+    category: "trial-credits",
+    last_checked: new Date().toISOString(),
+  },
+  {
+    id: "minimax",
+    name: "MiniMax",
+    website: "https://www.minimaxi.com",
+    api_endpoint: "https://api.minimax.chat/v1",
+    auth_type: "Bearer token (free signup)",
+    free_tier: true,
+    credit_card_required: false,
+    rate_limit_rpm: 10,
+    rate_limit_rpd: null,
+    rate_limit_tpm: null,
+    tokens_per_day: null,
+    models: ["MiniMax-Text-01", "abab6.5s-chat", "Speech-01"],
+    openai_compatible: true,
+    notes: "Chinese AI company. Free tier on signup. Strong multimodal capabilities (text + speech).",
+    category: "trial-credits",
+    last_checked: new Date().toISOString(),
+  },
+  {
+    id: "01ai-yi",
+    name: "01.AI (Yi)",
+    website: "https://platform.lingyiwanwu.com",
+    api_endpoint: "https://api.lingyiwanwu.com/v1",
+    auth_type: "Bearer token (free signup)",
+    free_tier: true,
+    credit_card_required: false,
+    rate_limit_rpm: 10,
+    rate_limit_rpd: null,
+    rate_limit_tpm: null,
+    tokens_per_day: null,
+    models: ["Yi-Lightning", "Yi-Large", "Yi-Vision"],
+    openai_compatible: true,
+    notes: "Founded by Kai-Fu Lee. Free tier on signup. Yi-Lightning is competitive with GPT-4.",
+    category: "trial-credits",
+    last_checked: new Date().toISOString(),
+  },
+  {
+    id: "ibm-watsonx",
+    name: "IBM watsonx.ai",
+    website: "https://watsonx.ai",
+    api_endpoint: "https://us-south.ml.cloud.ibm.com/ml/v1",
+    auth_type: "IAM API key (free tier)",
+    free_tier: true,
     credit_card_required: false,
     rate_limit_rpm: null,
     rate_limit_rpd: null,
     rate_limit_tpm: null,
     tokens_per_day: null,
-    models: ["All HF models (routes to Groq, Cerebras, Together, etc.)"],
+    models: ["Granite 3.0 8B", "Granite 3.0 2B", "Llama 3.1 8B"],
+    openai_compatible: false,
+    notes: "Free tier: 50,000 watsonx.ai tokens/month for 12 months. Enterprise-grade. IBM Cloud account required.",
+    category: "permanent",
+    last_checked: new Date().toISOString(),
+  },
+  {
+    id: "amazon-bedrock-free",
+    name: "Amazon Bedrock (Free Tier)",
+    website: "https://aws.amazon.com/bedrock",
+    api_endpoint: "https://bedrock-runtime.{region}.amazonaws.com",
+    auth_type: "AWS IAM (free tier)",
+    free_tier: true,
+    credit_card_required: false,
+    rate_limit_rpm: null,
+    rate_limit_rpd: null,
+    rate_limit_tpm: null,
+    tokens_per_day: null,
+    models: ["Titan Text Lite", "Titan Text Express", "Llama 3 8B", "Cohere Embed"],
+    openai_compatible: false,
+    notes: "Free tier for 12 months: 500K Titan Text Lite tokens/mo, 500K Titan Text Express tokens/mo. AWS account required.",
+    category: "permanent",
+    last_checked: new Date().toISOString(),
+  },
+  {
+    id: "azure-ai-free",
+    name: "Azure AI (Free Tier)",
+    website: "https://azure.microsoft.com/en-us/products/ai-services",
+    api_endpoint: "https://{resource}.openai.azure.com",
+    auth_type: "API key (free tier)",
+    free_tier: true,
+    credit_card_required: false,
+    rate_limit_rpm: null,
+    rate_limit_rpd: null,
+    rate_limit_tpm: null,
+    tokens_per_day: null,
+    models: ["GPT-3.5 Turbo", "GPT-4o mini", "DALL-E 3", "Whisper"],
     openai_compatible: true,
-    notes: "$0.10/mo free credit on free accounts — essentially a taste, not a real free tier. Cold starts on less popular models.",
+    notes: "Free tier: 5K GPT-3.5 Turbo requests/day, 50K GPT-4o mini tokens/day. Azure account required.",
+    category: "permanent",
+    last_checked: new Date().toISOString(),
+  },
+  {
+    id: "replicate-free",
+    name: "Replicate",
+    website: "https://replicate.com",
+    api_endpoint: "https://api.replicate.com/v1",
+    auth_type: "Bearer token (free signup)",
+    free_tier: true,
+    credit_card_required: false,
+    rate_limit_rpm: null,
+    rate_limit_rpd: null,
+    rate_limit_tpm: null,
+    tokens_per_day: null,
+    models: ["All open-source models (Llama, SDXL, Whisper, etc.)"],
+    openai_compatible: false,
+    notes: "$5 free credits on signup. Pay-per-second GPU pricing after credits. Not a permanent free tier.",
     category: "trial-credits",
+    last_checked: new Date().toISOString(),
+  },
+  {
+    id: "modal-free",
+    name: "Modal",
+    website: "https://modal.com",
+    api_endpoint: "https://api.modal.com/v1",
+    auth_type: "Token (free signup)",
+    free_tier: true,
+    credit_card_required: false,
+    rate_limit_rpm: null,
+    rate_limit_rpd: null,
+    rate_limit_tpm: null,
+    tokens_per_day: null,
+    models: ["Any model you deploy (GPU serverless)"],
+    openai_compatible: false,
+    notes: "$30/mo free GPU credits. Run any model on serverless GPUs. No free inference API — you deploy your own.",
+    category: "permanent",
     last_checked: new Date().toISOString(),
   },
 ];

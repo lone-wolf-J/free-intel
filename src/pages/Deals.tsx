@@ -52,6 +52,7 @@ export default function Deals() {
   const [data, setData] = useState<DealsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const [catFilter, setCatFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("score");
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
@@ -61,6 +62,7 @@ export default function Deals() {
     try {
       const params = new URLSearchParams();
       if (filter !== "all") params.set("type", filter);
+      if (catFilter !== "all") params.set("category", catFilter);
       if (search.trim()) params.set("q", search.trim());
       const res = await fetch(`/api/deals?${params}`);
       const json = (await res.json()) as DealsResponse;
@@ -71,7 +73,7 @@ export default function Deals() {
     } finally {
       setLoading(false);
     }
-  }, [filter, search]);
+  }, [filter, catFilter, search]);
 
   useEffect(() => { fetchDeals(); }, [fetchDeals]);
 
@@ -152,7 +154,7 @@ export default function Deals() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-1.5 mb-6">
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
         <button
           onClick={() => setFilter("all")}
           className={`chip cursor-pointer transition-colors ${
@@ -175,17 +177,33 @@ export default function Deals() {
             </button>
           );
         })}
-        <div className="ml-auto">
-          <select
-            value={sort} onChange={(e) => { setSort(e.target.value); sfx.click(); }}
-            aria-label="Sort deals"
-            className="bg-panel border border-slate-700 rounded px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-slate-300 outline-none focus:border-cyan cursor-pointer"
+      </div>
+
+      {/* Category filters */}
+      <div className="flex flex-wrap gap-1.5 mb-4">
+        {["all", "ai", "productivity", "design", "devops", "data", "security", "business", "developer-tools"].map((cat) => (
+          <button
+            key={cat}
+            onClick={() => { setCatFilter(cat); sfx.click(); }}
+            className={`chip cursor-pointer transition-colors text-[9px] ${
+              catFilter === cat ? "border-lime-neon text-lime-neon bg-lime-neon/10" : "border-slate-700/50 text-slate-500 hover:text-slate-300"
+            }`}
           >
-            <option value="score">SORT: SCORE</option>
-            <option value="name">SORT: NAME</option>
-            <option value="value">SORT: COMPETITIVE VALUE</option>
-          </select>
-        </div>
+            {cat.toUpperCase()}
+          </button>
+        ))}
+        <select
+          value={sort}
+          onChange={(e) => { setSort(e.target.value); sfx.click(); }}
+          className="ml-auto bg-panel border border-slate-700 rounded px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-slate-300 outline-none focus:border-cyan cursor-pointer"
+        >
+          <option value="score">SORT: SCORE</option>
+          <option value="name">SORT: NAME</option>
+          <option value="value">SORT: COMPETITIVE VALUE</option>
+        </select>
+        <span className="font-mono text-[10px] tracking-widest text-slate-500">
+          {loading ? "SCANNING…" : `${filtered.length} DEAL(S)`}
+        </span>
       </div>
 
       {loading ? (
