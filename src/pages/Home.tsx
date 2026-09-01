@@ -49,14 +49,14 @@ export default function Home() {
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8">
       {/* HERO */}
-      <section className="pt-16 md:pt-24 pb-10">
+      <section className="pt-12 md:pt-16 lg:pt-24 pb-8 md:pb-10">
         <motion.div
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="flex items-center gap-3 mb-6"
+          className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6"
         >
-          <span className="chip border-lime-neon/50 text-lime-neon bg-lime-neon/5">
+          <span className="chip border-lime-neon/50 text-lime-neon bg-lime-neon/5 text-[9px] md:text-[10px]">
             <span className="h-1.5 w-1.5 rounded-full bg-lime-neon animate-pulse-dot" />
             SYSTEM STATUS: ACTIVE
           </span>
@@ -65,7 +65,7 @@ export default function Home() {
           </span>
         </motion.div>
 
-        <h1 className="font-bold leading-[0.98] tracking-tight text-4xl sm:text-5xl md:text-7xl max-w-5xl">
+        <h1 className="font-bold leading-[0.98] tracking-tight text-3xl sm:text-4xl md:text-5xl lg:text-7xl max-w-5xl">
           <span className="grad-text">STOP PAYING</span>
           <br />
           <span className="text-slate-100">FOR WHAT YOU CAN</span>
@@ -75,33 +75,33 @@ export default function Home() {
           </span>
         </h1>
 
-        <p className="mt-6 max-w-2xl text-[15px] leading-relaxed text-slate-400 min-h-[48px]">
+        <p className="mt-4 md:mt-6 max-w-2xl text-[13px] md:text-[15px] leading-relaxed text-slate-400 min-h-[48px]">
           <TypeWriter text="AI models. APIs. MCP servers. Agent skills. Open-source software. Cloud credits. SaaS alternatives. Continuously discovered, verified, ranked and explained." />
         </p>
 
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link to="/discover" className="btn-neon" onClick={() => sfx.click()}>
+        <div className="mt-6 md:mt-8 flex flex-wrap gap-2 md:gap-3">
+          <Link to="/discover" className="btn-neon text-[11px] md:text-[13px]" onClick={() => sfx.click()}>
             FIND FREE RESOURCES <ArrowRight size={14} />
           </Link>
-          <Link to="/stacks" className="btn-neon btn-violet" onClick={() => sfx.click()}>
+          <Link to="/stacks" className="btn-neon btn-violet text-[11px] md:text-[13px]" onClick={() => sfx.click()}>
             <Layers size={14} /> BUILD A FREE STACK
           </Link>
-          <Link to="/save-money" className="btn-ghost" onClick={() => sfx.click()}>
+          <Link to="/save-money" className="btn-ghost text-[11px] md:text-[13px]" onClick={() => sfx.click()}>
             <Calculator size={13} /> ANALYZE MY SOFTWARE COST
           </Link>
         </div>
 
         {/* INTENT ENTRY */}
-        <div className="mt-12">
-          <div className="mono-label mb-3">WHAT ARE YOU TRYING TO BUILD?</div>
-          <div className="flex flex-wrap gap-2">
+        <div className="mt-8 md:mt-12">
+          <div className="mono-label mb-2 md:mb-3 text-[8px] md:text-[10px]">WHAT ARE YOU TRYING TO BUILD?</div>
+          <div className="flex flex-wrap gap-1.5 md:gap-2">
             {INTENT_CHIPS.map((c) => (
               <button
                 key={c}
                 onClick={() => { sfx.discover(); nav(`/discover?q=${encodeURIComponent(c)}`); }}
-                className="group flex items-center gap-2 rounded-full border border-slate-600/30 bg-panel/60 px-4 py-2 text-xs text-slate-300 hover:border-cyan/50 hover:text-cyan transition-all duration-200 cursor-pointer"
+                className="group flex items-center gap-1.5 md:gap-2 rounded-full border border-slate-600/30 bg-panel/60 px-3 md:px-4 py-1.5 md:py-2 text-[10px] md:text-xs text-slate-300 hover:border-cyan/50 hover:text-cyan transition-all duration-200 cursor-pointer"
               >
-                <Zap size={11} className="text-slate-500 group-hover:text-cyan transition-colors" />
+                <Zap size={10} className="text-slate-500 group-hover:text-cyan transition-colors" />
                 {c}
               </button>
             ))}
@@ -110,13 +110,13 @@ export default function Home() {
       </section>
 
       {/* COUNTERS */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-14">
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-10 md:mb-14">
         {stats.map((s, i) => (
-          <Panel key={s.label} className="p-4 md:p-5" bright={i === 0}>
-            <div className="text-2xl md:text-3xl font-bold text-slate-100">
+          <Panel key={s.label} className="p-3 md:p-4 lg:p-5" bright={i === 0}>
+            <div className="text-xl md:text-2xl lg:text-3xl font-bold text-slate-100">
               <Counter value={s.value} />
             </div>
-            <div className="mono-label mt-1">{s.label}</div>
+            <div className="mono-label mt-1 text-[8px] md:text-[10px]">{s.label}</div>
           </Panel>
         ))}
       </section>
@@ -146,38 +146,38 @@ export default function Home() {
       )}
 
       {/* LIVE RADAR */}
-      <section className="grid lg:grid-cols-5 gap-6 mb-20">
+      <section className="grid lg:grid-cols-5 gap-4 md:gap-6 mb-14 md:mb-20">
         <div className="lg:col-span-3">
           <Panel className="overflow-hidden h-full" bright>
-            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-700/40">
-              <div className="flex items-center gap-2 font-mono text-xs tracking-[0.2em] text-cyan">
-                <TerminalSquare size={15} />
+            <div className="flex items-center justify-between px-3 md:px-5 py-2.5 md:py-3 border-b border-slate-700/40">
+              <div className="flex items-center gap-1.5 md:gap-2 font-mono text-[10px] md:text-xs tracking-[0.2em] text-cyan">
+                <TerminalSquare size={14} />
                 LIVE FREE RADAR
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 md:gap-2">
                 <span className="h-2 w-2 rounded-full bg-lime-neon animate-pulse-dot" />
-                <span className="font-mono text-[9px] tracking-widest text-lime-neon">LISTENING</span>
+                <span className="font-mono text-[8px] md:text-[9px] tracking-widest text-lime-neon">LISTENING</span>
               </div>
             </div>
 
             {status?.last_scan ? (
-              <div className="px-5 py-2 border-b border-slate-800/60 bg-slate-900/40 font-mono text-[10px] tracking-wider text-slate-500">
+              <div className="px-3 md:px-5 py-1.5 md:py-2 border-b border-slate-800/60 bg-slate-900/40 font-mono text-[8px] md:text-[10px] tracking-wider text-slate-500 truncate">
                 LAST COMPLETED SCAN: {String(status.last_scan.kind).toUpperCase()} @{" "}
                 {status.last_scan.finished_at || status.last_scan.started_at} · STATUS:{" "}
                 <span className={status.last_scan.status === "complete" ? "text-lime-neon" : "text-red-neon"}>
                   {String(status.last_scan.status).toUpperCase()}
                 </span>{" "}
-                · NOT SCANNING RIGHT NOW — NO FAKE REALTIME
+                · NOT SCANNING RIGHT NOW
               </div>
             ) : (
-              <div className="px-5 py-2 border-b border-slate-800/60 bg-slate-900/40 font-mono text-[10px] tracking-wider text-amber-neon">
+              <div className="px-3 md:px-5 py-1.5 md:py-2 border-b border-slate-800/60 bg-slate-900/40 font-mono text-[8px] md:text-[10px] tracking-wider text-amber-neon">
                 NO SCAN DATA YET — RUN A GITHUB SCAN FROM THE RADAR PAGE
               </div>
             )}
 
-            <div className="p-4 md:p-5 space-y-1 min-h-[240px] font-mono text-[11px] md:text-xs">
+            <div className="p-3 md:p-4 lg:p-5 space-y-1 min-h-[200px] md:min-h-[240px] font-mono text-[10px] md:text-xs">
               {events.length === 0 && (
-                <div className="text-slate-500 py-8 text-center tracking-widest">
+                <div className="text-slate-500 py-6 md:py-8 text-center tracking-widest text-[10px] md:text-xs">
                   AWAITING FIRST INTELLIGENCE EVENT…
                   <span className="animate-blink text-cyan">▊</span>
                 </div>
@@ -188,9 +188,9 @@ export default function Home() {
                   initial={{ opacity: 0, x: -14 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: reduced ? 0 : i * 0.08, duration: 0.35 }}
-                  className="flex items-start gap-3 py-1 group"
+                  className="flex items-start gap-2 md:gap-3 py-1 group"
                 >
-                  <span className="text-slate-600 shrink-0 tabular-nums">
+                  <span className="text-slate-600 shrink-0 tabular-nums text-[9px] md:text-[11px]">
                     {(e.created_at || "").slice(11, 19)}
                   </span>
                   <span
@@ -210,7 +210,7 @@ export default function Home() {
                     <span className={e.type === "system" ? "text-slate-500" : ""}>{e.title}</span>
                     {e.detail && (
                       <span className="block text-slate-500 mt-0.5 leading-relaxed normal-case tracking-normal">
-                        {e.detail.length > 110 ? e.detail.slice(0, 110) + "…" : e.detail}
+                        {e.detail.length > 80 ? e.detail.slice(0, 80) + "…" : e.detail}
                       </span>
                     )}
                   </span>
@@ -218,8 +218,8 @@ export default function Home() {
               ))}
             </div>
 
-            <div className="px-5 pb-4">
-              <Link to="/radar" className="btn-ghost w-full justify-center">
+            <div className="px-3 md:px-5 pb-3 md:pb-4">
+              <Link to="/radar" className="btn-ghost w-full justify-center text-[10px] md:text-xs">
                 OPEN FULL RADAR
               </Link>
             </div>
@@ -230,38 +230,38 @@ export default function Home() {
         <div className="lg:col-span-2">
           <SectionTitle kicker="RETENTION MODULE // REAL DATA ONLY" title="TODAY'S CRAZIEST FIND" />
           {craziest ? (
-            <TiltCard className="p-6 relative overflow-hidden">
+            <TiltCard className="p-4 md:p-6 relative overflow-hidden">
               <div className="absolute -top-10 -right-10 h-36 w-36 rounded-full bg-violet-deep/30 blur-3xl pointer-events-none" />
-              <div className="mono-label mb-3 text-violet-300">HIGHEST FREE SCORE IN DATABASE</div>
-              <div className="flex items-start justify-between gap-4">
-                <div>
+              <div className="mono-label mb-3 text-violet-300 text-[8px] md:text-[10px]">HIGHEST FREE SCORE IN DATABASE</div>
+              <div className="flex items-start justify-between gap-3 md:gap-4">
+                <div className="min-w-0">
                   <Link
                     to={`/resource/${craziest.slug}`}
-                    className="text-xl font-bold text-slate-100 hover:text-cyan transition-colors"
+                    className="text-lg md:text-xl font-bold text-slate-100 hover:text-cyan transition-colors block"
                   >
                     {craziest.name}
                   </Link>
                   <div className="mt-1"><StatusBadge status={craziest.verification_status} /></div>
                 </div>
-                <div className="text-right">
-                  <div className="font-mono text-4xl font-bold grad-text leading-none">
+                <div className="text-right shrink-0">
+                  <div className="font-mono text-3xl md:text-4xl font-bold grad-text leading-none">
                     <Counter value={craziest.free_score} />
                   </div>
-                  <div className="mono-label mt-1">FREE SCORE</div>
+                  <div className="mono-label mt-1 text-[8px] md:text-[10px]">FREE SCORE</div>
                 </div>
               </div>
-              <p className="mt-4 text-sm text-slate-400 leading-relaxed">{craziest.description}</p>
-              <Link to={`/resource/${craziest.slug}`} className="btn-neon mt-5">
+              <p className="mt-3 md:mt-4 text-xs md:text-sm text-slate-400 leading-relaxed">{craziest.description}</p>
+              <Link to={`/resource/${craziest.slug}`} className="btn-neon mt-4 md:mt-5 text-[11px] md:text-[13px]">
                 OPEN DOSSIER <ArrowRight size={13} />
               </Link>
             </TiltCard>
           ) : (
-            <Panel className="p-6 text-sm text-slate-500">Loading intelligence…</Panel>
+            <Panel className="p-4 md:p-6 text-sm text-slate-500">Loading intelligence…</Panel>
           )}
 
-          <div className="mt-4 glass rounded-lg p-4 flex items-start gap-3">
-            <AlertTriangle size={15} className="text-amber-neon shrink-0 mt-0.5" />
-            <p className="text-[11px] leading-relaxed text-slate-500">
+          <div className="mt-3 md:mt-4 glass rounded-lg p-3 md:p-4 flex items-start gap-2 md:gap-3">
+            <AlertTriangle size={14} className="text-amber-neon shrink-0 mt-0.5" />
+            <p className="text-[10px] md:text-[11px] leading-relaxed text-slate-500">
               <span className="font-mono text-amber-neon">DATA POLICY:</span> every resource on this
               platform was discovered by live crawls of real sources (GitHub API, RSS feeds, official
               pages). Unknown facts display as UNKNOWN — never guessed. Empty sections mean the
@@ -303,14 +303,14 @@ export default function Home() {
       )}
 
       {/* BROWSE & FILTER */}
-      <section className="mb-10">
-        <Panel className="p-6 md:p-8 overflow-hidden relative">
-          <div className="flex items-center justify-between">
+      <section className="mb-8 md:mb-10">
+        <Panel className="p-4 md:p-6 lg:p-8 overflow-hidden relative">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <div className="mono-label mb-2">BROWSE & FILTER</div>
-              <p className="text-sm text-slate-400">Filter by category, classification, sort by score or recency.</p>
+              <div className="mono-label mb-1.5 md:mb-2 text-[8px] md:text-[10px]">BROWSE & FILTER</div>
+              <p className="text-xs md:text-sm text-slate-400">Filter by category, classification, sort by score or recency.</p>
             </div>
-            <Link to="/discover" className="btn-neon" onClick={() => sfx.click()}>
+            <Link to="/discover" className="btn-neon text-[11px] md:text-[13px] shrink-0" onClick={() => sfx.click()}>
               <Filter size={13} className="mr-1" /> OPEN DISCOVER <ArrowRight size={13} />
             </Link>
           </div>
@@ -318,61 +318,61 @@ export default function Home() {
       </section>
 
       {/* NEW FEATURES ROW */}
-      <section className="grid md:grid-cols-2 gap-6 mb-20">
+      <section className="grid md:grid-cols-2 gap-4 md:gap-6 mb-14 md:mb-20">
         <Link to="/llm-apis" className="group" onClick={() => sfx.click()}>
-          <Panel className="p-6 hover:border-cyan/40 transition-all h-full" bright>
-            <div className="flex items-center gap-3 mb-3">
-              <Cpu size={18} className="text-cyan" />
-              <div className="mono-label text-cyan">FREE LLM API ACCESS</div>
+          <Panel className="p-4 md:p-6 hover:border-cyan/40 transition-all h-full" bright>
+            <div className="flex items-center gap-2 md:gap-3 mb-2 md:mb-3">
+              <Cpu size={16} className="text-cyan md:w-[18px] md:h-[18px]" />
+              <div className="mono-label text-cyan text-[8px] md:text-[10px]">FREE LLM API ACCESS</div>
             </div>
-            <h3 className="text-lg font-bold text-slate-100 group-hover:text-cyan transition-colors mb-2">
+            <h3 className="text-base md:text-lg font-bold text-slate-100 group-hover:text-cyan transition-colors mb-1.5 md:mb-2">
               Compare Free LLM APIs
             </h3>
-            <p className="text-sm text-slate-400 leading-relaxed">
+            <p className="text-xs md:text-sm text-slate-400 leading-relaxed">
               Structured comparison of free-tier LLM APIs: Groq, Cerebras, Google AI Studio,
               Mistral, OpenRouter. Requests/day, token limits, model lists — all verified.
             </p>
-            <div className="mt-4 flex items-center gap-1 font-mono text-[10px] text-cyan/70 group-hover:text-cyan transition-colors">
+            <div className="mt-3 md:mt-4 flex items-center gap-1 font-mono text-[9px] md:text-[10px] text-cyan/70 group-hover:text-cyan transition-colors">
               OPEN TABLE <ArrowRight size={11} />
             </div>
           </Panel>
         </Link>
         <Link to="/models" className="group" onClick={() => sfx.click()}>
-          <Panel className="p-6 hover:border-violet-neon/40 transition-all h-full">
-            <div className="flex items-center gap-3 mb-3">
-              <Layers size={18} className="text-violet-neon" />
-              <div className="mono-label text-violet-300">OPEN-WEIGHT MODELS</div>
+          <Panel className="p-4 md:p-6 hover:border-violet-neon/40 transition-all h-full">
+            <div className="flex items-center gap-2 md:gap-3 mb-2 md:mb-3">
+              <Layers size={16} className="text-violet-neon md:w-[18px] md:h-[18px]" />
+              <div className="mono-label text-violet-300 text-[8px] md:text-[10px]">OPEN-WEIGHT MODELS</div>
             </div>
-            <h3 className="text-lg font-bold text-slate-100 group-hover:text-violet-neon transition-colors mb-2">
+            <h3 className="text-base md:text-lg font-bold text-slate-100 group-hover:text-violet-neon transition-colors mb-1.5 md:mb-2">
               Trending Open Models
             </h3>
-            <p className="text-sm text-slate-400 leading-relaxed">
+            <p className="text-xs md:text-sm text-slate-400 leading-relaxed">
               Live feed of trending open-weight models from HuggingFace. Filter by license
               (MIT, Apache, Llama), see download counts, and find where to run them free.
             </p>
-            <div className="mt-4 flex items-center gap-1 font-mono text-[10px] text-violet-neon/70 group-hover:text-violet-neon transition-colors">
+            <div className="mt-3 md:mt-4 flex items-center gap-1 font-mono text-[9px] md:text-[10px] text-violet-neon/70 group-hover:text-violet-neon transition-colors">
               BROWSE MODELS <ArrowRight size={11} />
             </div>
           </Panel>
         </Link>
       </section>
-      <section className="mb-10">
-        <Panel className="p-8 md:p-10 text-center overflow-hidden relative" bright>
+      <section className="mb-8 md:mb-10">
+        <Panel className="p-6 md:p-8 lg:p-10 text-center overflow-hidden relative" bright>
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan/70 to-transparent" />
-          <div className="font-mono text-[10px] tracking-[0.3em] text-slate-500 mb-4">
+          <div className="font-mono text-[8px] md:text-[10px] tracking-[0.3em] text-slate-500 mb-3 md:mb-4">
             THE LOOP
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 font-mono text-sm md:text-lg tracking-[0.14em]">
+          <div className="flex flex-wrap items-center justify-center gap-x-2 md:gap-x-3 gap-y-1.5 md:gap-y-2 font-mono text-xs md:text-sm lg:text-lg tracking-[0.14em]">
             {["DISCOVER", "VERIFY", "USE", "SAVE", "EXPLORE"].map((w, i) => (
-              <span key={w} className="flex items-center gap-3">
+              <span key={w} className="flex items-center gap-2 md:gap-3">
                 <span className={i % 2 ? "text-violet-neon violet-text" : "text-cyan neon-text"}>{w}</span>
                 {i < 4 && <span className="text-slate-600">→</span>}
               </span>
             ))}
           </div>
-          <p className="mt-5 max-w-xl mx-auto text-sm text-slate-400">
-            Enter with <span className="text-slate-200">“I need something.”</span> Leave with
-            “I found exactly what I needed, learned how to use it, and saved money.”
+          <p className="mt-4 md:mt-5 max-w-xl mx-auto text-xs md:text-sm text-slate-400">
+            Enter with <span className="text-slate-200">"I need something."</span> Leave with
+            "I found exactly what I needed, learned how to use it, and saved money."
           </p>
         </Panel>
       </section>

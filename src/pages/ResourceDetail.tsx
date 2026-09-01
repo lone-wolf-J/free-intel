@@ -12,9 +12,9 @@ import { ScoreRing, ConfidenceBar, StatusBadge, FreeTypeChips, Pipeline, Unknown
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-2.5 border-b border-slate-800/50 last:border-0">
-      <span className="mono-label pt-0.5 shrink-0">{label}</span>
-      <span className="text-right text-[13px] text-slate-300 font-medium break-words">{children}</span>
+    <div className="flex items-start justify-between gap-3 md:gap-4 py-2 md:py-2.5 border-b border-slate-800/50 last:border-0">
+      <span className="mono-label pt-0.5 shrink-0 text-[8px] md:text-[10px]">{label}</span>
+      <span className="text-right text-[11px] md:text-[13px] text-slate-300 font-medium break-words min-w-0">{children}</span>
     </div>
   );
 }
@@ -62,15 +62,15 @@ export default function ResourceDetail() {
 
   if (err) {
     return (
-      <div className="max-w-3xl mx-auto px-6 py-28 text-center">
+      <div className="max-w-3xl mx-auto px-4 md:px-6 py-16 md:py-28 text-center">
         <div className="font-mono text-red-neon mb-4">// SIGNAL LOST</div>
-        <p className="text-slate-400 mb-6">Resource not found in the intelligence database.</p>
+        <p className="text-sm text-slate-400 mb-6">Resource not found in the intelligence database.</p>
         <Link to="/discover" className="btn-neon"><ArrowLeft size={13} /> BACK TO DISCOVER</Link>
       </div>
     );
   }
   if (!data) {
-    return <div className="max-w-7xl mx-auto px-6 py-28 font-mono text-xs tracking-widest text-slate-500">LOADING DOSSIER…<span className="animate-blink text-cyan">▊</span></div>;
+    return <div className="max-w-7xl mx-auto px-4 md:px-6 py-16 md:py-28 font-mono text-xs tracking-widest text-slate-500">LOADING DOSSIER…<span className="animate-blink text-cyan">▊</span></div>;
   }
 
   const r = data.resource;
@@ -85,7 +85,7 @@ export default function ResourceDetail() {
   const components = Object.entries(r.free_score_components || {});
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-8 py-10">
+    <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
       <Link to="/discover" className="inline-flex items-center gap-1.5 font-mono text-[10px] tracking-widest text-slate-500 hover:text-cyan transition-colors mb-6">
         <ArrowLeft size={12} /> DISCOVER
       </Link>

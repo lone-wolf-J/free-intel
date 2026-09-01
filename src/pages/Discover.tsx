@@ -87,13 +87,13 @@ export default function Discover() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-8 py-12">
+    <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12">
       <SectionTitle
         kicker="DISCOVERY ENGINE"
         title={<>FIND FREE RESOURCES<span className="text-slate-600"> // </span><span className="grad-text">AI-POWERED SEARCH</span></>}
       />
 
-      <Panel className="p-4 mb-6" bright>
+      <Panel className="p-3 md:p-4 mb-4 md:mb-6" bright>
         <div className="flex items-center gap-3">
           {searchMode === "ai" ? (
             <Sparkles size={17} className="text-cyan shrink-0" />
@@ -108,11 +108,11 @@ export default function Discover() {
               ? 'AI search: "free coding agent" · "self-hosted CRM" · "open source analytics"'
               : 'Search: "OCR" · "database" · "Zapier alternative"'}
             aria-label="Search resources"
-            className="w-full bg-transparent outline-none text-sm text-slate-200 placeholder:text-slate-600 font-mono"
+            className="w-full bg-transparent outline-none text-sm text-slate-200 placeholder:text-slate-600 font-mono min-w-0"
           />
           <button
             onClick={() => setSearchMode(searchMode === "ai" ? "basic" : "ai")}
-            className={`shrink-0 px-2 py-1 rounded font-mono text-[9px] tracking-widest transition-colors ${
+            className={`shrink-0 px-2 py-1.5 rounded font-mono text-[9px] tracking-widest transition-colors ${
               searchMode === "ai"
                 ? "bg-cyan/10 text-cyan border border-cyan/30"
                 : "bg-slate-800 text-slate-500 border border-slate-700"
@@ -152,7 +152,7 @@ export default function Discover() {
         )}
       </Panel>
 
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-8">
+      <div className="flex flex-wrap items-center gap-x-3 md:gap-x-6 gap-y-2 md:gap-y-3 mb-6 md:mb-8">
         <div className="flex flex-wrap gap-1.5">
           <button onClick={() => { setCategory("all"); sfx.click(); }}
             className={`chip cursor-pointer transition-colors ${category === "all" ? "border-cyan text-cyan bg-cyan/10" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>

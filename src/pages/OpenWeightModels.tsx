@@ -57,23 +57,23 @@ export default function OpenWeightModels() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-8 py-12">
+    <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12">
       <SectionTitle
         kicker="OPEN-WEIGHT MODELS"
         title={<>TRENDING MODELS<span className="text-slate-600"> // </span><span className="grad-text">HUGGINGFACE LIVE</span></>}
       />
 
-      <Panel className="p-4 mb-6" bright>
-        <p className="text-sm text-slate-400 leading-relaxed">
+      <Panel className="p-3 md:p-4 mb-4 md:mb-6" bright>
+        <p className="text-xs md:text-sm text-slate-400 leading-relaxed">
           Trending open-weight models from HuggingFace. Only models with permissive licenses
           (MIT, Apache, etc.) are highlighted. Refreshed every 12 hours.
         </p>
       </Panel>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2 mb-6">
+      <div className="flex flex-wrap items-center gap-1.5 md:gap-2 mb-4 md:mb-6">
         {[
-          ["all", "ALL LICENSES"],
+          ["all", "ALL"],
           ["apache", "APACHE"],
           ["mit", "MIT"],
           ["llama", "LLAMA"],

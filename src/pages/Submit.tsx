@@ -32,13 +32,13 @@ export default function Submit() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 md:px-8 py-12">
+    <div className="max-w-3xl mx-auto px-4 md:px-8 py-8 md:py-12">
       <SectionTitle
         kicker="USER SUBMISSIONS // HUMAN-IN-THE-LOOP"
         title={<>FOUND SOMETHING FREE?<span className="text-slate-600"> // </span><span className="grad-text">FEED THE RADAR.</span></>}
       />
 
-      <Panel bright className="p-5 md:p-7 mb-6">
+      <Panel bright className="p-4 md:p-5 lg:p-7 mb-6">
         {done ? (
           <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}>
             <div className="flex items-center gap-2 font-mono text-sm text-lime-neon mb-3">
@@ -48,7 +48,7 @@ export default function Submit() {
             <button onClick={() => setDone("")} className="btn-ghost mt-3">SUBMIT ANOTHER</button>
           </motion.div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4">
             <Field label="URL *" value={form.url} onChange={set("url")} placeholder="https://…" />
             <Field label="NAME" value={form.name} onChange={set("name")} placeholder="Resource name" />
             <Field label="DESCRIPTION" value={form.description} onChange={set("description")} placeholder="What is it?" textarea />
@@ -62,12 +62,12 @@ export default function Submit() {
       </Panel>
 
       {/* PIPELINE */}
-      <div className="mono-label mb-3">EVERY SUBMISSION ENTERS THE PIPELINE — NOTHING PUBLISHES AUTOMATICALLY</div>
+      <div className="mono-label mb-3 text-[8px] md:text-[10px]">EVERY SUBMISSION ENTERS THE PIPELINE — NOTHING PUBLISHES AUTOMATICALLY</div>
       <ol className="grid grid-cols-2 md:grid-cols-4 gap-2">
         {STEPS.map((s, i) => (
-          <li key={s} className="glass rounded p-3 relative overflow-hidden">
+          <li key={s} className="glass rounded p-2.5 md:p-3 relative overflow-hidden">
             <div className="font-mono text-[9px] tracking-[0.25em] text-cyan/70 mb-1">{String(i + 1).padStart(2, "0")}</div>
-            <div className="font-mono text-[11px] tracking-wider text-slate-200 leading-snug">{s}</div>
+            <div className="font-mono text-[10px] md:text-[11px] tracking-wider text-slate-200 leading-snug">{s}</div>
           </li>
         ))}
       </ol>
@@ -80,12 +80,12 @@ function Field({ label, value, onChange, placeholder, textarea }: {
   placeholder?: string; textarea?: boolean;
 }) {
   const cls =
-    "w-full bg-void/70 border border-slate-700 focus:border-cyan rounded px-3.5 py-2.5 text-sm font-mono text-slate-200 outline-none transition-colors placeholder:text-slate-600";
+    "w-full bg-void/70 border border-slate-700 focus:border-cyan rounded px-3.5 py-3 text-sm font-mono text-slate-200 outline-none transition-colors placeholder:text-slate-600 min-h-[44px]";
   return (
     <label className="block">
       <span className="mono-label block mb-1.5">{label}</span>
       {textarea ? (
-        <textarea value={value} onChange={onChange} placeholder={placeholder} rows={3} className={`${cls} resize-none`} />
+        <textarea value={value} onChange={onChange} placeholder={placeholder} rows={3} className={`${cls} resize-none min-h-[88px]`} />
       ) : (
         <input value={value} onChange={onChange} placeholder={placeholder} className={cls} />
       )}

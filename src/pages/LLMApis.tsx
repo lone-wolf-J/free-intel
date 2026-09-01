@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ExternalLink, Zap, Shield, CreditCard, Clock, Filter } from "lucide-react";
+import { ExternalLink, Zap, Shield, CreditCard, Clock } from "lucide-react";
 import { Panel, SectionTitle, Spinner } from "@/components/ui/primitives";
 import { sfx } from "@/lib/sound";
 
@@ -56,36 +56,36 @@ export default function LLMApis() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-8 py-12">
+    <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12">
       <SectionTitle
         kicker="FREE LLM API ACCESS"
         title={<>COMPARISON TABLE<span className="text-slate-600"> // </span><span className="grad-text">$0 BUDGET</span></>}
       />
 
-      <Panel className="p-4 mb-6" bright>
-        <p className="text-sm text-slate-400 leading-relaxed">
+      <Panel className="p-3 md:p-4 mb-4 md:mb-6" bright>
+        <p className="text-xs md:text-sm text-slate-400 leading-relaxed">
           Every provider listed offers genuine free-tier API access with no credit card required.
           Data is refreshed automatically every 6 hours. Rates and limits verified at last check.
         </p>
       </Panel>
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-4 md:mb-6">
         {[
           { label: "TOTAL PROVIDERS", value: stats.total, color: "text-slate-100" },
           { label: "PERMANENT FREE", value: stats.permanent_free, color: "text-lime-neon" },
           { label: "TRIAL CREDITS ONLY", value: stats.trial_only, color: "text-amber-neon" },
           { label: "NO CARD REQUIRED", value: stats.no_card_required, color: "text-cyan" },
         ].map(s => (
-          <Panel key={s.label} className="p-3 text-center">
-            <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
-            <div className="mono-label mt-0.5">{s.label}</div>
+          <Panel key={s.label} className="p-2 md:p-3 text-center">
+            <div className={`text-lg md:text-xl font-bold ${s.color}`}>{s.value}</div>
+            <div className="mono-label mt-0.5 text-[8px] md:text-[10px]">{s.label}</div>
           </Panel>
         ))}
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2 mb-6">
+      <div className="flex flex-wrap items-center gap-1.5 md:gap-2 mb-4 md:mb-6">
         {[
           ["all", "ALL"],
           ["permanent", "PERMANENT FREE"],
@@ -120,30 +120,84 @@ export default function LLMApis() {
       {loading ? (
         <Spinner label="Loading LLM provider data…" />
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-slate-800">
-                <th className="font-mono text-[9px] tracking-widest text-slate-500 py-2 px-2">PROVIDER</th>
-                <th className="font-mono text-[9px] tracking-widest text-slate-500 py-2 px-2">FREE TIER</th>
-                <th className="font-mono text-[9px] tracking-widest text-slate-500 py-2 px-2">RPM</th>
-                <th className="font-mono text-[9px] tracking-widest text-slate-500 py-2 px-2">RPD</th>
-                <th className="font-mono text-[9px] tracking-widest text-slate-500 py-2 px-2">TPM</th>
-                <th className="font-mono text-[9px] tracking-widest text-slate-500 py-2 px-2">MODELS</th>
-                <th className="font-mono text-[9px] tracking-widest text-slate-500 py-2 px-2">CARD?</th>
-                <th className="font-mono text-[9px] tracking-widest text-slate-500 py-2 px-2">CHECKED</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map(p => (
-                <tr key={p.id} className="border-b border-slate-800/50 hover:bg-slate-900/30 transition-colors">
-                  <td className="py-3 px-2">
-                    <a href={p.website} target="_blank" rel="noreferrer" className="text-sm text-cyan hover:underline font-medium">
+        <>
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-slate-800">
+                  <th className="font-mono text-[9px] tracking-widest text-slate-500 py-2 px-2">PROVIDER</th>
+                  <th className="font-mono text-[9px] tracking-widest text-slate-500 py-2 px-2">FREE TIER</th>
+                  <th className="font-mono text-[9px] tracking-widest text-slate-500 py-2 px-2">RPM</th>
+                  <th className="font-mono text-[9px] tracking-widest text-slate-500 py-2 px-2">RPD</th>
+                  <th className="font-mono text-[9px] tracking-widest text-slate-500 py-2 px-2">TPM</th>
+                  <th className="font-mono text-[9px] tracking-widest text-slate-500 py-2 px-2">MODELS</th>
+                  <th className="font-mono text-[9px] tracking-widest text-slate-500 py-2 px-2">CARD?</th>
+                  <th className="font-mono text-[9px] tracking-widest text-slate-500 py-2 px-2">CHECKED</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map(p => (
+                  <tr key={p.id} className="border-b border-slate-800/50 hover:bg-slate-900/30 transition-colors">
+                    <td className="py-3 px-2">
+                      <a href={p.website} target="_blank" rel="noreferrer" className="text-sm text-cyan hover:underline font-medium">
+                        {p.name}
+                      </a>
+                      <div className="text-[9px] text-slate-500 font-mono mt-0.5">{p.api_endpoint}</div>
+                    </td>
+                    <td className="py-3 px-2">
+                      {p.free_tier ? (
+                        <span className="chip border-lime-neon/40 text-lime-neon text-[8px]">
+                          <Zap size={8} className="inline mr-0.5" /> FREE
+                        </span>
+                      ) : (
+                        <span className="chip border-amber-neon/40 text-amber-neon text-[8px]">TRIAL</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-2 font-mono text-xs text-slate-300">{p.rate_limit_rpm ?? "—"}</td>
+                    <td className="py-3 px-2 font-mono text-xs text-slate-300">{p.rate_limit_rpd?.toLocaleString() ?? "—"}</td>
+                    <td className="py-3 px-2 font-mono text-xs text-slate-300">{p.rate_limit_tpm?.toLocaleString() ?? "—"}</td>
+                    <td className="py-3 px-2">
+                      <div className="flex flex-wrap gap-0.5 max-w-[200px]">
+                        {p.models.slice(0, 3).map(m => (
+                          <span key={m} className="text-[8px] font-mono bg-slate-800/60 text-slate-400 px-1 py-0.5 rounded">{m}</span>
+                        ))}
+                        {p.models.length > 3 && (
+                          <span className="text-[8px] font-mono text-slate-600">+{p.models.length - 3}</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-3 px-2">
+                      {p.credit_card_required ? (
+                        <CreditCard size={12} className="text-amber-neon" />
+                      ) : (
+                        <Shield size={12} className="text-lime-neon" />
+                      )}
+                    </td>
+                    <td className="py-3 px-2">
+                      <span className="font-mono text-[9px] text-slate-500 flex items-center gap-1">
+                        <Clock size={8} />
+                        {freshness(p.last_checked)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-3">
+            {sorted.map(p => (
+              <Panel key={p.id} className="p-3">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="min-w-0">
+                    <a href={p.website} target="_blank" rel="noreferrer" className="text-sm text-cyan hover:underline font-medium block truncate">
                       {p.name}
                     </a>
-                    <div className="text-[9px] text-slate-500 font-mono mt-0.5">{p.api_endpoint}</div>
-                  </td>
-                  <td className="py-3 px-2">
+                    <div className="text-[9px] text-slate-500 font-mono mt-0.5 truncate">{p.api_endpoint}</div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
                     {p.free_tier ? (
                       <span className="chip border-lime-neon/40 text-lime-neon text-[8px]">
                         <Zap size={8} className="inline mr-0.5" /> FREE
@@ -151,48 +205,61 @@ export default function LLMApis() {
                     ) : (
                       <span className="chip border-amber-neon/40 text-amber-neon text-[8px]">TRIAL</span>
                     )}
-                  </td>
-                  <td className="py-3 px-2 font-mono text-xs text-slate-300">{p.rate_limit_rpm ?? "—"}</td>
-                  <td className="py-3 px-2 font-mono text-xs text-slate-300">{p.rate_limit_rpd?.toLocaleString() ?? "—"}</td>
-                  <td className="py-3 px-2 font-mono text-xs text-slate-300">{p.rate_limit_tpm?.toLocaleString() ?? "—"}</td>
-                  <td className="py-3 px-2">
-                    <div className="flex flex-wrap gap-0.5 max-w-[200px]">
-                      {p.models.slice(0, 3).map(m => (
-                        <span key={m} className="text-[8px] font-mono bg-slate-800/60 text-slate-400 px-1 py-0.5 rounded">{m}</span>
-                      ))}
-                      {p.models.length > 3 && (
-                        <span className="text-[8px] font-mono text-slate-600">+{p.models.length - 3}</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="py-3 px-2">
                     {p.credit_card_required ? (
-                      <CreditCard size={12} className="text-amber-neon" />
+                      <CreditCard size={11} className="text-amber-neon" />
                     ) : (
-                      <Shield size={12} className="text-lime-neon" />
+                      <Shield size={11} className="text-lime-neon" />
                     )}
-                  </td>
-                  <td className="py-3 px-2">
-                    <span className="font-mono text-[9px] text-slate-500 flex items-center gap-1">
-                      <Clock size={8} />
-                      {freshness(p.last_checked)}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 mb-2">
+                  <div className="text-center">
+                    <div className="font-mono text-sm font-bold text-slate-200">{p.rate_limit_rpm ?? "—"}</div>
+                    <div className="font-mono text-[8px] text-slate-500">RPM</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="font-mono text-sm font-bold text-slate-200">{p.rate_limit_rpd?.toLocaleString() ?? "—"}</div>
+                    <div className="font-mono text-[8px] text-slate-500">RPD</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="font-mono text-sm font-bold text-slate-200">{p.rate_limit_tpm?.toLocaleString() ?? "—"}</div>
+                    <div className="font-mono text-[8px] text-slate-500">TPM</div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {p.models.slice(0, 4).map(m => (
+                    <span key={m} className="text-[8px] font-mono bg-slate-800/60 text-slate-400 px-1.5 py-0.5 rounded">{m}</span>
+                  ))}
+                  {p.models.length > 4 && (
+                    <span className="text-[8px] font-mono text-slate-600">+{p.models.length - 4}</span>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[9px] text-slate-500 flex items-center gap-1">
+                    <Clock size={8} />
+                    {freshness(p.last_checked)}
+                  </span>
+                  <a href={p.website} target="_blank" rel="noreferrer" className="font-mono text-[9px] text-cyan/70 hover:text-cyan flex items-center gap-0.5">
+                    VISIT <ExternalLink size={8} />
+                  </a>
+                </div>
+              </Panel>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Notes section */}
-      <Panel className="p-4 mt-8">
-        <div className="mono-label mb-3">PROVIDER NOTES</div>
+      <Panel className="p-3 md:p-4 mt-6 md:mt-8">
+        <div className="mono-label mb-2 md:mb-3">PROVIDER NOTES</div>
         <div className="space-y-2">
           {sorted.filter(p => p.notes).map(p => (
             <div key={p.id} className="flex items-start gap-2 text-xs text-slate-400">
               <span className="font-mono text-cyan shrink-0">{p.name}:</span>
-              <span>{p.notes}</span>
+              <span className="leading-relaxed">{p.notes}</span>
             </div>
           ))}
         </div>

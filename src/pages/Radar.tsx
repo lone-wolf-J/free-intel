@@ -87,26 +87,26 @@ export default function Radar() {
   const countOf = (t: string) => dailyCounts.find((d) => d.type === t)?.n ?? 0;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-8 py-12">
-      <div className="flex items-center gap-3 mb-2">
+    <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12">
+      <div className="flex items-center gap-2 md:gap-3 mb-2">
         <Satellite size={18} className="text-cyan" />
-        <span className="mono-label">FREE RADAR // CONTINUOUS DISCOVERY FEED</span>
+        <span className="mono-label text-[8px] md:text-[10px]">FREE RADAR // CONTINUOUS DISCOVERY FEED</span>
       </div>
-      <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-8">
+      <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight mb-6 md:mb-8">
         <span className="grad-text">EVERY SIGNAL.</span> <span className="text-slate-100">ZERO NOISE.</span>
       </h1>
 
       {/* TODAY'S INTELLIGENCE */}
-      <Panel bright className="p-5 mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <div className="mono-label flex items-center gap-2"><Clock size={12} /> TODAY'S FREE INTELLIGENCE // LAST 24H</div>
-          <div className="flex gap-2">
+      <Panel bright className="p-3 md:p-5 mb-4 md:mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-2 md:gap-3 mb-3 md:mb-4">
+          <div className="mono-label flex items-center gap-1.5 md:gap-2 text-[8px] md:text-[10px]"><Clock size={12} /> TODAY'S FREE INTELLIGENCE // LAST 24H</div>
+          <div className="flex gap-1.5 md:gap-2">
             <button onClick={runScan} disabled={scanning}
-              className="btn-neon !py-2 !px-4 text-[11px] disabled:opacity-50 inline-flex items-center gap-2">
+              className="btn-neon !py-2 !px-3 md:!px-4 text-[10px] md:text-[11px] disabled:opacity-50 inline-flex items-center gap-1.5 md:gap-2">
               <Play size={12} /> {scanning ? "SCANNING…" : "RUN FULL SCAN"}
             </button>
             <button onClick={runScan} disabled={scanning}
-              className="btn-ghost disabled:opacity-50">
+              className="btn-ghost disabled:opacity-50 hidden sm:inline-flex">
               <RefreshCw size={12} /> VERIFY QUEUE
             </button>
           </div>
@@ -269,7 +269,7 @@ export default function Radar() {
       <div className="relative pl-4 md:pl-6">
         <div className="absolute left-[7px] top-2 bottom-2 w-px bg-gradient-to-b from-violet-neon/50 via-cyan/30 to-transparent" />
         {filtered.length === 0 && (
-          <div className="glass rounded-lg p-8 text-center text-sm text-slate-500">
+          <div className="glass rounded-lg p-6 md:p-8 text-center text-sm text-slate-500">
             No events of this type yet. The radar only logs real pipeline activity.
           </div>
         )}
@@ -282,22 +282,22 @@ export default function Radar() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.35 }}
-              className="relative mb-3"
+              className="relative mb-2 md:mb-3"
             >
               <span className={`absolute -left-4 md:-left-[22px] top-4 h-2.5 w-2.5 rounded-full border ${
                 e.severity === "critical" ? "bg-red-neon border-red-neon" :
                 e.severity === "warn" ? "bg-amber-neon border-amber-neon" :
                 e.type === "discovery" ? "bg-violet-neon border-violet-neon" : "bg-cyan border-cyan"
               }`} style={{ boxShadow: "0 0 10px currentColor" }} />
-              <Panel className={`p-4 hover:border-slate-600/40 transition-colors ${e.severity === "critical" ? "border-red-neon/25" : ""}`}>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span className="font-mono text-[10px] tabular-nums text-slate-600">{(e.created_at || "").slice(0, 19)}</span>
-                  <span className={`font-mono text-xs font-bold tracking-[0.14em] ${TYPE_COLOR[e.type] || "text-slate-300"}`}>
+              <Panel className={`p-3 md:p-4 hover:border-slate-600/40 transition-colors ${e.severity === "critical" ? "border-red-neon/25" : ""}`}>
+                <div className="flex flex-wrap items-center gap-x-2 md:gap-x-3 gap-y-1">
+                  <span className="font-mono text-[9px] md:text-[10px] tabular-nums text-slate-600">{(e.created_at || "").slice(0, 19)}</span>
+                  <span className={`font-mono text-[10px] md:text-xs font-bold tracking-[0.14em] ${TYPE_COLOR[e.type] || "text-slate-300"}`}>
                     {e.title}
                   </span>
-                  <span className="chip border-slate-700 text-slate-500 ml-auto">{String(e.type).toUpperCase()}</span>
+                  <span className="chip border-slate-700 text-slate-500 ml-auto text-[8px] md:text-[10px]">{String(e.type).toUpperCase()}</span>
                 </div>
-                {e.detail && <p className="mt-2 text-[13px] leading-relaxed text-slate-400">{e.detail}</p>}
+                {e.detail && <p className="mt-2 text-[11px] md:text-[13px] leading-relaxed text-slate-400">{e.detail}</p>}
                 {e.resource_slug && (
                   <Link to={`/resource/${e.resource_slug}`} className="mt-2 inline-flex font-mono text-[10px] tracking-widest text-cyan/80 hover:text-cyan">
                     OPEN DOSSIER →

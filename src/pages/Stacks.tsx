@@ -95,24 +95,24 @@ export default function Stacks() {
   const totalTools = plan?.total_tools || layerEntries.reduce((a, l) => a + l.tools.length, 0);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-8 py-12">
+    <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12">
       <SectionTitle
         kicker="FREE STACK BUILDER"
         title={<>DESCRIBE THE MISSION<span className="text-slate-600"> // </span><span className="grad-text">RECEIVE THE STACK</span></>}
-        right={<Link to="/discover" className="btn-ghost">BROWSE RESOURCES</Link>}
+        right={<Link to="/discover" className="btn-ghost hidden md:inline-flex">BROWSE RESOURCES</Link>}
       />
 
-      <Panel bright className="p-5 mb-8">
-        <div className="flex flex-col md:flex-row gap-3">
+      <Panel bright className="p-3 md:p-5 mb-6 md:mb-8">
+        <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
           <input
             value={goal}
             onChange={(e) => setGoal(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && generate(goal)}
             placeholder='e.g. "Build an AI recruitment agent" or "Create chatting tool"'
             aria-label="Describe what you want to build"
-            className="flex-1 bg-void/70 border border-slate-700 focus:border-cyan rounded px-4 py-3 text-sm font-mono text-slate-200 outline-none transition-colors placeholder:text-slate-600"
+            className="flex-1 bg-void/70 border border-slate-700 focus:border-cyan rounded px-3 md:px-4 py-2.5 md:py-3 text-sm font-mono text-slate-200 outline-none transition-colors placeholder:text-slate-600 min-w-0"
           />
-          <button onClick={() => generate(goal)} disabled={loading} className="btn-neon justify-center disabled:opacity-50">
+          <button onClick={() => generate(goal)} disabled={loading} className="btn-neon justify-center disabled:opacity-50 shrink-0">
             <Sparkles size={14} /> GENERATE STACK
           </button>
         </div>

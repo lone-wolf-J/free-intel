@@ -89,21 +89,21 @@ export default function Deals() {
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-8 py-12">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-3">
-          <Flame size={18} className="text-red-neon" />
-          <span className="mono-label">DEALS // PROMOTIONS // FREE TIERS</span>
+    <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12">
+      <div className="flex items-center justify-between mb-2 gap-2">
+        <div className="flex items-center gap-2 md:gap-3 min-w-0">
+          <Flame size={18} className="text-red-neon shrink-0" />
+          <span className="mono-label text-[8px] md:text-[10px]">DEALS // PROMOTIONS // FREE TIERS</span>
         </div>
         <button
           onClick={() => { sfx.click(); fetchDeals(); }}
           disabled={loading}
-          className="btn-ghost text-xs flex items-center gap-1"
+          className="btn-ghost text-xs flex items-center gap-1 shrink-0"
         >
           <RefreshCw size={11} className={loading ? "animate-spin" : ""} /> REFRESH
         </button>
       </div>
-      <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
+      <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight mb-4">
         <span className="text-slate-100">FREE — </span>
         <span className="text-red-neon" style={{ textShadow: "0 0 24px rgba(255,77,94,.4)" }}>BEFORE IT DISAPPEARS.</span>
       </h1>
@@ -123,7 +123,7 @@ export default function Deals() {
         ))}
       </div>
 
-      <Panel className="p-4 mb-6 flex items-start gap-3">
+      <Panel className="p-3 md:p-4 mb-4 md:mb-6 flex items-start gap-2 md:gap-3">
         <Clock size={15} className="text-amber-neon shrink-0 mt-0.5" />
         <div>
           <p className="text-xs leading-relaxed text-slate-400">
@@ -195,11 +195,11 @@ export default function Deals() {
         <select
           value={sort}
           onChange={(e) => { setSort(e.target.value); sfx.click(); }}
-          className="ml-auto bg-panel border border-slate-700 rounded px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-slate-300 outline-none focus:border-cyan cursor-pointer"
+          className="bg-panel border border-slate-700 rounded px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-slate-300 outline-none focus:border-cyan cursor-pointer"
         >
           <option value="score">SORT: SCORE</option>
           <option value="name">SORT: NAME</option>
-          <option value="value">SORT: COMPETITIVE VALUE</option>
+          <option value="value">SORT: VALUE</option>
         </select>
         <span className="font-mono text-[10px] tracking-widest text-slate-500">
           {loading ? "SCANNING…" : `${filtered.length} DEAL(S)`}

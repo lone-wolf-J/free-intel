@@ -1,2 +1,7 @@
 Admin Key: fi_admin_401532
 Pass via: Authorization: Bearer fi_admin_401532 or ?admin_key=fi_admin_401532
+
+Admin Login: https://free-intel.vercel.app/admin/login
+
+Username: admin
+Password: FreeIntel2026!
