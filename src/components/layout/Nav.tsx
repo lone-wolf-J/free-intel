@@ -3,6 +3,7 @@ import { NavLink, Link, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X, Volume2, VolumeX, Radar } from "lucide-react";
 import { isSoundEnabled, setSoundEnabled, sfx, loadSoundPref } from "@/lib/sound";
+import FreeIntelLogo from "@/components/ui/FreeIntelLogo";
 
 const LINKS = [
   { to: "/discover", label: "DISCOVER" },
@@ -33,14 +34,8 @@ export default function Nav() {
   return (
     <header className="fixed top-0 inset-x-0 z-50">
       <div className="glass border-x-0 border-t-0 rounded-none px-4 md:px-8 h-14 flex items-center justify-between gap-4">
-        <Link to="/" className="flex items-center gap-2.5 group shrink-0" onClick={() => sfx.click()}>
-          <span className="relative flex h-7 w-7 items-center justify-center">
-            <span className="absolute inset-0 rounded-full border border-cyan/50 group-hover:animate-spin [animation-duration:3s]" />
-            <span className="h-1.5 w-1.5 rounded-full bg-lime-neon shadow-glow-lime" />
-          </span>
-          <span className="font-mono font-bold text-sm tracking-[0.18em] text-slate-100">
-            FREE<span className="text-cyan">//</span>INTEL
-          </span>
+        <Link to="/" className="flex items-center gap-2 group shrink-0" onClick={() => sfx.click()}>
+          <FreeIntelLogo size={26} />
         </Link>
 
         <nav className="hidden lg:flex items-center gap-0.5" aria-label="Primary">

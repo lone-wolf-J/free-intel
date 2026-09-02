@@ -8,6 +8,7 @@ import { Counter, TypeWriter, Panel, SectionTitle } from "@/components/ui/primit
 import TiltCard from "@/components/ui/TiltCard";
 import ResourceCard from "@/components/resource/ResourceCard";
 import { StatusBadge } from "@/components/ui/badges";
+import FreeIntelLogo from "@/components/ui/FreeIntelLogo";
 
 const INTENT_CHIPS = [
   "Build an AI recruitment agent",
@@ -64,6 +65,10 @@ export default function Home() {
             FREE RESOURCE INTELLIGENCE PLATFORM
           </span>
         </motion.div>
+
+        <div className="mb-4 md:mb-6">
+          <FreeIntelLogo size={48} />
+        </div>
 
         <h1 className="font-bold leading-[0.98] tracking-tight text-3xl sm:text-4xl md:text-5xl lg:text-7xl max-w-5xl">
           <span className="grad-text">STOP PAYING</span>
