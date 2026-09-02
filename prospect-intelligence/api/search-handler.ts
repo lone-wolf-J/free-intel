@@ -387,6 +387,34 @@ async function crawlEverywhere(query: string) {
     }, "public-apis-repo", 0).catch(() => null);
   }
 
+  // Extract contacts with confidence from all web text (for Contact section)
+  function extractContactsAll(webList: any[], deepList: any[]) {
+    const allText = [...webList.map((w: any) => `${w.title} ${w.snippet} ${w.url}`), ...deepList.map((d: any) => d.content || "")].join(" \n ");
+    const contacts: any[] = [];
+    const emailRe = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+    const phoneRe = /(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g;
+    const emails = allText.match(emailRe) || [];
+    const phones = allText.match(phoneRe) || [];
+    const seen = new Set<string>();
+    for (const e of emails.slice(0, 3)) {
+      const lower = e.toLowerCase();
+      if (seen.has(lower) || lower.includes("example.com") || lower.includes("test@")) continue;
+      seen.add(lower);
+      const nearName = allText.toLowerCase().includes(query.toLowerCase().split(" ")[0].toLowerCase());
+      contacts.push({ type: "email", value: lower, confidence: nearName ? 85 : 65, source: "scraped" });
+    }
+    for (const p of phones.slice(0, 2)) {
+      const digits = p.replace(/\D/g, "");
+      if (digits.length < 10 || digits.length > 15) continue;
+      if (seen.has(p)) continue;
+      seen.add(p);
+      contacts.push({ type: "phone", value: p.trim(), confidence: 55, source: "scraped" });
+    }
+    const linkedinHit2 = webList.find((r: any) => r.url.includes("linkedin.com/in/"));
+    if (linkedinHit2) contacts.unshift({ type: "linkedin", value: linkedinHit2.url, confidence: 95, source: "linkedin" });
+    return contacts;
+  }
+
   const webSnippets = web.map((w: any) => w.snippet).join(" ").slice(0, 1500);
   const [explorium, tinyfish, publicApis, publicRepo] = await Promise.allSettled([fetchExplorium(query), fetchTinyfishEnrich(query, webSnippets), fetchPublicApis(), fetchPublicApisRepo(query)]);
   const enrichVals = {
@@ -397,9 +425,10 @@ async function crawlEverywhere(query: string) {
 
   const linkedinHit = web.find((r: any) => r.url.includes("linkedin.com/in/")) || null;
   const linkedin = linkedinHit ? { url: linkedinHit.url } : null;
+  const contacts = extractContactsAll(web, deepPages);
 
   return {
-    web, google: web, linkedin, company: { snippets: web.slice(0, 5).map((w: any) => w.snippet).filter(Boolean) },
+    web, google: web, linkedin, contacts, company: { snippets: web.slice(0, 5).map((w: any) => w.snippet).filter(Boolean) },
     deepPages, enrichment: enrichVals,
     rawCount: web.length,
     health: getHealthMetrics(),
@@ -422,6 +451,7 @@ async function analyzeWithTinyfish(query: string, scrapedData: any): Promise<any
 async function analyzeWithAI(query: string, scrapedData: any) {
   const webResults = (scrapedData.web || []).slice(0, 8).map((r: any, i: number) => `${i + 1}. Title: ${r.title}\n   URL: ${r.url}\n   Snippet: ${r.snippet}`).join("\n\n");
   const deepContent = (scrapedData.deepPages || []).map((d: any, i: number) => `Deep Page ${i + 1} (${d.url}):\n${d.content?.slice(0, 1500)}`).join("\n\n");
+  const contactsText = (scrapedData.contacts || []).map((c: any) => `${c.type}: ${c.value} (confidence ${c.confidence}%)`).join("\n") || "No contacts scraped";
   const enrich = scrapedData.enrichment ? `\n\nEnrichment:\n- Explorium: ${JSON.stringify(scrapedData.enrichment.explorium)?.slice(0, 600) || "none"}\n- Tinyfish: ${scrapedData.enrichment.tinyfish?.slice(0, 600) || "none"}\n- PublicAPIs: ${scrapedData.enrichment.publicApis?.slice(0, 400) || "none"}` : "";
 
   const prompt = `You are a prospect intelligence analyst. Analyze "${query}" for sales intelligence.
@@ -431,16 +461,22 @@ ${webResults || "No web results"}
 
 DEEP PAGE CONTENT (Firecrawl/Scrape.do/Jina - use for depth):
 ${deepContent || "No deep pages"}
+
+SCRAPED CONTACTS (with confidence - use as source for email/phone/linkedin, do not hallucinate others):
+${contactsText}
 ${enrich}
 
 CRITICAL RULES:
-- GROUND in web + deep content above. If results exist, EXTRACT exact titles/companies/locations. Do NOT say "no data" when results exist.
+- GROUND in web + deep content + contacts above. If results exist, EXTRACT exact titles/companies/locations. Do NOT say "no data" when results exist.
+- For contacts: use ONLY scraped contacts above. Set person.email to highest-confidence email, linkedin to LinkedIn URL. If no email scraped, set email null. Assign confidence per contact as given.
 - confidenceScore: 85-95 strong public figure, 60-84 moderate (2-5 hits), 30-50 weak, 5-15 only if ZERO results.
 - If deep pages contain bio/details, use them to fill Career/Role/Company sections with specifics.
+- Include a "Contact" section with items for each scraped contact (label: Email/Phone/LinkedIn, value: address + confidence%).
 
 Return ONLY valid JSON:
 {
-  "person": {"name": "string", "title": "string", "company": "string", "location": "string", "email": "string|null", "linkedin": "string|null"},
+  "person": {"name": "string", "title": "string", "company": "string", "location": "string", "email": "string|null", "linkedin": "string|null", "phone": "string|null"},
+  "contacts": [{"type": "string", "value": "string", "confidence": number}],
   "company": {"name": "string", "industry": "string", "size": "string", "revenue": "string|null", "founded": "string|null", "headquarters": "string", "website": "string", "description": "string"},
   "sections": [{"title": "string", "items": [{"label": "string", "value": "string"}]}],
   "aiInsights": ["string", "string", "string"],
@@ -448,7 +484,7 @@ Return ONLY valid JSON:
 }
 If ZERO results, set title "Unknown - no public data found" and confidence 8. Otherwise curate intelligently.
 
-Sections: Summary, Career, Role, Company, Activity, Leadership, Interests, Tech, Priorities, Signals, Challenges, Stakeholders, Relationships, Opportunities, Openers, Questions, Strategy, Risks, Confidence.`;
+Sections: Summary, Contact, Career, Role, Company, Activity, Leadership, Interests, Tech, Priorities, Signals, Challenges, Stakeholders, Relationships, Opportunities, Openers, Questions, Strategy, Risks, Confidence.`;
 
   const { result, provider } = await aiRegistry.generateJSON(prompt, { temperature: 0.2, maxTokens: 3500 });
   console.log(`[SearchHandler] AI done via ${provider}`);
@@ -459,11 +495,21 @@ function buildCase(query: string, scrapedData: any, aiAnalysis: any, hasAiKey: b
   const id = Date.now().toString();
   const timestamp = new Date().toISOString();
   if (aiAnalysis) {
+    const contacts = aiAnalysis.contacts || scrapedData.contacts || [];
+    // Ensure contact section exists if we have contacts
+    let sections = aiAnalysis.sections || [];
+    if (contacts.length > 0 && !sections.find((s: any) => s.title === "Contact")) {
+      sections = [
+        { title: "Contact", items: contacts.map((c: any) => ({ label: `${c.type} (${c.confidence}%)`, value: c.value })) },
+        ...sections
+      ];
+    }
     return {
       id, query, timestamp,
-      person: aiAnalysis.person || { name: query, title: "Unknown - no public data found", company: "Unknown", linkedin: scrapedData.linkedin?.url || "", location: "Unknown" },
+      person: { ...(aiAnalysis.person || { name: query, title: "Unknown - no public data found", company: "Unknown", linkedin: scrapedData.linkedin?.url || "", location: "Unknown" }), email: aiAnalysis.person?.email || contacts.find((c: any) => c.type === "email")?.value || null, phone: aiAnalysis.person?.phone || contacts.find((c: any) => c.type === "phone")?.value || null, linkedin: aiAnalysis.person?.linkedin || scrapedData.linkedin?.url || "" },
+      contacts,
       company: aiAnalysis.company || { name: "Unknown", industry: "Unknown", size: "Unknown", revenue: null, founded: null, headquarters: "Unknown", website: "", description: "No verifiable public information found." },
-      sections: aiAnalysis.sections || [],
+      sections,
       aiInsights: aiAnalysis.aiInsights || [],
       confidenceScore: aiAnalysis.confidenceScore ?? 8,
       savedToPipeline: false,

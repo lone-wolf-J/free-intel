@@ -1632,6 +1632,24 @@ const LLM_PROVIDERS: LLMProvider[] = [
     category: "permanent",
     last_checked: new Date().toISOString(),
   },
+  {
+    id: "aihubmix",
+    name: "AIHubMix",
+    website: "https://aihubmix.com",
+    api_endpoint: "https://aihubmix.com/v1",
+    auth_type: "Bearer token (free signup)",
+    free_tier: true,
+    credit_card_required: false,
+    rate_limit_rpm: 100,
+    rate_limit_rpd: 1000,
+    rate_limit_tpm: null,
+    tokens_per_day: 1000000,
+    models: ["DeepSeek-R1", "Qwen3", "Doubao", "Gemini", "Claude", "Llama 4", "GPT-4o-mini", "Grok-3"],
+    openai_compatible: true,
+    notes: "56 free models, 865+ total. Unified AI gateway. Top-up $1 unlocks higher daily quotas. No CC required for free models. Chinese-language interface.",
+    category: "permanent",
+    last_checked: new Date().toISOString(),
+  },
 ];
 
 // ─── LLM API Provider Endpoint ───

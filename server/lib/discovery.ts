@@ -160,6 +160,7 @@ const AWESOME_LISTS: Array<{ raw: string; label: string; category: string }> = [
   { raw: "https://raw.githubusercontent.com/e2b-dev/awesome-ai-agents/main/README.md", label: "awesome-ai-agents-v2", category: "AI" },
   { raw: "https://raw.githubusercontent.com/caramaschiHG/awesome-ai-agents-2026/main/README.md", label: "awesome-ai-agents-2026", category: "AI" },
   { raw: "https://raw.githubusercontent.com/OiiOAI/awesome-ai-agents/main/README.md", label: "awesome-ai-agents-oio", category: "AI" },
+  { raw: "https://raw.githubusercontent.com/open-free-llm-api/awesome-freellm-apis/main/README.md", label: "awesome-free-llm-apis", category: "AI" },
 ];
 
 const STARTER_SOURCES: Array<{ name: string; url: string; type: string; category: string; tier: number }> = [
@@ -412,6 +413,31 @@ const WEB_SCRAPE_SOURCES: Array<{ name: string; url: string; category: string; s
   { name: "Udio", url: "https://www.udio.com/", category: "ai-directory", selectors: { title: "h3, .tool-name", link: "a[href]", description: "p" } },
   { name: "Fish Audio", url: "https://fish.audio/", category: "ai-directory", selectors: { title: "h3, .tool-name", link: "a[href]", description: "p" } },
   { name: "Runway", url: "https://runwayml.com/", category: "ai-directory", selectors: { title: "h3, .tool-name", link: "a[href]", description: "p" } },
+  // ============================================================
+  // FREE LLM API AGGREGATORS
+  // ============================================================
+  { name: "freellm.net", url: "https://freellm.net/models/", category: "free-api", selectors: { title: "h3, .model-name, .provider-name", link: "a[href*='/models/']", description: "p, .rate-limit, .context" } },
+  { name: "freellm.net - compare", url: "https://freellm.net/compare/", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "freellm.net - API keys", url: "https://freellm.net/free-llm-api-keys/", category: "free-api", selectors: { title: "h3, .provider-name", link: "a[href]", description: "p" } },
+  { name: "LLM Cloud Hub", url: "https://llmcloudhub.com/", category: "free-api", selectors: { title: "h3, .provider-name", link: "a[href]", description: "p" } },
+  { name: "LLM Cloud Hub - providers", url: "https://llmcloudhub.com/providers/", category: "free-api", selectors: { title: "h3, .provider-name", link: "a[href*='/providers/']", description: "p" } },
+  { name: "LLM Endpoint", url: "https://llmendpoint.com/", category: "free-api", selectors: { title: "h3, .provider-name", link: "a[href]", description: "p" } },
+  { name: "FindLLM - models", url: "https://findllm.ai/models", category: "model-catalog", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "FindLLM - pricing", url: "https://findllm.ai/pricing", category: "pricing", selectors: { title: "h3, .provider-name", link: "a[href]", description: "p" } },
+  { name: "WhereToAI - API relays", url: "https://wheretoai.org/api-relays", category: "free-api", selectors: { title: "h3, .provider-name", link: "a[href]", description: "p" } },
+  { name: "AIHubMix - free models", url: "https://aihubmix.com/models", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  // ============================================================
+  // MCP DIRECTORIES
+  // ============================================================
+  { name: "OpenTools MCP Registry", url: "https://opentools.com/", category: "mcp-directory", selectors: { title: "h3, .tool-name", link: "a[href]", description: "p" } },
+  { name: "Smithery MCP", url: "https://smithery.ai/", category: "mcp-directory", selectors: { title: "h3, .tool-name", link: "a[href]", description: "p" } },
+  { name: "MCP Hub", url: "https://mcp.so/", category: "mcp-directory", selectors: { title: "h3, .tool-name", link: "a[href]", description: "p" } },
+  // ============================================================
+  // CODING AGENTS & AI ASSISTANTS
+  // ============================================================
+  { name: "OpenRouter Models", url: "https://openrouter.ai/models", category: "model-catalog", selectors: { title: "h3, .model-name", link: "a[href*='/models/']", description: "p" } },
+  { name: "NVIDIA NIM Catalog", url: "https://build.nvidia.com/nim", category: "model-catalog", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "HuggingFace Models", url: "https://huggingface.co/models", category: "model-catalog", selectors: { title: "h3, .model-name", link: "a[href*='/models/']", description: "p" } },
 ];
 
 export async function enqueue(db: any, kind: string, payload: any, priority = 5) {

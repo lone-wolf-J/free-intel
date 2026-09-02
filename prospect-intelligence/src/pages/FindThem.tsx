@@ -52,7 +52,9 @@ interface CaseData {
     linkedin: string;
     location: string;
     email?: string;
+    phone?: string | null;
   };
+  contacts?: { type: string; value: string; confidence: number; source?: string }[];
   company: {
     name: string;
     industry: string;
@@ -344,6 +346,7 @@ interface Candidate {
   url: string;
   source: string;
   confidence: number;
+  contacts?: { type: "email" | "phone" | "linkedin"; value: string; confidence: number }[];
 }
 
 export default function FindThem() {
@@ -577,7 +580,7 @@ export default function FindThem() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
             onClick={() => setCandidates(null)}
           >
             <motion.div
@@ -585,56 +588,89 @@ export default function FindThem() {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-2xl max-h-[80vh] overflow-hidden glass-bright rounded-xl holo-border"
+              className="w-full max-w-2xl max-h-[85vh] overflow-hidden bg-white rounded-2xl shadow-2xl border border-slate-200"
             >
-              <div className="p-6 border-b border-slate-700/30">
-                <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                  <Users size={18} className="text-cyan" />
+              <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-[hsl(280,60%,97%)] to-white">
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2" style={{ fontFamily: "Montserrat, sans-serif" }}>
+                  <Users size={18} className="text-[hsl(280,85%,55%)]" />
                   Which {candidateQuery} did you mean?
                 </h3>
-                <p className="text-xs text-slate-400 mt-1 font-mono">
+                <p className="text-xs text-slate-600 mt-1">
                   Multiple matches found. Pick the right profile to run deep intelligence (saves scrape credits).
                 </p>
               </div>
-              <div className="overflow-y-auto max-h-[50vh] p-4 space-y-3">
+              <div className="overflow-y-auto max-h-[45vh] p-4 space-y-3 bg-slate-50/50">
                 {candidates.map((c) => (
                   <button
                     key={c.id}
                     onClick={() => handleCandidateSelect(c)}
-                    className="w-full text-left glass-card p-4 rounded-xl hover:border-cyan/40 hover:bg-cyan/5 transition-all group"
+                    className="w-full text-left bg-white border border-slate-200 p-4 rounded-xl hover:border-[hsl(280,85%,55%)]/30 hover:shadow-md transition-all group"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex gap-3 flex-1 min-w-0">
-                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-cyan/20 to-violet-neon/20 border border-slate-600/30 flex items-center justify-center shrink-0">
-                          <User size={16} className="text-slate-300" />
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[hsl(280,85%,55%)]/15 to-[hsl(320,85%,55%)]/15 border border-slate-200 flex items-center justify-center shrink-0">
+                          <User size={16} className="text-[hsl(280,85%,55%)]" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-bold text-slate-100 truncate">{c.name}</div>
-                          <div className="text-xs text-slate-400 truncate">{c.title}{c.company ? ` — ${c.company}` : ""}</div>
+                          <div className="text-sm font-bold text-slate-900 truncate">{c.name}</div>
+                          <div className="text-xs text-slate-600 truncate">{c.title}{c.company ? ` — ${c.company}` : ""}</div>
                           <div className="flex flex-wrap gap-1.5 mt-2">
-                            {c.location && <span className="chip border-slate-600/30 text-slate-400 text-[10px]"><MapPin size={8} />{c.location}</span>}
-                            {c.url && <span className="chip border-cyan/20 text-cyan/70 text-[10px] truncate max-w-[180px]"><Globe size={8} />{new URL(c.url).hostname}</span>}
+                            {c.location && <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-2.5 py-1 text-[10px] font-medium text-slate-600"><MapPin size={10} />{c.location}</span>}
+                            {c.url && <span className="inline-flex items-center gap-1 rounded-full bg-white border border-slate-200 px-2.5 py-1 text-[10px] font-medium text-slate-600 truncate max-w-[180px]"><Globe size={10} />{new URL(c.url).hostname}</span>}
                           </div>
-                          <div className="text-[11px] text-slate-500 mt-2 line-clamp-2">{c.snippet}</div>
+                          {c.snippet && <div className="text-[11px] text-slate-500 mt-2 line-clamp-2 leading-relaxed">{c.snippet}</div>}
+                          {c.contacts && c.contacts.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              {c.contacts.map((ct: any, i: number) => (
+                                <span key={i} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border ${ct.confidence > 70 ? "bg-emerald-50 border-emerald-200 text-emerald-700" : ct.confidence > 40 ? "bg-amber-50 border-amber-200 text-amber-700" : "bg-slate-100 border-slate-200 text-slate-600"}`}>
+                                  {ct.type === "email" ? "✉️" : ct.type === "linkedin" ? "in" : "📞"} {ct.value} <span className="opacity-60">· {ct.confidence}%</span>
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <div className={`text-xs font-mono font-bold ${c.confidence > 70 ? "text-lime-neon" : c.confidence > 40 ? "text-amber-neon" : "text-slate-500"}`}>{c.confidence}%</div>
-                        <div className="text-[10px] text-slate-600 font-mono uppercase">match</div>
-                        <ArrowRight size={14} className="text-slate-600 group-hover:text-cyan ml-auto mt-2 transition-colors" />
+                        <div className={`text-sm font-bold ${c.confidence > 70 ? "text-emerald-600" : c.confidence > 40 ? "text-amber-600" : "text-slate-400"}`}>{c.confidence}%</div>
+                        <div className="text-[10px] text-slate-400 font-medium uppercase">match</div>
+                        <ArrowRight size={14} className="text-slate-400 group-hover:text-[hsl(280,85%,55%)] ml-auto mt-2 transition-colors" />
                       </div>
                     </div>
                   </button>
                 ))}
               </div>
-              <div className="p-4 border-t border-slate-700/30 flex gap-2">
-                <button onClick={() => setCandidates(null)} className="btn-ghost flex-1 py-2 text-xs">CANCEL</button>
-                <button
-                  onClick={() => { const q = candidateQuery; setCandidates(null); runSearch(q); }}
-                  className="btn-ghost flex-1 py-2 text-xs border-cyan/30 text-cyan"
-                >
-                  SEARCH ANYWAY — "{candidateQuery}"
-                </button>
+              {/* Manual refine - narrow to right individual */}
+              <div className="p-4 bg-white border-t border-slate-200">
+                <div className="text-xs font-semibold text-slate-700 mb-2">Not seeing the right person? Add details to narrow search:</div>
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <input id="manual-company" placeholder="Company name" className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:border-[hsl(280,85%,55%)]/40 focus:ring-2 focus:ring-[hsl(280,85%,55%)]/10 outline-none" />
+                  <input id="manual-location" placeholder="Location (e.g., San Francisco, CA)" className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:border-[hsl(280,85%,55%)]/40 focus:ring-2 focus:ring-[hsl(280,85%,55%)]/10 outline-none" />
+                  <input id="manual-linkedin" placeholder="LinkedIn URL" className="col-span-2 w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:border-[hsl(280,85%,55%)]/40 focus:ring-2 focus:ring-[hsl(280,85%,55%)]/10 outline-none" />
+                  <input id="manual-extra" placeholder="Any other info (role, email, etc.)" className="col-span-2 w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:border-[hsl(280,85%,55%)]/40 focus:ring-2 focus:ring-[hsl(280,85%,55%)]/10 outline-none" />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setCandidates(null)} className="flex-1 px-4 py-2 rounded-full border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50">CANCEL</button>
+                  <button
+                    onClick={() => {
+                      const company = (document.getElementById("manual-company") as HTMLInputElement)?.value || "";
+                      const location = (document.getElementById("manual-location") as HTMLInputElement)?.value || "";
+                      const linkedin = (document.getElementById("manual-linkedin") as HTMLInputElement)?.value || "";
+                      const extra = (document.getElementById("manual-extra") as HTMLInputElement)?.value || "";
+                      const parts = [candidateQuery, company, location, linkedin, extra].filter(Boolean).join(" ").trim();
+                      setCandidates(null);
+                      runSearch(parts);
+                    }}
+                    className="flex-1 px-4 py-2 rounded-full bg-[hsl(280,85%,55%)] text-white text-xs font-medium hover:bg-[hsl(280,85%,50%)] shadow-sm"
+                  >
+                    REFINE & SEARCH
+                  </button>
+                  <button
+                    onClick={() => { const q = candidateQuery; setCandidates(null); runSearch(q); }}
+                    className="flex-1 px-4 py-2 rounded-full border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    SEARCH ANYWAY
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

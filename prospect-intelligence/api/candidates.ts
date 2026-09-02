@@ -79,8 +79,33 @@ async function getCandidates(query: string) {
     } catch {}
   }
 
+  function extractContacts(text: string, url: string) {
+    const contacts: any[] = [];
+    const emailRe = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+    const phoneRe = /(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g;
+    const emails = text.match(emailRe) || [];
+    const phones = text.match(phoneRe) || [];
+    const seen = new Set<string>();
+    for (const e of emails.slice(0, 2)) {
+      const lower = e.toLowerCase();
+      if (seen.has(lower) || lower.includes("example.com")) continue;
+      seen.add(lower);
+      // Confidence: 90 if appears near query name, else 70
+      const idx = text.toLowerCase().indexOf(lower);
+      const nearName = text.toLowerCase().slice(Math.max(0, idx - 80), idx + 80).includes(query.toLowerCase().split(" ")[0]);
+      contacts.push({ type: "email", value: lower, confidence: nearName ? 90 : 70 });
+    }
+    for (const p of phones.slice(0, 1)) {
+      if (p.replace(/\D/g, "").length < 10) continue;
+      contacts.push({ type: "phone", value: p.trim(), confidence: 60 });
+    }
+    if (url.includes("linkedin.com/in/")) {
+      contacts.push({ type: "linkedin", value: url, confidence: 95 });
+    }
+    return contacts;
+  }
+
   // Build candidates from web results - extract person-like entries
-  // If query is generic (e.g., "Peter Cullen"), web results will contain multiple Peter Cullens with different contexts
   const candidates: any[] = [];
   const queryLower = query.toLowerCase();
 
@@ -88,19 +113,18 @@ async function getCandidates(query: string) {
     const r = web[i];
     const titleLower = (r.title || "").toLowerCase();
     const snippetLower = (r.snippet || "").toLowerCase();
-    // Heuristic confidence: exact name match in title = high, partial = medium
     let confidence = 30;
     if (titleLower.includes(queryLower)) confidence = 75;
     else if (snippetLower.includes(queryLower)) confidence = 60;
-    else if (r.url.includes("wikipedia.org")) confidence = 85; // Wikipedia is strong signal for public figure
+    else if (r.url.includes("wikipedia.org")) confidence = 85;
     else if (r.url.includes("linkedin.com")) confidence = 65;
-    // Boost if snippet contains role/company hints
     if (/CEO|CTO|COO|founder|professor|actor|director|engineer/i.test(r.snippet)) confidence += 10;
     confidence = Math.min(95, confidence);
 
-    // Try to extract location/company from snippet
     const locationMatch = r.snippet.match(/(?:in|from|based in|located in)\s+([A-Z][a-z]+(?:,\s*[A-Z][a-z]+)?)/);
     const companyMatch = r.snippet.match(/(?:at|with|for|@)\s+([A-Z][A-Za-z0-9\s&\.]+(?:Inc|LLC|Ltd|Corp|Company|University|Studios)?)/);
+
+    const contacts = extractContacts(`${r.title} ${r.snippet} ${r.url}`, r.url);
 
     candidates.push({
       id: `${i}-${Date.now()}`,
@@ -112,6 +136,7 @@ async function getCandidates(query: string) {
       url: r.url,
       source: r.source,
       confidence,
+      contacts,
     });
   }
 
