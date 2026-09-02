@@ -83,6 +83,9 @@ export default function LLMApis() {
           </Panel>
         ))}
       </div>
+      <div className="mb-4 font-mono text-[9px] text-slate-600">
+        PROVIDER DATA: {providers.length > 0 ? `${providers.length} providers loaded · ${freshness(providers[0].last_checked)} ago` : "Loading..."}
+      </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-1.5 md:gap-2 mb-4 md:mb-6">

@@ -1650,6 +1650,24 @@ const LLM_PROVIDERS: LLMProvider[] = [
     category: "permanent",
     last_checked: new Date().toISOString(),
   },
+  {
+    id: "anthropic-fable-5",
+    name: "Anthropic Claude Fable 5 (via OpenRouter)",
+    website: "https://openrouter.ai/models/anthropic/claude-fable-5",
+    api_endpoint: "https://openrouter.ai/api/v1",
+    auth_type: "Bearer token (OpenRouter key)",
+    free_tier: false,
+    credit_card_required: false,
+    rate_limit_rpm: null,
+    rate_limit_rpd: null,
+    rate_limit_tpm: null,
+    tokens_per_day: null,
+    models: ["claude-fable-5"],
+    openai_compatible: true,
+    notes: "Anthropic's most capable Mythos-class model. 1M context, 128K output. $10/M input, $50/M output. Available via OpenRouter. Not free but best-in-class reasoning.",
+    category: "trial-credits",
+    last_checked: new Date().toISOString(),
+  },
 ];
 
 // ─── LLM API Provider Endpoint ───
@@ -1927,6 +1945,7 @@ app.get("/api/cron/refresh", async (c) => {
   const type = c.req.query("type") || "all";
   const results: Record<string, any> = {};
   const startedAt = Date.now();
+  let totalNew = 0;
 
   if (type === "all" || type === "openrouter") {
     try {
@@ -1936,7 +1955,25 @@ app.get("/api/cron/refresh", async (c) => {
         const freeModels = (orData.data || []).filter((m: any) =>
           m.id?.includes(":free") || (m.pricing && Number(m.pricing.prompt) === 0 && Number(m.pricing.completion) === 0)
         );
-        results.openrouter = { ok: true, free_models: freeModels.length };
+        let saved = 0;
+        for (const m of freeModels.slice(0, 30)) {
+          try {
+            const slug = `openrouter-${m.id}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 120);
+            const name = m.name || m.id;
+            const desc = `Free model on OpenRouter: ${m.id}. Context: ${m.context_length || "unknown"}.`;
+            const existing = await sql`SELECT id FROM resources WHERE slug = ${slug} LIMIT 1`;
+            if ((existing as any[]).length > 0) {
+              await sql`UPDATE resources SET popularity = COALESST(popularity, 0) + 1, last_verified = NOW() WHERE slug = ${slug}`;
+            } else {
+              await sql`INSERT INTO resources (slug, name, description, url, resource_type, category, free_score, origin, verification_status, created_at, last_verified)
+                VALUES (${slug}, ${name}, ${desc}, ${`https://openrouter.ai/models/${m.id}`}, 'api', 'AI', ${75}, 'openrouter-refresh', 'verified', NOW(), NOW())
+                ON CONFLICT (slug) DO NOTHING`;
+              saved++;
+            }
+          } catch {}
+        }
+        totalNew += saved;
+        results.openrouter = { ok: true, free_models: freeModels.length, saved };
       }
     } catch (e: any) { results.openrouter = { ok: false, error: e.message }; }
   }
@@ -1944,16 +1981,51 @@ app.get("/api/cron/refresh", async (c) => {
   if (type === "all" || type === "huggingface") {
     try {
       const models = await fetchHuggingFaceTrending(20);
-      results.huggingface = { ok: true, trending_models: models.length };
+      let saved = 0;
+      for (const m of models) {
+        try {
+          const slug = `hf-${m.id}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 120);
+          const name = m.id;
+          const desc = `HuggingFace model: ${m.id}. Downloads: ${m.downloads || 0}. Likes: ${m.likes || 0}.`;
+          const existing = await sql`SELECT id FROM resources WHERE slug = ${slug} LIMIT 1`;
+          if ((existing as any[]).length > 0) {
+            await sql`UPDATE resources SET popularity = ${m.downloads || 0}, last_verified = NOW() WHERE slug = ${slug}`;
+          } else {
+            await sql`INSERT INTO resources (slug, name, description, url, resource_type, category, free_score, origin, verification_status, created_at, last_verified)
+              VALUES (${slug}, ${name}, ${desc}, ${`https://huggingface.co/${m.id}`}, 'repo', 'AI', ${70}, 'huggingface-refresh', 'verified', NOW(), NOW())
+              ON CONFLICT (slug) DO NOTHING`;
+            saved++;
+          }
+        } catch {}
+      }
+      totalNew += saved;
+      results.huggingface = { ok: true, trending_models: models.length, saved };
     } catch (e: any) { results.huggingface = { ok: false, error: e.message }; }
   }
 
   if (type === "all" || type === "hn") {
     try {
-      const res = await fetch("https://hn.algolia.com/api/v1/search?query=free+AI+tool&tags=story&hitsPerPage=10");
+      const res = await fetch("https://hn.algolia.com/api/v1/search?query=free+AI+tool+OR+open+source+AI&tags=story&hitsPerPage=20");
       if (res.ok) {
         const data = await res.json() as any;
-        results.hn = { ok: true, items: data.nbHits || 0 };
+        let saved = 0;
+        for (const hit of (data.hits || []).slice(0, 20)) {
+          try {
+            if (!hit.url && !hit.story_url) continue;
+            const itemUrl = hit.url || hit.story_url;
+            const slug = `hn-${hit.objectID}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 120);
+            const name = hit.title || hit.story_title || "Untitled";
+            const existing = await sql`SELECT id FROM resources WHERE slug = ${slug} LIMIT 1`;
+            if ((existing as any[]).length === 0) {
+              await sql`INSERT INTO resources (slug, name, description, url, resource_type, category, free_score, origin, verification_status, created_at, last_verified)
+                VALUES (${slug}, ${name.slice(0, 200)}, ${`HN post: ${name}`}, ${itemUrl}, 'link', 'community', ${60}, 'hn-refresh', 'discovered', NOW(), NOW())
+                ON CONFLICT (slug) DO NOTHING`;
+              saved++;
+            }
+          } catch {}
+        }
+        totalNew += saved;
+        results.hn = { ok: true, items: data.nbHits || 0, saved };
       }
     } catch (e: any) { results.hn = { ok: false, error: e.message }; }
   }
@@ -1963,19 +2035,42 @@ app.get("/api/cron/refresh", async (c) => {
       const token = process.env.GITHUB_TOKEN;
       const headers: Record<string, string> = { Accept: "application/vnd.github+json" };
       if (token) headers.Authorization = `Bearer ${token}`;
-      const res = await fetch("https://api.github.com/search/repositories?q=free+ai+tool+created:>2025-01-01&sort=stars&per_page=5", { headers });
-      if (res.ok) {
+      const queries = ["free+ai+agent+tool", "mcp+server+free", "open+source+llm+free"];
+      let saved = 0;
+      for (const q of queries) {
+        const res = await fetch(`https://api.github.com/search/repositories?q=${q}+created:>2025-06-01&sort=stars&per_page=10`, { headers });
+        if (!res.ok) continue;
         const data = await res.json() as any;
-        results.github = { ok: true, items: (data.items || []).length };
+        for (const repo of (data.items || []).slice(0, 10)) {
+          try {
+            const slug = `${repo.full_name}`.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+            const existing = await sql`SELECT id FROM resources WHERE slug = ${slug} LIMIT 1`;
+            if ((existing as any[]).length > 0) {
+              await sql`UPDATE resources SET popularity = ${repo.stargazers_count}, forks = ${repo.forks_count}, github_last_push = ${repo.pushed_at || null}, last_verified = NOW() WHERE slug = ${slug}`;
+            } else {
+              await sql`INSERT INTO resources (slug, name, description, url, github_url, resource_type, category, free_score, popularity, forks, origin, verification_status, github_last_push, created_at, last_verified)
+                VALUES (${slug}, ${repo.name}, ${(repo.description || "").slice(0, 500)}, ${repo.html_url}, ${repo.html_url}, 'repo', ${guessCategory(repo.description || repo.topics?.join(" ") || "")}, ${calcFreeScore(repo)}, ${repo.stargazers_count}, ${repo.forks_count}, 'github-refresh', 'discovered', ${repo.pushed_at || null}, NOW(), NOW())
+                ON CONFLICT (slug) DO UPDATE SET popularity = ${repo.stargazers_count}, forks = ${repo.forks_count}, last_verified = NOW()`;
+              saved++;
+            }
+          } catch {}
+        }
       }
+      totalNew += saved;
+      results.github = { ok: true, saved };
     } catch (e: any) { results.github = { ok: false, error: e.message }; }
   }
+
+  try {
+    await sql`INSERT INTO events (type, title, detail, created_at) VALUES ('system', ${`CRON REFRESH: ${type} — ${totalNew} new resources`}, ${JSON.stringify(results)}, NOW())`;
+  } catch {}
 
   const elapsed = Date.now() - startedAt;
   return c.json({
     ok: true,
     type,
     results,
+    total_new: totalNew,
     elapsed_ms: elapsed,
     timestamp: new Date().toISOString(),
   });

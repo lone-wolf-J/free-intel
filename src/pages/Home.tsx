@@ -128,6 +128,11 @@ export default function Home() {
             <div className="flex items-center gap-2 mb-3">
               <Clock size={14} className="text-amber-neon" />
               <span className="mono-label">DATA FRESHNESS</span>
+              {cronStatus.recent_events?.[0] && (
+                <span className="ml-auto font-mono text-[9px] text-lime-neon">
+                  LAST UPDATE: {cronStatus.recent_events[0].created_at?.slice(0, 16).replace("T", " ")} UTC
+                </span>
+              )}
             </div>
             <div className="flex flex-wrap gap-3">
               {Object.entries(cronStatus.schedule).map(([source, freq]) => (
@@ -138,7 +143,7 @@ export default function Home() {
             </div>
             {cronStatus.recent_events?.[0] && (
               <div className="mt-2 font-mono text-[9px] text-slate-600">
-                LAST SYSTEM EVENT: {cronStatus.recent_events[0].title} @ {cronStatus.recent_events[0].created_at?.slice(0, 19)}
+                {cronStatus.recent_events[0].title} · {cronStatus.recent_events[0].detail?.slice(0, 100)}
               </div>
             )}
           </Panel>
