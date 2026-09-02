@@ -88,10 +88,10 @@ function PipelineCard({
             <User size={14} className="text-slate-300" />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-slate-900 leading-tight">
+            <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
               {item.person.name}
             </h4>
-            <p className="text-[10px] text-slate-500 font-sans">
+            <p className="text-[10px] text-slate-600 dark:text-slate-300 font-sans">
               {item.person.title || item.person.company || item.query}
             </p>
           </div>
