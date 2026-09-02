@@ -511,12 +511,12 @@ export default function FindThem() {
           transition={{ duration: 0.6 }}
           className="relative z-10 text-center mb-8"
         >
-          <div className="mono-label mb-3 flex items-center justify-center gap-2">
-            <Crosshair size={10} className="text-cyan" />
+          <div className="mono-label mb-3 flex items-center justify-center gap-2 text-[hsl(280,85%,55%)]">
+            <Crosshair size={10} className="text-[hsl(280,85%,55%)]" />
             INTELLIGENCE SCANNER
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-slate-100 mb-2">Find Them</h1>
-          <p className="text-sm text-slate-400 max-w-md mx-auto">
+          <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-2" style={{ fontFamily: "Montserrat, sans-serif", opacity: 1 }}>Find Them</h1>
+          <p className="text-sm text-slate-600 max-w-md mx-auto font-medium" style={{ opacity: 1 }}>
             Enter a name, company, role, or LinkedIn URL. AI scans the internet to build a
             complete 20+ section intelligence dossier.
           </p>
