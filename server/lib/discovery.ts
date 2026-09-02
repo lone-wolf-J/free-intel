@@ -161,6 +161,13 @@ const AWESOME_LISTS: Array<{ raw: string; label: string; category: string }> = [
   { raw: "https://raw.githubusercontent.com/caramaschiHG/awesome-ai-agents-2026/main/README.md", label: "awesome-ai-agents-2026", category: "AI" },
   { raw: "https://raw.githubusercontent.com/OiiOAI/awesome-ai-agents/main/README.md", label: "awesome-ai-agents-oio", category: "AI" },
   { raw: "https://raw.githubusercontent.com/open-free-llm-api/awesome-freellm-apis/main/README.md", label: "awesome-free-llm-apis", category: "AI" },
+  { raw: "https://raw.githubusercontent.com/diegosouzapw/OmniRoute/main/docs/reference/PROVIDER_REFERENCE.md", label: "omniroute-provider-reference", category: "AI" },
+  { raw: "https://raw.githubusercontent.com/diegosouzapw/OmniRoute/main/docs/reference/FREE_TIERS.md", label: "omniroute-free-tiers", category: "AI" },
+  { raw: "https://raw.githubusercontent.com/r2hu1/freerouter/main/README.md", label: "freerouter-free-ai-gateway", category: "AI" },
+  { raw: "https://raw.githubusercontent.com/MrFadiAi/free-llm-gateway/main/README.md", label: "free-llm-gateway", category: "AI" },
+  { raw: "https://raw.githubusercontent.com/zaber-dev/free-ai-gateway/main/README.md", label: "free-ai-gateway", category: "AI" },
+  { raw: "https://raw.githubusercontent.com/leethesebas/OmniKey-AI-Unified-Key-Manager/main/README.md", label: "omnikey-ai-unified-key", category: "AI" },
+  { raw: "https://raw.githubusercontent.com/AngusChiang/freellmapi/main/README.md", label: "freellmapi", category: "AI" },
 ];
 
 const STARTER_SOURCES: Array<{ name: string; url: string; type: string; category: string; tier: number }> = [
@@ -429,6 +436,22 @@ const WEB_SCRAPE_SOURCES: Array<{ name: string; url: string; category: string; s
   { name: "FindLLM - pricing", url: "https://findllm.ai/pricing", category: "pricing", selectors: { title: "h3, .provider-name", link: "a[href]", description: "p" } },
   { name: "WhereToAI - API relays", url: "https://wheretoai.org/api-relays", category: "free-api", selectors: { title: "h3, .provider-name", link: "a[href]", description: "p" } },
   { name: "AIHubMix - free models", url: "https://aihubmix.com/models", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  // ============================================================
+  // LLM API GATEWAYS / ROUTERS (TokenRouter-like)
+  // ============================================================
+  { name: "TokenRouter - models", url: "https://www.tokenrouter.com/models", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href*='/models/']", description: "p" } },
+  { name: "TokenRouter - blog", url: "https://www.tokenrouter.com/blog", category: "provider-update", selectors: { title: "h3, .post-title", link: "a[href*='/blog/']", description: "p" } },
+  { name: "OmniRoute - catalog", url: "https://omniroute.online/", category: "free-api", selectors: { title: "h3, .provider-name", link: "a[href]", description: "p" } },
+  { name: "LLM Gateway - models", url: "https://llmgateway.io/models", category: "model-catalog", selectors: { title: "h3, .model-name", link: "a[href*='/models/']", description: "p" } },
+  { name: "LLM Gateway - rankings", url: "https://llmgateway.io/rankings", category: "benchmark", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "LLM Gateway - pricing", url: "https://llmgateway.io/pricing", category: "pricing", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "LLM Gateway - providers", url: "https://llmgateway.io/providers", category: "free-api", selectors: { title: "h3, .provider-name", link: "a[href*='/providers/']", description: "p" } },
+  { name: "FreeLLMAPI - models", url: "https://freellmapi.co/models.html", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "LiteLLM - docs", url: "https://docs.litellm.ai/docs/providers", category: "free-api", selectors: { title: "h3, .provider-name", link: "a[href]", description: "p" } },
+  { name: "Portkey - models", url: "https://portkey.ai/docs/product/model-support", category: "model-catalog", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "Gratisfy - benchmarks", url: "https://gratisfy.xyz/", category: "benchmark", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "Foreverse - price table", url: "https://foreverse.app/labs/price-table", category: "pricing", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "Ramp Router - models", url: "https://ramp.com/blog/best-llm-gateways", category: "provider-update", selectors: { title: "h3, .gateway-name", link: "a[href]", description: "p" } },
   // ============================================================
   // MCP DIRECTORIES
   // ============================================================
