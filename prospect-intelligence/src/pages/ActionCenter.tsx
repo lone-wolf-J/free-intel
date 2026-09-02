@@ -148,6 +148,7 @@ export default function ActionCenter() {
           tone: selectedTone,
           notes: pitchNotes,
           customFields,
+          prospect: selectedCase,
         }),
       });
       if (res.ok) {
@@ -161,27 +162,32 @@ export default function ActionCenter() {
       const name = selectedCase.person.name;
       const company = selectedCase.person.company || selectedCase.company.industry || "your company";
       const title = selectedCase.person.title || "professional";
+      const industry = (selectedCase.company.industry || "").toLowerCase();
+      const isData = industry.includes("data") || industry.includes("tech") || title.toLowerCase().includes("data");
+      const isSalesforce = industry.includes("sales") || notes.toLowerCase().includes("salesforce") || title.toLowerCase().includes("sales");
+      const isDynamics = notes.toLowerCase().includes("dynamics") || title.toLowerCase().includes("dynamics");
+      const pillar = isData ? "Data Modernization with Microsoft Fabric/Power BI/Databricks" : isSalesforce ? "Salesforce + AI (Summit Partner)" : isDynamics ? "Dynamics 365 + AI" : "Enterprise Integration with Boomi/MuleSoft + Azure";
 
       const templates: Record<string, { subject: string; body: string }> = {
         professional: {
-          subject: `Exploring synergies with ${name}`,
-          body: `Hi ${name},\n\nI came across your work as ${title} at ${company} and was impressed by the direction you're taking.\n\nI'd love to explore how we might be able to support your initiatives. Our solutions have helped similar organizations achieve measurable results in efficiency and growth.\n\nWould you be open to a brief 15-minute call this week to discuss potential synergies?\n\nBest regards`,
+          subject: `${name} — AI-native ops for ${company}`,
+          body: `Hi ${name},\n\nNoticed your role as ${title} at ${company} — given ${company}'s scale, ${pillar.toLowerCase()} is often where we see quick wins.\n\nAt LevelShift (25 yrs, unified from PreludeSys/DemandBlue/DemandDynamics) we help teams become AI-native: e.g., ${isData ? "unifying data on Fabric and enabling Power BI governance in weeks" : isSalesforce ? "making Salesforce predictive with AI (Summit Partner)" : "connecting Boomi/MuleSoft/Azure estates with AI automation"}. Microsoft Solutions Partner (Azure/Data & AI, Business Apps) + Boomi Strategic.\n\nWould a 15-min AI readiness review be useful to map one high-ROI use case for ${company}?\n\nBest regards,\nLevelShift — Global AI Transformation Partner (300+ orgs)`,
         },
         friendly: {
           subject: `Loved what you're building at ${company}`,
-          body: `Hey ${name}!\n\nI've been following ${company}'s journey and honestly, what you're building is really exciting.\n\nI think there could be some great alignment between what we do and where you're heading. No pitch — just a genuine conversation to see if there's a fit.\n\nCoffee chat sometime? ☕\n\nCheers`,
+          body: `Hey ${name}!\n\nI've been following ${company} — as ${title}, ${pillar.toLowerCase()} feels super relevant to where you're heading.\n\nWe're LevelShift, a global AI transformation partner (25 yrs, 300+ orgs, Great Place to Work 2021-26). We help enterprises become AI-native across Data (Fabric/Azure), Salesforce, Dynamics, and Integration (Boomi/MuleSoft) — human-AI synergy, not rip-and-replace.\n\nNo pitch — just curious if a quick 15-min chat on one practical AI win for ${company} would help?\n\nCheers`,
         },
         direct: {
-          subject: `${company} + our platform = results`,
-          body: `${name},\n\nQuick one — we've helped companies like ${company} reduce costs by 30% while scaling faster.\n\nWorth a 10-minute call to see if this applies to you?\n\nYes or no — either way, respect your time.`,
+          subject: `${company} + LevelShift = AI-native in 90 days`,
+          body: `${name},\n\nQuick one — we help ${title}s at ${company}-sized orgs turn ${pillar.toLowerCase()} into measurable outcomes (e.g., ${isData ? "Fabric + Power BI chargeback cut" : "Salesforce cycle-time down 30%"}).\n\nLevelShift: PreludeSys + DemandBlue + DemandDynamics unified, Microsoft Fabric Featured Partner.\n\n15 min to see if there's a fit?`,
         },
         consultative: {
-          subject: `Strategic insight for ${company}`,
-          body: `Dear ${name},\n\nBased on my analysis of ${company}'s current trajectory and the ${selectedCase.company.industry || "industry"} landscape, I've identified a few opportunities that could accelerate your goals.\n\nI'd welcome the chance to share these insights — no strings attached. Sometimes an outside perspective can illuminate paths forward.\n\nShall we connect?\n\n regards`,
+          subject: `For ${company}: 1 AI-native lever worth testing`,
+          body: `Dear ${name},\n\nBased on ${company}'s ${selectedCase.company.industry || "industry"} footprint, one lever stands out: ${pillar} — especially with our CLAPQ approach (human-AI synergy).\n\nAt LevelShift we embed AI across core functions (not just deploy tech) with Microsoft/Boomi/Salesforce credentials. Happy to share a 1-page AI readiness lens for ${company} — no strings.\n\nShall we connect?\n\n regards`,
         },
         urgent: {
-          subject: `Time-sensitive opportunity for ${company}`,
-          body: `${name},\n\nI'll be brief — we're opening a limited partnership window for companies in the ${selectedCase.company.industry || "sector"} space.\n\nGiven ${company}'s position, I wanted to reach out before this closes on [DATE].\n\n15 minutes to determine if this is relevant. Are you available this week?\n\nBest`,
+          subject: `${company} — AI-native pilot slots closing`,
+          body: `${name},\n\nBrief — we're opening 3 AI-native pilot slots this month for ${selectedCase.company.industry || "tech"} firms — ideal for ${pillar.toLowerCase()}.\n\nLevelShift (Microsoft Solutions Partner, 300+ transformations) runs a 2-week Fabric/Salesforce/Dynamics readiness sprint. Worth a 15-min fit check before slots close?\n\nBest,\nLevelShift`,
         },
       };
 

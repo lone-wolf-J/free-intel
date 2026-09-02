@@ -36,11 +36,15 @@ interface CaseItem {
     industry: string;
     size: string;
     revenue: string;
+    description?: string;
+    website?: string;
   };
   stage: "new" | "qualified" | "engaged" | "closed";
   confidenceScore: number;
   tags: string[];
   timestamp: string;
+  sections?: { title: string; items: { label: string; value: string }[] }[];
+  aiInsights?: string[];
 }
 
 const STAGES = [
@@ -84,10 +88,10 @@ function PipelineCard({
             <User size={14} className="text-slate-300" />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-slate-100 leading-tight">
+            <h4 className="text-sm font-bold text-slate-900 leading-tight">
               {item.person.name}
             </h4>
-            <p className="text-[10px] text-slate-500 font-mono">
+            <p className="text-[10px] text-slate-500 font-sans">
               {item.person.title || item.person.company || item.query}
             </p>
           </div>
@@ -100,7 +104,7 @@ function PipelineCard({
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-1.5 mb-3">
+      <div className="flex flex-wrap gap-1.5 mb-2">
         {item.company.industry && (
           <span className="chip border-slate-600/30 text-slate-400">
             <Briefcase size={8} />
@@ -127,6 +131,20 @@ function PipelineCard({
           </span>
         )}
       </div>
+
+      {/* Glimpse: summary of who they are */}
+      {item.sections?.[0]?.items?.[0]?.value && (
+        <div className="mb-3 rounded-lg bg-slate-50 border border-slate-200/60 p-2.5">
+          <div className="text-[10px] font-sans font-semibold uppercase tracking-wider text-slate-400 mb-1">Glimpse</div>
+          <div className="text-xs text-slate-600 leading-relaxed line-clamp-3">
+            {item.sections[0].items[0].value.slice(0, 160)}
+            {item.sections[0].items[0].value.length > 160 ? "…" : ""}
+          </div>
+          {item.company.description && (
+            <div className="text-[11px] text-slate-500 mt-1.5 line-clamp-2">{item.company.description.slice(0, 120)}</div>
+          )}
+        </div>
+      )}
 
       <div className="flex items-center gap-1">
         {STAGES.map((s) => (

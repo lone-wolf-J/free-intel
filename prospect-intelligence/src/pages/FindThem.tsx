@@ -356,6 +356,25 @@ export default function FindThem() {
   const [resolving, setResolving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const autoSaveToDeck = (data: CaseData) => {
+    try {
+      const pipelineCase = {
+        ...data,
+        stage: "new" as const,
+        tags: (data as any).tags || [],
+        savedToPipeline: true,
+      };
+      const raw = localStorage.getItem("pi_cases");
+      const existing = raw ? JSON.parse(raw) : [];
+      if (!existing.find((c: any) => c.id === pipelineCase.id)) {
+        existing.unshift(pipelineCase);
+        // Keep only latest 50 to avoid storage bloat
+        localStorage.setItem("pi_cases", JSON.stringify(existing.slice(0, 50)));
+        window.dispatchEvent(new Event("pi_cases_updated"));
+      }
+    } catch {}
+  };
+
   const runSearch = async (finalQuery: string) => {
     setSearching(true);
     setResult(null);
@@ -372,7 +391,9 @@ export default function FindThem() {
       }
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      setResult(data);
+      setResult({ ...data, savedToPipeline: true });
+      // Automated: every find automatically creates a record in Intel Deck with glimpse
+      autoSaveToDeck(data);
     } catch (err: any) {
       const msg = err.message || "Search failed. Is the backend server running?";
       if (msg.includes("QUOTA") || msg.includes("limit") || msg.includes("exhausted")) {
@@ -514,7 +535,8 @@ export default function FindThem() {
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 placeholder='e.g. "Satya Nadella Microsoft" or "linkedin.com/in/johndoe"'
-                className="flex-1 bg-transparent outline-none text-slate-200 placeholder-slate-500 font-mono text-sm py-3"
+                className="flex-1 bg-transparent outline-none text-slate-900 placeholder-slate-400 font-sans text-sm py-3"
+                style={{ opacity: 1 }}
               />
             </div>
             <button
