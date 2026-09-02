@@ -12,6 +12,14 @@
   --primary-dark: 240 85% 45%;
   --muted: 0 0% 56%;
 }
+.dark {
+  --background: 224 40% 7%;
+  --foreground: 0 0% 96%;
+  --card: 224 30% 10%;
+  --border: 224 20% 16%;
+  --primary: 280 85% 60%;
+  --muted: 0 0% 65%;
+}
 
 html {
   scroll-behavior: smooth;
@@ -232,6 +240,29 @@ h1, h2, h3 {
     background-size: 200% 100%;
     animation: shimmer 3s ease-in-out infinite;
   }
+}
+
+/* Dark mode overrides - keep same class names, just swap palette */
+.dark .glass {
+  background: rgba(16, 24, 48, 0.72);
+  border-color: hsl(var(--border));
+}
+.dark .glass-bright {
+  background: rgba(16, 24, 48, 0.82);
+  border-color: hsl(var(--border));
+}
+.dark .glass-card {
+  background: hsl(var(--card));
+  border-color: hsl(var(--border));
+}
+.dark .chip {
+  background: hsl(var(--card));
+  border-color: hsl(var(--border));
+}
+.dark .input-glass {
+  background: hsl(var(--card));
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground));
 }
 
 @keyframes holoShift {

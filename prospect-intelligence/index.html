@@ -6,6 +6,20 @@
     <title>Prospect Intelligence — AI-Powered Prospect Research</title>
     <meta name="description" content="AI-native prospect intelligence platform. Find, analyze, and engage prospects with zero-cost AI." />
     <meta name="theme-color" content="#ffffff" />
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('pi-theme');
+          if (t !== 'light' && t !== 'dark') {
+            t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          document.documentElement.classList.toggle('dark', t === 'dark');
+          document.documentElement.style.colorScheme = t;
+        } catch(e) {
+          document.documentElement.classList.remove('dark');
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet" />

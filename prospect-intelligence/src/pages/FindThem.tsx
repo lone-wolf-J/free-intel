@@ -511,12 +511,12 @@ export default function FindThem() {
           transition={{ duration: 0.6 }}
           className="relative z-10 text-center mb-8"
         >
-          <div className="mono-label mb-3 flex items-center justify-center gap-2 text-[hsl(280,85%,55%)]">
+          <div className="mono-label mb-3 flex items-center justify-center gap-2 text-[hsl(280,85%,55%)] dark:text-[hsl(280,85%,65%)]">
             <Crosshair size={10} className="text-[hsl(280,85%,55%)]" />
             INTELLIGENCE SCANNER
           </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-2" style={{ fontFamily: "Montserrat, sans-serif", opacity: 1 }}>Find Them</h1>
-          <p className="text-sm text-slate-600 max-w-md mx-auto font-medium" style={{ opacity: 1 }}>
+          <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mb-2" style={{ fontFamily: "Montserrat, sans-serif" }}>Find Them</h1>
+          <p className="text-sm text-slate-600 dark:text-slate-300 max-w-md mx-auto font-medium">
             Enter a name, company, role, or LinkedIn URL. AI scans the internet to build a
             complete 20+ section intelligence dossier.
           </p>
@@ -528,9 +528,9 @@ export default function FindThem() {
           transition={{ duration: 0.6, delay: 0.15 }}
           className="relative z-10 w-full max-w-2xl"
         >
-          <div className="glass-bright rounded-xl p-2 flex items-center gap-2 holo-border">
-            <div className="flex-1 flex items-center gap-3 px-3">
-              <Search size={18} className="text-cyan shrink-0" />
+          <div className="glass-bright rounded-2xl p-2 sm:p-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 holo-border">
+            <div className="flex-1 flex items-center gap-3 px-3 min-w-0">
+              <Search size={18} className="text-[hsl(280,85%,55%)] shrink-0" />
               <input
                 ref={inputRef}
                 type="text"
@@ -538,18 +538,18 @@ export default function FindThem() {
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 placeholder='e.g. "Satya Nadella Microsoft" or "linkedin.com/in/johndoe"'
-                className="flex-1 bg-transparent outline-none text-slate-900 placeholder-slate-400 font-sans text-sm py-3"
+                className="flex-1 min-w-0 bg-transparent outline-none text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-sans text-sm py-3"
                 style={{ opacity: 1 }}
               />
             </div>
             <button
               onClick={handleSearch}
               disabled={!query.trim() || searching}
-              className="btn-neon px-6 py-3 shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="btn-neon w-full sm:w-auto px-6 py-3.5 sm:py-3 shrink-0 disabled:opacity-40 disabled:cursor-not-allowed min-h-[44px] touch-manipulation"
             >
               {searching ? (
-                <span className="flex items-center gap-2">
-                  <span className="h-4 w-4 rounded-full border-2 border-cyan/30 border-t-cyan animate-spin" />
+                <span className="flex items-center justify-center gap-2">
+                  <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
                   SCANNING
                 </span>
               ) : (
@@ -588,37 +588,37 @@ export default function FindThem() {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-2xl max-h-[85vh] overflow-hidden bg-white rounded-2xl shadow-2xl border border-slate-200"
+              className="w-full max-w-2xl max-h-[90vh] sm:max-h-[85vh] overflow-hidden bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col"
             >
-              <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-[hsl(280,60%,97%)] to-white">
-                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2" style={{ fontFamily: "Montserrat, sans-serif" }}>
-                  <Users size={18} className="text-[hsl(280,85%,55%)]" />
-                  Which {candidateQuery} did you mean?
+              <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-[hsl(280,60%,97%)] to-white dark:from-slate-800 dark:to-slate-900 shrink-0">
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2" style={{ fontFamily: "Montserrat, sans-serif" }}>
+                  <Users size={18} className="text-[hsl(280,85%,55%)] shrink-0" />
+                  <span className="truncate">Which {candidateQuery} did you mean?</span>
                 </h3>
-                <p className="text-xs text-slate-600 mt-1">
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
                   Multiple matches found. Pick the right profile to run deep intelligence (saves scrape credits).
                 </p>
               </div>
-              <div className="overflow-y-auto max-h-[45vh] p-4 space-y-3 bg-slate-50/50">
+              <div className="overflow-y-auto flex-1 p-3 sm:p-4 space-y-3 bg-slate-50/50 dark:bg-slate-800/50 min-h-0">
                 {candidates.map((c) => (
                   <button
                     key={c.id}
                     onClick={() => handleCandidateSelect(c)}
-                    className="w-full text-left bg-white border border-slate-200 p-4 rounded-xl hover:border-[hsl(280,85%,55%)]/30 hover:shadow-md transition-all group"
+                    className="w-full text-left bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl hover:border-[hsl(280,85%,55%)]/30 hover:shadow-md transition-all group"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex gap-3 flex-1 min-w-0">
-                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[hsl(280,85%,55%)]/15 to-[hsl(320,85%,55%)]/15 border border-slate-200 flex items-center justify-center shrink-0">
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[hsl(280,85%,55%)]/15 to-[hsl(320,85%,55%)]/15 border border-slate-200 dark:border-slate-600 flex items-center justify-center shrink-0">
                           <User size={16} className="text-[hsl(280,85%,55%)]" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-bold text-slate-900 truncate">{c.name}</div>
-                          <div className="text-xs text-slate-600 truncate">{c.title}{c.company ? ` — ${c.company}` : ""}</div>
+                          <div className="text-sm font-bold text-slate-900 dark:text-white truncate">{c.name}</div>
+                          <div className="text-xs text-slate-600 dark:text-slate-300 truncate">{c.title}{c.company ? ` — ${c.company}` : ""}</div>
                           <div className="flex flex-wrap gap-1.5 mt-2">
-                            {c.location && <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-2.5 py-1 text-[10px] font-medium text-slate-600"><MapPin size={10} />{c.location}</span>}
-                            {c.url && <span className="inline-flex items-center gap-1 rounded-full bg-white border border-slate-200 px-2.5 py-1 text-[10px] font-medium text-slate-600 truncate max-w-[180px]"><Globe size={10} />{new URL(c.url).hostname}</span>}
+                            {c.location && <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-2.5 py-1 text-[10px] font-medium text-slate-600 dark:text-slate-300"><MapPin size={10} />{c.location}</span>}
+                            {c.url && <span className="inline-flex items-center gap-1 rounded-full bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-2.5 py-1 text-[10px] font-medium text-slate-600 dark:text-slate-300 truncate max-w-[150px] sm:max-w-[180px]"><Globe size={10} />{new URL(c.url).hostname}</span>}
                           </div>
-                          {c.snippet && <div className="text-[11px] text-slate-500 mt-2 line-clamp-2 leading-relaxed">{c.snippet}</div>}
+                          {c.snippet && <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 line-clamp-2 leading-relaxed">{c.snippet}</div>}
                           {c.contacts && c.contacts.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1.5">
                               {c.contacts.map((ct: any, i: number) => (
@@ -640,16 +640,16 @@ export default function FindThem() {
                 ))}
               </div>
               {/* Manual refine - narrow to right individual */}
-              <div className="p-4 bg-white border-t border-slate-200">
-                <div className="text-xs font-semibold text-slate-700 mb-2">Not seeing the right person? Add details to narrow search:</div>
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  <input id="manual-company" placeholder="Company name" className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:border-[hsl(280,85%,55%)]/40 focus:ring-2 focus:ring-[hsl(280,85%,55%)]/10 outline-none" />
-                  <input id="manual-location" placeholder="Location (e.g., San Francisco, CA)" className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:border-[hsl(280,85%,55%)]/40 focus:ring-2 focus:ring-[hsl(280,85%,55%)]/10 outline-none" />
-                  <input id="manual-linkedin" placeholder="LinkedIn URL" className="col-span-2 w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:border-[hsl(280,85%,55%)]/40 focus:ring-2 focus:ring-[hsl(280,85%,55%)]/10 outline-none" />
-                  <input id="manual-extra" placeholder="Any other info (role, email, etc.)" className="col-span-2 w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:border-[hsl(280,85%,55%)]/40 focus:ring-2 focus:ring-[hsl(280,85%,55%)]/10 outline-none" />
+              <div className="p-3 sm:p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 shrink-0">
+                <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Not seeing the right person? Add details to narrow search:</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+                  <input id="manual-company" placeholder="Company name" className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-[hsl(280,85%,55%)]/40 focus:ring-2 focus:ring-[hsl(280,85%,55%)]/10 outline-none min-h-[44px]" />
+                  <input id="manual-location" placeholder="Location (e.g., San Francisco, CA)" className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-[hsl(280,85%,55%)]/40 focus:ring-2 focus:ring-[hsl(280,85%,55%)]/10 outline-none min-h-[44px]" />
+                  <input id="manual-linkedin" placeholder="LinkedIn URL" className="col-span-1 sm:col-span-2 w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-[hsl(280,85%,55%)]/40 focus:ring-2 focus:ring-[hsl(280,85%,55%)]/10 outline-none min-h-[44px]" />
+                  <input id="manual-extra" placeholder="Any other info (role, email, etc.)" className="col-span-1 sm:col-span-2 w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-[hsl(280,85%,55%)]/40 focus:ring-2 focus:ring-[hsl(280,85%,55%)]/10 outline-none min-h-[44px]" />
                 </div>
-                <div className="flex gap-2">
-                  <button onClick={() => setCandidates(null)} className="flex-1 px-4 py-2 rounded-full border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50">CANCEL</button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button onClick={() => setCandidates(null)} className="flex-1 px-4 py-3 rounded-full border border-slate-200 dark:border-slate-600 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 min-h-[44px]">CANCEL</button>
                   <button
                     onClick={() => {
                       const company = (document.getElementById("manual-company") as HTMLInputElement)?.value || "";
@@ -660,13 +660,13 @@ export default function FindThem() {
                       setCandidates(null);
                       runSearch(parts);
                     }}
-                    className="flex-1 px-4 py-2 rounded-full bg-[hsl(280,85%,55%)] text-white text-xs font-medium hover:bg-[hsl(280,85%,50%)] shadow-sm"
+                    className="flex-1 px-4 py-3 rounded-full bg-[hsl(280,85%,55%)] text-white text-xs font-medium hover:bg-[hsl(280,85%,50%)] shadow-sm min-h-[44px]"
                   >
                     REFINE & SEARCH
                   </button>
                   <button
                     onClick={() => { const q = candidateQuery; setCandidates(null); runSearch(q); }}
-                    className="flex-1 px-4 py-2 rounded-full border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                    className="flex-1 px-4 py-3 rounded-full border border-slate-200 dark:border-slate-600 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 min-h-[44px]"
                   >
                     SEARCH ANYWAY
                   </button>

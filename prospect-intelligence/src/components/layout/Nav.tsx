@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NavLink, Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu, X, Crosshair, Database, Zap } from "lucide-react";
+import { Menu, X, Crosshair, Database, Zap, Sun, Moon } from "lucide-react";
 
 const LINKS = [
   { to: "/find", label: "FIND THEM", icon: Crosshair },
@@ -11,6 +11,23 @@ const LINKS = [
 
 export default function Nav() {
   const [open, setOpen] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("pi-theme") as "light" | "dark" | null;
+    const initial = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    setTheme(initial);
+    document.documentElement.classList.toggle("dark", initial === "dark");
+    document.documentElement.style.colorScheme = initial;
+  }, []);
+
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    localStorage.setItem("pi-theme", next);
+    document.documentElement.classList.toggle("dark", next === "dark");
+    document.documentElement.style.colorScheme = next;
+  };
 
   return (
     <header className="fixed top-0 inset-x-0 z-50">
@@ -44,7 +61,14 @@ export default function Nav() {
 
         <div className="flex items-center gap-2">
           <button
-            className="lg:hidden p-2 text-slate-600 hover:text-slate-900"
+            onClick={toggleTheme}
+            aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+            className="h-9 w-9 rounded-full bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-[hsl(var(--border))] flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-[hsl(var(--primary))] hover:border-[hsl(var(--primary)/0.2)] transition-colors"
+          >
+            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
+          <button
+            className="lg:hidden p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
             aria-label="Toggle menu"
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
