@@ -6,23 +6,33 @@ export default function BackgroundFX() {
   return (
     <div
       aria-hidden
-      className="fixed inset-0 z-0 overflow-hidden pointer-events-none bg-[hsl(0,0%,99%)]"
+      className="fixed inset-0 z-0 overflow-hidden pointer-events-none"
     >
-      {/* Relevana hero gradient - soft pastel */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[hsl(280,60%,97%)] via-white to-[hsl(320,55%,97%)] dark:from-[hsl(0,0%,99%)] dark:via-white dark:to-[hsl(280,40%,98%)]" />
-      <div className="absolute inset-x-0 bottom-0 h-72 bg-gradient-to-t from-white to-transparent" />
-      {/* Subtle dot pattern */}
-      <div className="absolute inset-0 opacity-[0.04]" style={{
-        backgroundImage: `radial-gradient(hsl(280,85%,55%) 1px, transparent 1px)`,
-        backgroundSize: "24px 24px"
-      }} />
-      {/* Soft blur glows */}
-      <div className="absolute -top-24 -left-24 w-[600px] h-[600px] bg-[hsl(280,85%,55%)] rounded-full mix-blend-multiply blur-[80px] opacity-[0.04]" />
-      <div className="absolute top-1/3 -right-32 w-[500px] h-[500px] bg-[hsl(320,85%,55%)] rounded-full mix-blend-multiply blur-[80px] opacity-[0.03]" />
+      {/* Base: light pastel gradient (Relevana) + Lusion dark depth */}
+      <div className="absolute inset-0 bg-[hsl(var(--background))]" />
+      <div className="absolute inset-0 bg-gradient-to-br from-[hsl(280,60%,97%)] via-white to-[hsl(320,55%,97%)] dark:from-[hsl(224,40%,7%)] dark:via-[hsl(224,30%,10%)] dark:to-[hsl(280,30%,12%)]" />
+      <div className="absolute inset-x-0 bottom-0 h-72 bg-gradient-to-t from-white dark:from-[hsl(224,40%,7%)] to-transparent" />
+
+      {/* Lusion WebGL blobs - morphing, blurred, landing.love WebGL collection */}
       {!reduced && (
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-1/4 left-1/4 w-px h-32 bg-gradient-to-b from-transparent via-[hsl(280,85%,55%)]/20 to-transparent animate-pulse" style={{ animationDuration: "4s" }} />
-          <div className="absolute top-1/3 right-1/3 w-px h-24 bg-gradient-to-b from-transparent via-[hsl(240,85%,45%)]/15 to-transparent animate-pulse" style={{ animationDuration: "5s", animationDelay: "1s" }} />
+        <>
+          <div className="webgl-blob w-[700px] h-[500px] -top-32 -left-32 bg-gradient-to-br from-[hsl(320,85%,60%)] to-[hsl(280,85%,55%)]" style={{ animationDelay: "0s" }} />
+          <div className="webgl-blob w-[600px] h-[600px] top-1/3 -right-32 bg-gradient-to-br from-[hsl(280,85%,60%)] to-[hsl(240,85%,55%)]" style={{ animationDelay: "-4s" }} />
+          <div className="webgl-blob w-[500px] h-[400px] bottom-0 left-1/3 bg-gradient-to-br from-[hsl(240,85%,60%)] to-[hsl(320,85%,55%)]" style={{ animationDelay: "-8s" }} />
+        </>
+      )}
+
+      {/* landing.love - Minimal grid + 3D depth */}
+      <div className="absolute inset-0 grid-bg opacity-[0.03] dark:opacity-[0.06]" />
+
+      {/* Grain overlay - Lusion editorial texture */}
+      <div className="grain-overlay" />
+
+      {/* Subtle parallax lines - landing.love horizontal scroll hint */}
+      {!reduced && (
+        <div className="absolute inset-0 opacity-[0.02] dark:opacity-[0.04]">
+          <div className="absolute top-1/4 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[hsl(280,85%,55%)] to-transparent" />
+          <div className="absolute top-1/2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[hsl(320,85%,55%)] to-transparent" />
         </div>
       )}
     </div>

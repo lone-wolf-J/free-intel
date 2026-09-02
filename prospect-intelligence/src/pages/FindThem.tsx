@@ -502,23 +502,39 @@ export default function FindThem() {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <section className="relative min-h-[40vh] flex flex-col items-center justify-center px-6 pt-16 pb-8">
-        <GlowRing size={400} color="cyan" className="top-0 left-1/2 -translate-x-1/2 opacity-20" />
+      <section className="relative min-h-[55vh] flex flex-col items-center justify-center px-6 pt-20 pb-10 overflow-hidden">
+        <GlowRing size={500} color="cyan" className="top-0 left-1/2 -translate-x-1/2 opacity-10" />
+        {/* Lusion scroll hint */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.2, duration: 0.8 }}
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 hidden md:flex flex-col items-center gap-2 z-10"
+        >
+          <span className="text-[10px] font-sans font-semibold tracking-[0.2em] text-slate-400 dark:text-slate-500 uppercase">Scroll to explore</span>
+          <motion.div
+            animate={{ y: [0, 6, 0] }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+            className="w-px h-8 bg-gradient-to-b from-[hsl(280,85%,55%)] to-transparent"
+          />
+        </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="relative z-10 text-center mb-8"
+          className="relative z-10 text-center mb-8 max-w-3xl"
         >
-          <div className="mono-label mb-3 flex items-center justify-center gap-2 text-[hsl(280,85%,55%)] dark:text-[hsl(280,85%,65%)]">
-            <Crosshair size={10} className="text-[hsl(280,85%,55%)]" />
-            INTELLIGENCE SCANNER
+          <div className="mono-label mb-4 flex items-center justify-center gap-2 text-[hsl(280,85%,55%)] dark:text-[hsl(280,85%,65%)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[hsl(280,85%,55%)] animate-pulse-dot" />
+            INTELLIGENCE SCANNER — 3D • WEB • AI
           </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mb-2" style={{ fontFamily: "Montserrat, sans-serif" }}>Find Them</h1>
-          <p className="text-sm text-slate-600 dark:text-slate-300 max-w-md mx-auto font-medium">
+          <h1 className="lusion-display text-[2.5rem] sm:text-[3.5rem] lg:text-[4.5rem] text-slate-900 dark:text-white mb-4">
+            Find <span className="lusion-gradient italic">Them.</span>
+          </h1>
+          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 max-w-xl mx-auto font-medium leading-relaxed">
             Enter a name, company, role, or LinkedIn URL. AI scans the internet to build a
-            complete 20+ section intelligence dossier.
+            complete 20+ section intelligence dossier — <span className="text-[hsl(280,85%,55%)]">bold ideas, brought to life</span>.
           </p>
         </motion.div>
 
@@ -561,14 +577,29 @@ export default function FindThem() {
             </button>
           </div>
 
-          <div className="mt-3 flex flex-wrap justify-center gap-2">
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
             {["Person name + company", "LinkedIn URL", "Company + role", "Email address"].map(
               (hint) => (
-                <span key={hint} className="text-[10px] font-mono text-slate-600 uppercase tracking-wider">
+                <span key={hint} className="text-[10px] font-sans font-medium text-slate-500 dark:text-slate-400 bg-white/60 dark:bg-slate-800/60 backdrop-blur border border-slate-200 dark:border-slate-700 rounded-full px-3 py-1">
                   {hint}
                 </span>
               )
             )}
+          </div>
+          {/* landing.love categories - horizontal scroll */}
+          <div className="mt-3 overflow-hidden">
+            <div className="flex gap-2 animate-horizontal-scroll whitespace-nowrap py-1">
+              {["3D Website", "Dark Mode", "Gradient", "GSAP", "WebGL", "Minimal", "SaaS", "AI", "Portfolio", "Agency"].map((cat) => (
+                <span key={cat} className="shrink-0 text-[10px] font-sans font-semibold tracking-wide text-[hsl(280,85%,55%)] bg-[hsl(280,85%,55%)/0.08] border border-[hsl(280,85%,55%)/0.15] rounded-full px-3 py-1">
+                  {cat}
+                </span>
+              ))}
+              {["3D Website", "Dark Mode", "Gradient", "GSAP", "WebGL", "Minimal", "SaaS", "AI", "Portfolio", "Agency"].map((cat) => (
+                <span key={cat + "-2"} className="shrink-0 text-[10px] font-sans font-semibold tracking-wide text-[hsl(280,85%,55%)] bg-[hsl(280,85%,55%)/0.08] border border-[hsl(280,85%,55%)/0.15] rounded-full px-3 py-1">
+                  {cat}
+                </span>
+              ))}
+            </div>
           </div>
         </motion.div>
       </section>

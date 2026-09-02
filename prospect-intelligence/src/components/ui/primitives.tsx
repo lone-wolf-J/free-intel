@@ -92,18 +92,24 @@ export function SectionTitle({
   right?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-end justify-between gap-4 mb-6">
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-40px" }}
+      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      className="flex items-end justify-between gap-4 mb-6"
+    >
       <div>
         <div className="mono-label mb-2 flex items-center gap-2">
           <span className="inline-block h-1.5 w-1.5 bg-[hsl(var(--primary))] animate-pulse-dot rounded-full" />
           {kicker}
         </div>
-        <h2 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900" style={{ fontFamily: "Montserrat, sans-serif" }}>
+        <h2 className="lusion-display text-xl md:text-2xl text-slate-900 dark:text-white">
           {title}
         </h2>
       </div>
       {right}
-    </div>
+    </motion.div>
   );
 }
 
@@ -155,17 +161,28 @@ export function GlassCard({
     const y = (e.clientY - rect.top) / rect.height;
     ref.current?.style.setProperty("--mx", String(x));
     ref.current?.style.setProperty("--my", String(y));
+    // Lusion subtle 3D tilt
+    const rx = (y - 0.5) * -2;
+    const ry = (x - 0.5) * 2;
+    ref.current!.style.transform = `perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg) translateZ(0)`;
     onMouseMove?.(e);
   };
 
+  const handleLeave = () => {
+    if (ref.current) ref.current.style.transform = "perspective(1000px) rotateX(0) rotateY(0) translateZ(0)";
+  };
+
   return (
-    <div
+    <motion.div
       ref={ref}
-      className={`glass-card ${className}`}
+      className={`glass-card bento-card ${className}`}
       onMouseMove={handleMouseMove}
+      onMouseLeave={handleLeave}
+      whileHover={{ y: -4 }}
+      transition={{ type: "spring", stiffness: 300, damping: 20 }}
     >
       <div className="relative z-10">{children}</div>
-    </div>
+    </motion.div>
   );
 }
 
