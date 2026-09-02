@@ -580,7 +580,7 @@ export default function FindThem() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-sm"
             onClick={() => setCandidates(null)}
           >
             <motion.div
@@ -588,7 +588,7 @@ export default function FindThem() {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-2xl max-h-[90vh] sm:max-h-[85vh] overflow-hidden bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col"
+              className="w-full max-w-2xl max-h-[92vh] sm:max-h-[85vh] overflow-hidden bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col"
             >
               <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-[hsl(280,60%,97%)] to-white dark:from-slate-800 dark:to-slate-900 shrink-0">
                 <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2" style={{ fontFamily: "Montserrat, sans-serif" }}>
@@ -641,16 +641,17 @@ export default function FindThem() {
               </div>
               {/* Manual refine - narrow to right individual */}
               <div className="p-3 sm:p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 shrink-0">
-                <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Not seeing the right person? Add details to narrow search:</div>
+                <div className="text-xs font-semibold text-slate-900 dark:text-white mb-2">Not seeing the right person? Add details to narrow search:</div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
-                  <input id="manual-company" placeholder="Company name" className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-[hsl(280,85%,55%)]/40 focus:ring-2 focus:ring-[hsl(280,85%,55%)]/10 outline-none min-h-[44px]" />
-                  <input id="manual-location" placeholder="Location (e.g., San Francisco, CA)" className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-[hsl(280,85%,55%)]/40 focus:ring-2 focus:ring-[hsl(280,85%,55%)]/10 outline-none min-h-[44px]" />
-                  <input id="manual-linkedin" placeholder="LinkedIn URL" className="col-span-1 sm:col-span-2 w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-[hsl(280,85%,55%)]/40 focus:ring-2 focus:ring-[hsl(280,85%,55%)]/10 outline-none min-h-[44px]" />
-                  <input id="manual-extra" placeholder="Any other info (role, email, etc.)" className="col-span-1 sm:col-span-2 w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-[hsl(280,85%,55%)]/40 focus:ring-2 focus:ring-[hsl(280,85%,55%)]/10 outline-none min-h-[44px]" />
+                  <input id="manual-company" placeholder="Company name" className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-3 text-xs font-medium text-slate-900 dark:text-white placeholder-slate-500 focus:border-[hsl(280,85%,55%)] focus:ring-2 focus:ring-[hsl(280,85%,55%)]/20 outline-none min-h-[44px]" />
+                  <input id="manual-location" placeholder="Location (e.g., San Francisco, CA)" className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-3 text-xs font-medium text-slate-900 dark:text-white placeholder-slate-500 focus:border-[hsl(280,85%,55%)] focus:ring-2 focus:ring-[hsl(280,85%,55%)]/20 outline-none min-h-[44px]" />
+                  <input id="manual-linkedin" placeholder="LinkedIn URL" className="col-span-1 sm:col-span-2 w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-3 text-xs font-medium text-slate-900 dark:text-white placeholder-slate-500 focus:border-[hsl(280,85%,55%)] focus:ring-2 focus:ring-[hsl(280,85%,55%)]/20 outline-none min-h-[44px]" />
+                  <input id="manual-extra" placeholder="Any other info (role, email, etc.)" className="col-span-1 sm:col-span-2 w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-3 text-xs font-medium text-slate-900 dark:text-white placeholder-slate-500 focus:border-[hsl(280,85%,55%)] focus:ring-2 focus:ring-[hsl(280,85%,55%)]/20 outline-none min-h-[44px]" />
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <button onClick={() => setCandidates(null)} className="flex-1 px-4 py-3 rounded-full border border-slate-200 dark:border-slate-600 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 min-h-[44px]">CANCEL</button>
+                  <button type="button" onClick={() => setCandidates(null)} className="flex-1 px-4 py-3 rounded-full border border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 bg-white dark:bg-slate-800 min-h-[44px] cursor-pointer relative z-10">CANCEL</button>
                   <button
+                    type="button"
                     onClick={() => {
                       const company = (document.getElementById("manual-company") as HTMLInputElement)?.value || "";
                       const location = (document.getElementById("manual-location") as HTMLInputElement)?.value || "";
@@ -660,13 +661,14 @@ export default function FindThem() {
                       setCandidates(null);
                       runSearch(parts);
                     }}
-                    className="flex-1 px-4 py-3 rounded-full bg-[hsl(280,85%,55%)] text-white text-xs font-medium hover:bg-[hsl(280,85%,50%)] shadow-sm min-h-[44px]"
+                    className="flex-1 px-4 py-3 rounded-full bg-[hsl(280,85%,55%)] text-white text-xs font-bold hover:bg-[hsl(280,85%,50%)] shadow-md min-h-[44px] cursor-pointer relative z-10"
                   >
                     REFINE & SEARCH
                   </button>
                   <button
+                    type="button"
                     onClick={() => { const q = candidateQuery; setCandidates(null); runSearch(q); }}
-                    className="flex-1 px-4 py-3 rounded-full border border-slate-200 dark:border-slate-600 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 min-h-[44px]"
+                    className="flex-1 px-4 py-3 rounded-full border border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 bg-white dark:bg-slate-800 min-h-[44px] cursor-pointer relative z-10"
                   >
                     SEARCH ANYWAY
                   </button>
