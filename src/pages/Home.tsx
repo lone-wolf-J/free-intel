@@ -67,7 +67,7 @@ export default function Home() {
         </motion.div>
 
         <div className="mb-4 md:mb-6">
-          <FreeIntelLogo size={48} showText />
+          <FreeIntelLogo size={64} showText showTagline />
         </div>
 
         <h1 className="font-bold leading-[0.98] tracking-tight text-3xl sm:text-4xl md:text-5xl lg:text-7xl max-w-5xl">
