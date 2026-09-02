@@ -95,10 +95,10 @@ export function SectionTitle({
     <div className="flex items-end justify-between gap-4 mb-6">
       <div>
         <div className="mono-label mb-2 flex items-center gap-2">
-          <span className="inline-block h-1.5 w-1.5 bg-lime-neon animate-pulse-dot rounded-full" />
+          <span className="inline-block h-1.5 w-1.5 bg-[hsl(var(--primary))] animate-pulse-dot rounded-full" />
           {kicker}
         </div>
-        <h2 className="text-xl md:text-2xl font-bold tracking-tight text-slate-100">
+        <h2 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900" style={{ fontFamily: "Montserrat, sans-serif" }}>
           {title}
         </h2>
       </div>
@@ -122,14 +122,14 @@ export function Panel({
     >
       <span
         aria-hidden
-        className={`absolute -top-px -left-px h-3 w-3 border-t border-l ${
-          bright ? "border-cyan/60" : "border-slate-500/40"
+        className={`absolute -top-px -left-px h-3 w-3 border-t-2 border-l-2 rounded-tl-2xl ${
+          bright ? "border-[hsl(var(--primary)/0.25)]" : "border-[hsl(var(--border))]"
         }`}
       />
       <span
         aria-hidden
-        className={`absolute -bottom-px -right-px h-3 w-3 border-b border-r ${
-          bright ? "border-cyan/60" : "border-slate-500/40"
+        className={`absolute -bottom-px -right-px h-3 w-3 border-b-2 border-r-2 rounded-br-2xl ${
+          bright ? "border-[hsl(var(--primary)/0.25)]" : "border-[hsl(var(--border))]"
         }`}
       />
       {children}
@@ -177,11 +177,11 @@ export function EmptyState({
   hint?: string;
 }) {
   return (
-    <div className="glass rounded-lg p-10 text-center">
-      <div className="font-mono text-xs uppercase tracking-[0.25em] text-slate-500 mb-2">
+    <div className="glass rounded-2xl p-10 text-center">
+      <div className="font-sans text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-2">
         // NO DATA
       </div>
-      <div className="text-slate-300 font-semibold">{title}</div>
+      <div className="text-slate-900 font-semibold" style={{ fontFamily: "Montserrat, sans-serif" }}>{title}</div>
       {hint && (
         <div className="mt-2 text-sm text-slate-500 max-w-md mx-auto">
           {hint}
@@ -194,9 +194,9 @@ export function EmptyState({
 export function Spinner({ label }: { label?: string }) {
   return (
     <div className="flex items-center justify-center py-14 gap-3">
-      <div className="h-5 w-5 rounded-full border-2 border-cyan/30 border-t-cyan animate-spin" />
+      <div className="h-5 w-5 rounded-full border-2 border-[hsl(var(--primary)/0.2)] border-t-[hsl(var(--primary))] animate-spin" />
       {label && (
-        <span className="font-mono text-xs uppercase tracking-widest text-slate-400">
+        <span className="font-sans text-xs font-medium uppercase tracking-widest text-slate-500">
           {label}
         </span>
       )}
@@ -213,10 +213,10 @@ export function GlowRing({
   color?: "cyan" | "violet" | "lime";
   className?: string;
 }) {
-  const colors = {
-    cyan: "rgba(0,240,255,0.15)",
-    violet: "rgba(168,85,247,0.15)",
-    lime: "rgba(163,255,18,0.12)",
+  const colors: any = {
+    cyan: "hsl(280 85% 55% / 0.08)",
+    violet: "hsl(280 85% 55% / 0.08)",
+    lime: "hsl(280 85% 55% / 0.06)",
   };
   return (
     <motion.div

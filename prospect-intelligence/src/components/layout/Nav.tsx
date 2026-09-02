@@ -14,48 +14,37 @@ export default function Nav() {
 
   return (
     <header className="fixed top-0 inset-x-0 z-50">
-      <div className="glass border-x-0 border-t-0 rounded-none px-4 md:px-8 h-14 flex items-center justify-between gap-4">
+      <div className="bg-white/80 backdrop-blur-lg border-b border-[hsl(var(--border))] px-4 md:px-8 h-16 flex items-center justify-between gap-4">
         <Link to="/" className="flex items-center gap-2.5 group shrink-0">
-          <span className="relative flex h-7 w-7 items-center justify-center">
-            <span className="absolute inset-0 rounded-full border border-cyan/50 group-hover:animate-spin [animation-duration:3s]" />
-            <span className="h-1.5 w-1.5 rounded-full bg-lime-neon shadow-glow-lime" />
+          <span className="relative flex h-8 w-8 items-center justify-center">
+            <span className="absolute inset-0 rounded-full bg-gradient-to-br from-[hsl(320,85%,55%)] to-[hsl(240,85%,45%)] opacity-90" />
+            <span className="relative h-2 w-2 rounded-full bg-white shadow-sm" />
           </span>
-          <span className="font-mono font-bold text-sm tracking-[0.18em] text-slate-100">
-            PROSPECT<span className="text-cyan">//</span>INTEL
+          <span className="font-heading font-bold text-sm tracking-tight text-slate-900">
+            PROSPECT<span className="bg-gradient-to-r from-[hsl(320,85%,55%)] to-[hsl(280,85%,55%)] bg-clip-text text-transparent">//</span>INTEL
           </span>
         </Link>
 
-        <nav className="hidden lg:flex items-center gap-0.5" aria-label="Primary">
+        <nav className="hidden lg:flex items-center gap-1" aria-label="Primary">
           {LINKS.map((l) => (
             <NavLink
               key={l.to}
               to={l.to}
               className={({ isActive }) =>
-                `relative px-3 py-2 font-mono text-[10.5px] tracking-[0.16em] transition-colors duration-200 flex items-center gap-1.5 ${
-                  isActive ? "text-cyan" : "text-slate-400 hover:text-slate-100"
+                `relative px-4 py-2 rounded-full text-xs font-medium tracking-wide transition-all duration-200 flex items-center gap-1.5 ${
+                  isActive ? "bg-[hsl(var(--primary))] text-white shadow-sm" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 }`
               }
             >
-              {({ isActive }) => (
-                <>
-                  <l.icon size={12} />
-                  {l.label}
-                  {isActive && (
-                    <motion.span
-                      layoutId="nav-underline"
-                      className="absolute inset-x-2 -bottom-[13px] h-px bg-cyan"
-                      style={{ boxShadow: "0 0 12px rgba(0,240,255,.8)" }}
-                    />
-                  )}
-                </>
-              )}
+              <l.icon size={12} />
+              {l.label}
             </NavLink>
           ))}
         </nav>
 
         <div className="flex items-center gap-2">
           <button
-            className="lg:hidden p-2 text-slate-300"
+            className="lg:hidden p-2 text-slate-600 hover:text-slate-900"
             aria-label="Toggle menu"
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
@@ -72,7 +61,7 @@ export default function Nav() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.25 }}
-            className="lg:hidden glass mx-3 mt-2 rounded-lg overflow-hidden"
+            className="lg:hidden bg-white border-b border-[hsl(var(--border))] mx-3 mt-2 rounded-2xl overflow-hidden shadow-soft"
             aria-label="Mobile"
           >
             {LINKS.map((l) => (
@@ -81,8 +70,8 @@ export default function Nav() {
                 to={l.to}
                 onClick={() => setOpen(false)}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-5 py-3.5 font-mono text-xs tracking-[0.18em] border-b border-slate-700/30 last:border-0 ${
-                    isActive ? "text-cyan bg-cyan/5" : "text-slate-300"
+                  `flex items-center gap-3 px-5 py-3.5 font-medium text-sm border-b border-[hsl(var(--border))] last:border-0 ${
+                    isActive ? "bg-[hsl(var(--primary)/0.08)] text-[hsl(var(--primary))]" : "text-slate-700"
                   }`
                 }
               >
