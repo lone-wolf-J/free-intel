@@ -1857,6 +1857,7 @@ const RSS_FEEDS = [
   { name: "Groq Blog", url: "https://groq.com/blog/feed/", category: "provider-update" },
   { name: "r/LocalLLaMA", url: "https://www.reddit.com/r/LocalLLaMA/.rss", category: "community" },
   { name: "Hacker News Best", url: "https://hnrss.org/best?q=free+AI+tool+OR+open+source+AI", category: "community" },
+  { name: "FreeLLM.net Updates", url: "https://freellm.net/rss.xml", category: "community" },
 ];
 
 app.get("/api/community/rss", async (c) => {

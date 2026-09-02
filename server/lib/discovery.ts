@@ -271,7 +271,10 @@ const STARTER_SOURCES: Array<{ name: string; url: string; type: string; category
   { name: "Replicate Blog", url: "https://replicate.com/blog/rss.xml", type: "rss", category: "vendor-blog", tier: 2 },
   { name: "Runway Blog", url: "https://runwayml.com/blog/rss.xml", type: "rss", category: "vendor-blog", tier: 2 },
   { name: "Leonardo AI Blog", url: "https://leonardo.ai/blog/rss.xml", type: "rss", category: "vendor-blog", tier: 2 },
-  { name: "Civitai RSS", url: "https://civitai.com/rss", type: "rss", category: "deals", tier: 2 }
+  { name: "Civitai RSS", url: "https://civitai.com/rss", type: "rss", category: "deals", tier: 2 },
+  // ── FREE LLM API TRACKERS ──
+  { name: "FreeLLM.net Updates", url: "https://freellm.net/rss.xml", type: "rss", category: "community", tier: 1 },
+  { name: "LLM Cloud Hub News", url: "https://llmcloudhub.com/news/rss/", type: "rss", category: "community", tier: 2 }
 ];
 
 // ── WEB SCRAPE SOURCES (non-RSS, need HTML parsing) ──
