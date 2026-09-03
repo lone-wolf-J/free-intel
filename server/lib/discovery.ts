@@ -464,6 +464,30 @@ const WEB_SCRAPE_SOURCES: Array<{ name: string; url: string; category: string; s
   { name: "OpenRouter Models", url: "https://openrouter.ai/models", category: "model-catalog", selectors: { title: "h3, .model-name", link: "a[href*='/models/']", description: "p" } },
   { name: "NVIDIA NIM Catalog", url: "https://build.nvidia.com/nim", category: "model-catalog", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
   { name: "HuggingFace Models", url: "https://huggingface.co/models", category: "model-catalog", selectors: { title: "h3, .model-name", link: "a[href*='/models/']", description: "p" } },
+  // ============================================================
+  // FREE LLM API DIRECTORIES & AGGREGATORS (new)
+  // ============================================================
+  { name: "freellm.net - providers", url: "https://freellm.net/providers", category: "free-api", selectors: { title: "h3, .provider-name", link: "a[href*='/providers/']", description: "p" } },
+  { name: "freellm.net - use cases", url: "https://freellm.net/use-cases", category: "free-api", selectors: { title: "h3, .use-case", link: "a[href]", description: "p" } },
+  { name: "Gratisfy - free models", url: "https://gratisfy.xyz/", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "api-hub.ai - models", url: "https://www.api-hub.ai/models", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "Proxifai AI Gateway", url: "https://proxifai.com/ai-gateway", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "1vy - models", url: "https://1vy.ai/models", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "AIKVIST - models", url: "https://www.aikvist.com/models", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "AnyAPI - models", url: "https://anyapi.ai/models", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "ModelGates - models", url: "https://modelgates.ai/models", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "FreeAPIHub - models", url: "https://freeapihub.com/models", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "NVIDIA NIM catalog", url: "https://build.nvidia.com/nim", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "GitHub Models", url: "https://github.com/marketplace/models", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href*='/models/']", description: "p" } },
+  { name: "ModelScope - free", url: "https://modelscope.cn/models", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href*='/models/']", description: "p" } },
+  { name: "OVHcloud AI Endpoints", url: "https://www.ovhcloud.com/en/public-cloud/ai-endpoints/catalog/", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "Cloudflare Workers AI", url: "https://developers.cloudflare.com/workers-ai/models/", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "Cohere models", url: "https://cohere.com/models", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "AI21 Labs models", url: "https://www.ai21.com/models", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "xAI models", url: "https://docs.x.ai/docs/models", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "Alibaba Model Studio", url: "https://modelstudio.console.aliyun.com", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "Nebius Studio", url: "https://studio.nebius.com/models", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
+  { name: "Nscale models", url: "https://nscale.com/models", category: "free-api", selectors: { title: "h3, .model-name", link: "a[href]", description: "p" } },
 ];
 
 export async function enqueue(db: any, kind: string, payload: any, priority = 5) {
